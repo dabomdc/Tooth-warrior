@@ -1,4 +1,4 @@
-// Version: 6.7.1 - Main Engine (Bug Fixes, UI Sync, Save/Load)
+// Version: 6.7.1 - Main Engine (Bug Fixes, UI Sync, Save/Load, Missing Code Restored)
 
 window.gold = 0; 
 window.dia = 0; 
@@ -160,7 +160,6 @@ function loadGame() {
         if(window.updateSoundBtn) window.updateSoundBtn();
         updatePickaxeVisual();
         
-        // 헬모드 토글 버튼 노출 여부
         if(window.highestToothLevel >= 36) {
             const hellContainer = document.getElementById('hell-mode-toggle-container');
             if(hellContainer) hellContainer.style.display = 'flex';
@@ -235,7 +234,6 @@ window.massMerge = function(lv, once = false) {
     if(window.playSfx) window.playSfx('merge'); 
     
     const loopCount = once ? 1 : Math.floor(indices.length / 2); 
-    
     let extraGreatChance = (window.highestToothLevel >= 21) ? 0.05 : 0;
     const currentGreatChance = (window.greatChanceLevel * 0.02) + extraGreatChance;
 
@@ -251,7 +249,6 @@ window.massMerge = function(lv, once = false) {
         window.inventory[idx1] = 0; 
         
         checkHighestTier(nextLv); 
-        
         if(isGreat && window.currentView === 'mine') triggerGreatSuccess(idx2); 
     } 
     if(window.currentView === 'mine') renderInventory(); 
@@ -288,9 +285,6 @@ window.updateUI = function() {
     
     const pn = document.getElementById('pickaxe-name');
     if(pn) pn.innerText = TOOTH_DATA.pickaxes[window.pickaxeIdx].name; 
-    
-    // 매 프레임 저장은 부하를 줄 수 있으므로 1초에 한 번만 저장되게 조절하거나 생략
-    // saveGame(); -> 게임 루프에서는 제거. 주요 액션 시에만 저장합니다.
 };
 
 window.renderInventory = function() { 
@@ -440,7 +434,7 @@ function setupMiningTouch() {
             window.gold += tapGold;
             
             const worldDiv = document.getElementById('battle-world');
-            if(!worldDiv) { // 전투중이 아닐때 메인화면에 골드 표시
+            if(!worldDiv) {
                 const txt = document.createElement('div');
                 txt.className = 'gold-text';
                 txt.innerText = `💰+${window.fNum ? window.fNum(tapGold) : tapGold}`;
@@ -468,7 +462,126 @@ function setupMiningTouch() {
     }); 
 }
 
-// --- [ 4. 기타 유틸리티 ] ---
+// --- [ 4. 누락되었던 용병 및 던전 그리기 로직 (복구 완료!) ] ---
+window.renderMercenaryCamp = function() { 
+    const camp = document.getElementById('mercenary-list'); 
+    if(!camp) return;
+    camp.innerHTML = ''; 
+    const maxOwned = Math.max(...window.ownedMercenaries); 
+    
+    let tier6Text = (window.highestToothLevel >= 26) ? `<span style="color:yellow;">(x2)</span>` : "";
+
+    TOOTH_DATA.mercenaries.forEach(merc => { 
+        if (merc.id > maxOwned + 1) return; 
+        const div = document.createElement('div'); 
+        div.className = 'merc-card'; 
+        
+        const isOwned = window.ownedMercenaries.includes(merc.id); 
+        const isEquipped = window.mercenaryIdx === merc.id; 
+        
+        div.innerHTML = `
+            <div style="font-size:25px;">${merc.icon}</div>
+            <div style="font-size:12px; font-weight:bold; margin:5px 0;">${merc.name}</div>
+            <div style="font-size:10px; color:#aaa;">공격 x${merc.atkMul} ${tier6Text}</div>
+            <div style="font-size:10px; color:#f55;">HP ${window.fNum ? window.fNum(merc.baseHp) : merc.baseHp}</div> 
+        `; 
+        
+        if (isEquipped) {
+            div.style.border = '2px solid #2ecc71'; 
+            div.innerHTML += `<button class="btn-sm" style="background:#2ecc71; color:white; width:100%; margin-top:5px; cursor:default;">고용중</button>`;
+        } else if (isOwned) {
+            div.innerHTML += `<button onclick="equipMerc(${merc.id})" class="btn-sm" style="background:#777; width:100%; margin-top:5px;">대기중</button>`; 
+        } else {
+            div.innerHTML += `<button onclick="buyMerc(${merc.id}, ${merc.cost})" class="btn-gold" style="padding:4px 5px; font-size:11px; width:100%; margin-top:5px;">${window.fNum ? window.fNum(merc.cost) : merc.cost}G</button>`; 
+        }
+        camp.appendChild(div); 
+    }); 
+};
+
+window.buyMerc = function(id, cost) { 
+    if(window.gold >= cost) { 
+        window.gold -= cost; 
+        if(window.playSfx) window.playSfx('upgrade'); 
+        window.ownedMercenaries.push(id); 
+        window.renderMercenaryCamp(); updateUI(); 
+    } else { alert("골드 부족"); } 
+};
+window.equipMerc = function(id) { window.mercenaryIdx = id; window.renderMercenaryCamp(); saveGame(); };
+
+window.renderDungeonList = function() { 
+    const list = document.getElementById('dungeon-list'); 
+    if(!list) return;
+    list.innerHTML = ''; 
+    
+    const isHell = window.isHellMode;
+    const dungeonData = isHell ? TOOTH_DATA.hellDungeons : TOOTH_DATA.dungeons;
+    
+    dungeonData.forEach((name, idx) => { 
+        const div = document.createElement('div'); 
+        const isUnlocked = idx < window.unlockedDungeon; 
+        div.className = `dungeon-card ${isUnlocked ? 'unlocked' : 'locked'}`; 
+        
+        let baseHp = Math.floor(100 * Math.pow(2.2, idx));
+        if (isHell) baseHp *= 50;
+        const bossHp = baseHp * 30;
+        const recAtk = bossHp / 40;
+
+        if (isUnlocked) { 
+            div.innerHTML = `<h4>⚔️ Lv.${idx+1} ${name}</h4>
+            <p style="margin:5px 0 0 0; font-size:12px; color:#aaa;">권장 공격력: ${window.fNum ? window.fNum(recAtk) : recAtk}+</p>
+            ${isHell ? `<p style="color:#00fbff; font-size:11px; margin:5px 0 0 0;">보스 클리어 시 대량의 다이아 획득!</p>` : `<p style="color:#f1c40f; font-size:11px; margin:5px 0 0 0;">클리어 시 Lv.${idx+2} 치아 확정 채굴</p>`}`; 
+            div.onclick = () => { if(window.startDungeon) window.startDungeon(idx); };
+        } else { 
+            div.innerHTML = `<h4>🔒 잠김</h4><p style="margin:5px 0 0 0; font-size:12px; color:#888;">이전 던전 클리어 시 열림</p>`; 
+        } 
+        list.appendChild(div); 
+    }); 
+};
+
+// --- [ 5. 랭킹 시스템 (가짜 랭킹 및 내 순위 계산) ] ---
+window.generateRankings = function() {
+    const list = document.getElementById('ranking-list');
+    if(!list) return;
+    
+    // 가상의 랭커들 데이터
+    let ranks = [
+        { name: "치아신", d: 20, p: 9999999 },
+        { name: "임플란트마스터", d: 19, p: 850000 },
+        { name: "발치왕", d: 17, p: 600000 },
+        { name: "Driller", d: 15, p: 450000 },
+        { name: "충치파괴자", d: 12, p: 200000 },
+        { name: "초보원장", d: 5, p: 15000 }
+    ];
+    
+    // 플레이어 전투력 계산 (가장 높은 치아 공격력 * 용병 공격력)
+    let myPower = window.getAtk ? window.getAtk(window.highestToothLevel) : 10;
+    if (TOOTH_DATA.mercenaries[window.mercenaryIdx]) {
+        myPower *= TOOTH_DATA.mercenaries[window.mercenaryIdx].atkMul;
+    }
+    
+    let myData = { name: window.nickname || "나", d: window.unlockedDungeon, p: myPower, isMe: true };
+    ranks.push(myData);
+    
+    // 전투력 기준으로 정렬
+    ranks.sort((a, b) => b.p - a.p);
+    
+    let html = '';
+    let myRank = -1;
+    ranks.forEach((r, idx) => {
+        if(r.isMe) myRank = idx + 1;
+        html += `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #333; ${r.isMe ? 'color:var(--gold); font-weight:bold;' : 'color:#ccc;'}">
+            <span style="width:15%;">${idx+1}</span>
+            <span style="flex:1; text-align:center;">${r.name}</span>
+            <span style="width:20%; text-align:center;">Lv.${r.d}</span>
+            <span style="width:25%; text-align:right;">${window.fNum ? window.fNum(r.p) : r.p}</span>
+        </div>`;
+    });
+    
+    list.innerHTML = html;
+    document.getElementById('my-rank-display').innerText = `내 순위: ${myRank}위 (전투력: ${window.fNum ? window.fNum(myPower) : myPower})`;
+};
+
+// --- [ 6. 기타 유틸리티 ] ---
 window.toggleMining = function() { 
     window.isMiningPaused = !window.isMiningPaused; 
     const btn = document.getElementById('mine-toggle-btn');
