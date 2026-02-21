@@ -1,4 +1,4 @@
-// Version: 6.7.0 - Battle System (Movement & Camera)
+// Version: 6.7.1 - Battle System (Movement Speed Fix)
 
 window.lastFrameTime = 0;
 const FPS = 60;
@@ -20,10 +20,10 @@ function startDungeon(idx) {
     window.isBossWave = false;
     window.enemies = []; 
     window.missiles = []; 
-    window.enemyMissiles = []; // 신규: 적 미사일 배열
+    window.enemyMissiles = [];
     window.dungeonActive = true;
     window.dungeonGoldEarned = 0;
-    window.dungeonDiaEarned = 0; // 신규: 획득 다이아 추적
+    window.dungeonDiaEarned = 0; 
     
     window.activeSlotIndex = 0;
     window.relayTimer = 0;
@@ -47,7 +47,7 @@ function startDungeon(idx) {
     window.currentMercenary = {
         ...baseMerc,
         baseHp: Math.floor(baseMerc.baseHp * hpBuff),
-        spd: baseMerc.spd + spdBuff,
+        spd: baseMerc.spd + spdBuff, // 훈련소 스피드 버프
         atkMul: baseMerc.atkMul * atkBuff
     };
     
@@ -112,22 +112,23 @@ function battleLoop(timestamp) {
         
         updatePlayerMovement(); 
         updateCamera(); 
-        if(window.updateCombat) window.updateCombat(); // combat.js의 전투 로직 호출
+        if(window.updateCombat) window.updateCombat();
     }
 }
 
 function updatePlayerMovement() { 
     if (Math.abs(window.moveX) < 0.1 && Math.abs(window.moveY) < 0.1) return; 
-    const speed = 5 * (window.currentMercenary.spd || 1.0); 
+    
+    // [수정 핵심] 기본 이동 속도 계수를 5에서 2.5로 대폭 감소시켰습니다.
+    const speed = 2.5 * (window.currentMercenary.spd || 1.0); 
+    
     window.playerX += window.moveX * speed; 
     window.playerY += window.moveY * speed; 
     
-    // 맵 밖으로 나가지 못하게 제한
     window.playerX = Math.max(20, Math.min(window.worldWidth - 20, window.playerX)); 
     window.playerY = Math.max(20, Math.min(window.worldHeight - 20, window.playerY)); 
     updatePlayerPos(); 
     
-    // 이동 방향에 따라 용병 아이콘 좌우 반전
     const char = document.getElementById('player-char'); 
     if(char) char.style.transform = window.moveX < 0 ? 'scaleX(-1)' : 'scaleX(1)'; 
 }
@@ -139,7 +140,7 @@ function updateCamera() {
 }
 
 function takeDamage(amount) { 
-    if(window.isInvincible) return; // 무적 상태면 무시
+    if(window.isInvincible) return; 
     
     window.playerHp -= amount; 
     updatePlayerHpBar(); 
@@ -162,7 +163,6 @@ function takeDamage(amount) {
 function exitDungeon() { 
     window.dungeonActive = false; 
     
-    // 화면에 남은 적과 미사일 모두 제거
     if(window.enemies) window.enemies.forEach(en => { if(en.el) en.el.remove(); }); 
     if(window.missiles) window.missiles.forEach(m => { if(m.el) m.el.remove(); }); 
     if(window.enemyMissiles) window.enemyMissiles.forEach(m => { if(m.el) m.el.remove(); }); 
@@ -192,7 +192,6 @@ function renderWarWeapons() {
         const slot = document.createElement('div'); 
         slot.className = 'war-slot'; 
         slot.id = `war-slot-${i}`; 
-        // 하단 무기 슬롯에 CSS Tiers 이펙트가 적용된 아이콘 출력
         slot.innerHTML = `<div class="cd-overlay"></div>` + getToothIcon(window.inventory[i] || 0); 
         container.appendChild(slot); 
     } 
