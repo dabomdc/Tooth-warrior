@@ -1,6 +1,6 @@
-// Version: 6.7.0 - Combat Logic & Enemy AI (Hell, Missiles, Crit)
+// Version: 6.7.1 - Combat Logic & Enemy AI (Wave Bug Fix, Missiles, Crit)
 
-function spawnWave() {
+window.spawnWave = function() {
     if (!window.dungeonActive || window.bossDead) return;
     if (window.isBossWave && window.enemies.some(e => e.isBoss)) return;
 
@@ -11,14 +11,14 @@ function spawnWave() {
         const tid = setTimeout(() => { 
             if(window.dungeonActive && !window.bossDead) {
                 if (window.isBossWave && window.enemies.some(e => e.isBoss)) return;
-                spawnEnemy(window.isBossWave); 
+                window.spawnEnemy(window.isBossWave); 
             }
         }, i * 800);
         window.spawnTimeouts.push(tid);
     }
-}
+};
 
-function spawnEnemy(isBoss = false) {
+window.spawnEnemy = function(isBoss = false) {
     const worldDiv = document.getElementById('battle-world');
     const en = document.createElement('div');
     en.className = isBoss ? 'battle-enemy boss' : 'battle-enemy';
@@ -35,7 +35,7 @@ function spawnEnemy(isBoss = false) {
     let sx = (window.worldWidth / 2) + Math.cos(angle) * dist; 
     let sy = (window.worldHeight / 2) + Math.sin(angle) * dist;
     
-    // 체력 및 스탯 계산 (HELL 모드면 50배 체력, 10배 공격력)
+    // 체력 계산 (HELL 모드면 50배 체력 증폭)
     let baseHp = Math.floor(100 * Math.pow(2.2, window.currentDungeonIdx));
     if (window.isHellMode) baseHp *= 50;
     const maxHp = baseHp * (isBoss ? 30 : 1);
@@ -44,7 +44,6 @@ function spawnEnemy(isBoss = false) {
     en.style.left = sx + 'px'; en.style.top = sy + 'px'; 
     worldDiv.appendChild(en); 
     
-    // 적 객체 생성 (shootTimer 추가)
     window.enemies.push({ 
         el: en, 
         hpFill: en.querySelector('.hp-bar-fill'), 
@@ -56,9 +55,9 @@ function spawnEnemy(isBoss = false) {
         speed: isBoss ? 1.5 : 2.5 + (window.currentDungeonIdx * 0.1),
         shootTimer: 0 
     });
-}
+};
 
-function updateCombat() {
+window.updateCombat = function() {
     if (window.bossDead || !window.dungeonActive) return;
 
     // 1. 적 이동 및 미사일 발사 (패턴)
@@ -68,12 +67,12 @@ function updateCombat() {
         const distToPlayer = Math.hypot(dx, dy);
         const angle = Math.atan2(dy, dx);
         
-        // 이동 (보스는 거리를 약간 두고 포격, 일반몹은 돌격)
+        // 헬모드 이속 증가
         let moveSpeed = en.speed;
         if(window.isHellMode) moveSpeed *= 1.5;
         
         if (en.isBoss && distToPlayer < 300) {
-            moveSpeed = 0; // 거리가 가까우면 멈춰서 쏨
+            moveSpeed = 0; // 보스는 거리가 가까워지면 멈춰서 포격
         }
         
         en.x += Math.cos(angle) * moveSpeed; 
@@ -84,18 +83,18 @@ function updateCombat() {
         if (!window.isInvincible && distToPlayer < 35) { 
             let bodyDmg = 10 + (window.currentDungeonIdx * 5);
             if(window.isHellMode) bodyDmg *= 10;
-            takeDamage(bodyDmg); 
+            if(window.takeDamage) window.takeDamage(bodyDmg); 
         }
 
-        // 미사일 발사 로직 (원거리 공격 패턴)
+        // 원거리 미사일 발사 로직
         en.shootTimer++;
-        let shootLimit = en.isBoss ? 120 : 300; // 보스는 2초마다, 일반몹은 5초마다
-        if(window.isHellMode) shootLimit /= 2; // 헬모드는 2배 빨리 쏨
+        let shootLimit = en.isBoss ? 120 : 300; 
+        if(window.isHellMode) shootLimit /= 2; // 헬모드 미사일 연사 2배 빠름
 
         if (en.shootTimer >= shootLimit) {
             en.shootTimer = 0;
             if (en.isBoss) {
-                // 중/후반 던전 보스는 3갈래 산탄
+                // 중/후반 또는 헬모드 보스는 3갈래 산탄 발사
                 if (window.currentDungeonIdx > 5 || window.isHellMode) {
                     enemyShoot(en.x, en.y, angle - 0.3, "🔥");
                     enemyShoot(en.x, en.y, angle, "🔥");
@@ -104,7 +103,7 @@ function updateCombat() {
                     enemyShoot(en.x, en.y, angle, "🔮");
                 }
             } else {
-                // 후반 던전이거나 헬모드면 일반 몹도 미사일 쏨
+                // 후반 던전이거나 헬모드면 일반 몹도 미사일 발사
                 if (window.currentDungeonIdx > 10 || window.isHellMode) {
                     enemyShoot(en.x, en.y, angle, "💧");
                 }
@@ -119,7 +118,7 @@ function updateCombat() {
         if (d < minDst) { minDst = d; nearest = en; } 
     });
     
-    // 3. 릴레이 쿨타임 및 공격
+    // 3. 릴레이 쿨타임 및 플레이어 공격
     const cdReductionPercent = Math.min(90, window.globalUpgrades.cd * 2); 
     const maxCD = Math.max(6, 60 * (1 - cdReductionPercent/100));
 
@@ -162,7 +161,7 @@ function updateCombat() {
         }
     }
 
-    // 4. 플레이어 투사체(Missiles) 이동 및 적 충돌 판정
+    // 4. 플레이어 투사체 이동 및 적 충돌 판정
     for (let i = window.missiles.length - 1; i >= 0; i--) {
         const m = window.missiles[i];
         m.x += m.vx; m.y += m.vy;
@@ -179,20 +178,22 @@ function updateCombat() {
                 if(m.isCrit) showCritText(en.x, en.y, m.dmg);
                 else showDmgText(en.x, en.y, m.dmg);
                 
-                playSfx('hit');
+                if(window.playSfx) window.playSfx('hit');
                 m.el.remove(); window.missiles.splice(i, 1);
                 
+                // 적 사망 판정
                 if (en.hp <= 0) {
-                    processEnemyDeath(en);
+                    // [버그 수정]: 목록에서 먼저 지운 뒤 사망 처리를 해야 웨이브 판정이 정상 작동합니다.
                     en.el.remove();
                     window.enemies.splice(j, 1);
+                    processEnemyDeath(en); 
                 }
                 break;
             }
         }
     }
 
-    // 5. 적 투사체(Enemy Missiles) 이동 및 플레이어 충돌 판정
+    // 5. 적 투사체 이동 및 플레이어 충돌 판정
     for (let i = window.enemyMissiles.length - 1; i >= 0; i--) {
         const em = window.enemyMissiles[i];
         em.x += em.vx; em.y += em.vy;
@@ -201,28 +202,27 @@ function updateCombat() {
         if (Math.hypot(em.x - em.startX, em.y - em.startY) > 1500) { em.el.remove(); window.enemyMissiles.splice(i, 1); continue; }
 
         if (!window.isInvincible && Math.hypot(em.x - window.playerX, em.y - window.playerY) < 30) {
-            takeDamage(em.dmg);
+            if(window.takeDamage) window.takeDamage(em.dmg);
             em.el.remove(); window.enemyMissiles.splice(i, 1);
         }
     }
-}
+};
 
-// 플레이어 공격 발사
 function playerShoot(slotIdx, target) { 
-    playSfx('attack'); 
+    if(window.playSfx) window.playSfx('attack'); 
     const worldDiv = document.getElementById('battle-world'); 
     const mEl = document.createElement('div'); 
     mEl.className = 'missile'; 
-    mEl.innerHTML = getToothIcon(window.inventory[slotIdx]); 
+    mEl.innerHTML = window.getToothIcon(window.inventory[slotIdx]); 
     worldDiv.appendChild(mEl); 
     
     const angle = Math.atan2(target.y - window.playerY, target.x - window.playerX); 
     const speed = 18; 
     
     let refineMul = 1 + (window.slotUpgrades[slotIdx].atk * 0.1); 
-    let dmg = getAtk(window.inventory[slotIdx]) * window.currentMercenary.atkMul * refineMul; 
+    let dmg = window.getAtk(window.inventory[slotIdx]) * window.currentMercenary.atkMul * refineMul; 
     
-    // 티어4 (Lv.16) 영구 어드밴티지: 치명타 5% 확률로 2배 데미지
+    // 티어4 (Lv.16) 영구 어드밴티지: 치명타 확률 추가
     let isCrit = false;
     if (window.highestToothLevel >= 16 && Math.random() < 0.05) {
         dmg *= 2;
@@ -235,7 +235,6 @@ function playerShoot(slotIdx, target) {
     }); 
 }
 
-// 적 원거리 공격 발사
 function enemyShoot(ex, ey, angle, iconStr) {
     const worldDiv = document.getElementById('battle-world'); 
     const mEl = document.createElement('div'); 
@@ -254,31 +253,29 @@ function enemyShoot(ex, ey, angle, iconStr) {
 }
 
 function processEnemyDeath(en) {
-    // 1. 골드 획득 계산
+    // 1. 골드 획득
     let goldGain = Math.floor(2000 * Math.pow(2.5, window.currentDungeonIdx));
     if (en.isBoss) goldGain *= 5;
     if (window.isHellMode) goldGain *= 20;
     
-    // 티어7 (Lv.31) 영구 어드밴티지: 던전 클리어 골드 2배 (보스 한정 적용)
-    if (en.isBoss && window.highestToothLevel >= 31) goldGain *= 2;
+    if (en.isBoss && window.highestToothLevel >= 31) goldGain *= 2; // 티어7 보너스
 
     window.gold += goldGain;
     window.dungeonGoldEarned += goldGain;
     showGoldText(en.x, en.y, goldGain);
 
-    // 2. 다이아(💎) 획득 계산
+    // 2. 다이아 획득
     let diaGain = 0;
     let baseDia = 1 + Math.floor(window.currentDungeonIdx * 1.5);
     if (window.isHellMode) baseDia *= 10;
 
     if (en.isBoss) {
-        diaGain = baseDia * 5; // 보스는 확정 5배
+        diaGain = baseDia * 5; 
     } else if (Math.random() < 0.1) {
-        diaGain = baseDia; // 일반몹은 10% 확률로 기본량
+        diaGain = baseDia; 
     }
 
-    // 티어5 (Lv.21) 영구 어드밴티지: 다이아 획득량 2배
-    if (diaGain > 0 && window.highestToothLevel >= 21) diaGain *= 2;
+    if (diaGain > 0 && window.highestToothLevel >= 21) diaGain *= 2; // 티어5 보너스
 
     if (diaGain > 0) {
         window.dia += diaGain;
@@ -286,16 +283,16 @@ function processEnemyDeath(en) {
         showDiaText(en.x, en.y, diaGain);
     }
 
-    // 3. 웨이브 클리어 또는 보스 격파 판정
+    // 3. 상황 판정 (보스 격파 또는 웨이브 클리어)
     if (en.isBoss) {
         window.bossDead = true;
         createExplosion(en.x, en.y);
         setTimeout(() => { 
-            showResultModal(); 
+            if(window.showResultModal) window.showResultModal(); 
             window.dungeonActive = false;
         }, 1500);
     } else {
-        checkWaveClear();
+        checkWaveClear(); // 적 목록에서 이미 삭제되었으므로 이제 정상 작동합니다.
     }
 }
 
@@ -303,11 +300,11 @@ function checkWaveClear() {
     if (window.enemies.length === 0 && !window.isBossWave) { 
         window.currentWave++; 
         if (window.currentWave > 5) window.isBossWave = true; 
-        spawnWave(); 
+        if(window.spawnWave) window.spawnWave(); 
     } 
 }
 
-// 이펙트 및 텍스트 표시
+// 이펙트 생성 함수들
 function createExplosion(x, y) {
     const worldDiv = document.getElementById('battle-world');
     const exp = document.createElement('div');
@@ -322,14 +319,15 @@ function createExplosion(x, y) {
     worldDiv.appendChild(exp);
     setTimeout(() => exp.remove(), 1000);
 }
-function showDmgText(x, y, dmg) { const worldDiv = document.getElementById('battle-world'); const txt = document.createElement('div'); txt.className = 'dmg-text'; txt.innerText = fNum(dmg); txt.style.left = x + 'px'; txt.style.top = (y - 40) + 'px'; worldDiv.appendChild(txt); setTimeout(() => txt.remove(), 500); }
-function showCritText(x, y, dmg) { const worldDiv = document.getElementById('battle-world'); const txt = document.createElement('div'); txt.className = 'crit-text'; txt.innerText = `CRIT! ${fNum(dmg)}`; txt.style.left = x + 'px'; txt.style.top = (y - 50) + 'px'; worldDiv.appendChild(txt); setTimeout(() => txt.remove(), 600); }
-function showGoldText(x, y, val) { const worldDiv = document.getElementById('battle-world'); const txt = document.createElement('div'); txt.className = 'gold-text'; txt.innerText = `💰+${fNum(val)}`; txt.style.left = x + 'px'; txt.style.top = (y - 50) + 'px'; worldDiv.appendChild(txt); setTimeout(() => txt.remove(), 800); }
-function showDiaText(x, y, val) { const worldDiv = document.getElementById('battle-world'); const txt = document.createElement('div'); txt.className = 'dia-drop-text'; txt.innerText = `💎+${val}`; txt.style.left = x + 'px'; txt.style.top = (y - 70) + 'px'; worldDiv.appendChild(txt); setTimeout(() => txt.remove(), 1000); }
+function showDmgText(x, y, dmg) { const worldDiv = document.getElementById('battle-world'); const txt = document.createElement('div'); txt.className = 'dmg-text'; txt.innerText = window.fNum ? window.fNum(dmg) : dmg; txt.style.left = x + 'px'; txt.style.top = (y - 40) + 'px'; worldDiv.appendChild(txt); setTimeout(() => txt.remove(), 500); }
+function showCritText(x, y, dmg) { const worldDiv = document.getElementById('battle-world'); const txt = document.createElement('div'); txt.className = 'crit-text'; txt.innerText = `CRIT! ${window.fNum ? window.fNum(dmg) : dmg}`; txt.style.left = x + 'px'; txt.style.top = (y - 50) + 'px'; worldDiv.appendChild(txt); setTimeout(() => txt.remove(), 600); }
+function showGoldText(x, y, val) { const worldDiv = document.getElementById('battle-world'); const txt = document.createElement('div'); txt.className = 'gold-text'; txt.innerText = `💰+${window.fNum ? window.fNum(val) : val}`; txt.style.left = x + 'px'; txt.style.top = (y - 50) + 'px'; worldDiv.appendChild(txt); setTimeout(() => txt.remove(), 800); }
+function showDiaText(x, y, val) { const worldDiv = document.getElementById('battle-world'); const txt = document.createElement('div'); txt.className = 'dia-drop-text'; txt.innerText = `♦️+${val}`; txt.style.left = x + 'px'; txt.style.top = (y - 70) + 'px'; worldDiv.appendChild(txt); setTimeout(() => txt.remove(), 1000); }
 
-// 결과 모달창
-function showResultModal() {
+// 던전 결과 표시
+window.showResultModal = function() {
     const modal = document.getElementById('dungeon-result-modal');
+    if(!modal) return;
     modal.style.display = 'flex';
     
     let dName = window.isHellMode ? TOOTH_DATA.hellDungeons[window.currentDungeonIdx] : TOOTH_DATA.dungeons[window.currentDungeonIdx];
@@ -343,15 +341,16 @@ function showResultModal() {
 
     document.getElementById('result-desc').innerHTML = `
         <div style="margin: 15px 0; font-size:18px;">
-            획득 골드: <span style="color:var(--gold); font-weight:bold;">${fNum(window.dungeonGoldEarned)}G</span><br>
-            획득 다이아: <span style="color:#00fbff; font-weight:bold;">${window.dungeonDiaEarned}💎</span>
+            획득 골드: <span style="color:var(--gold); font-weight:bold;">${window.fNum ? window.fNum(window.dungeonGoldEarned) : window.dungeonGoldEarned}G</span><br>
+            획득 다이아: <span style="color:#ff4757; font-weight:bold;">${window.dungeonDiaEarned}♦️</span>
         </div>
         <div style="color:#2ecc71; font-weight:bold;">${nextStr}</div>
     `;
     if(window.saveGame) window.saveGame();
-}
+};
 
-function closeResultModal() { 
-    document.getElementById('dungeon-result-modal').style.display = 'none'; 
-    exitDungeon(); 
-}
+window.closeResultModal = function() { 
+    const modal = document.getElementById('dungeon-result-modal');
+    if(modal) modal.style.display = 'none'; 
+    if(window.exitDungeon) window.exitDungeon(); 
+};
