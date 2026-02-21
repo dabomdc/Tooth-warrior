@@ -1,4 +1,4 @@
-// Version: 6.7.0 - Upgrade Systems (Shop, Refine, Training)
+// Version: 6.7.2 - Upgrade Systems (Shop, Refine, Training - Diamond Icon Fixed)
 
 const MAX_AUTO_MINE_LV = 40;
 const MAX_AUTO_MERGE_LV = 15;
@@ -15,8 +15,11 @@ function renderShopItems() {
     
     let html = `
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #444; padding-bottom:10px; margin-bottom:10px;">
-            <h2 style="color:var(--gold); margin:0; font-size:18px;">💎 Upgrade Lab</h2>
-            <span style="font-size:12px; color:#fff;">보유: <span style="color:var(--gold); font-weight:bold;">${fNum(window.gold)}G</span></span>
+            <h2 style="color:var(--gold); margin:0; font-size:18px;">♦️ Upgrade Lab</h2>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:12px; color:#fff;">보유: <span style="color:var(--gold); font-weight:bold;">${window.fNum ? window.fNum(window.gold) : window.gold}G</span></span>
+                <button onclick="closeShop()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
+            </div>
         </div>
         <div class="shop-grid">
     `;
@@ -27,7 +30,7 @@ function renderShopItems() {
     if (pickNext) {
         html += `
         <div class="shop-item">
-            <div class="shop-info"><span>⚒️ 곡괭이 업그레이드</span> <button onclick="buyItem('pick', ${pickNext.cost})" class="btn-gold">💰 ${fNum(pickNext.cost)}</button></div>
+            <div class="shop-info"><span>⚒️ 곡괭이 업그레이드</span> <button onclick="buyItem('pick', ${pickNext.cost})" class="btn-gold">💰 ${window.fNum ? window.fNum(pickNext.cost) : pickNext.cost}</button></div>
             <div class="shop-desc">채굴 시 +1레벨 더 높은 치아를 발견할 확률을 높입니다.<br>
             <span style="color:#2ecc71;">Lv+1 확률: ${Math.round(pick.luck*100)}% ➔ ${Math.round(pickNext.luck*100)}%</span></div>
         </div>`;
@@ -45,7 +48,7 @@ function renderShopItems() {
         const amuletCost = Math.floor(5000 * Math.pow(1.5, window.greatChanceLevel));
         html += `
         <div class="shop-item">
-            <div class="shop-info"><span>🍀 합성 대성공 확률업 (Lv.${window.greatChanceLevel})</span> <button onclick="buyItem('amulet', ${amuletCost})" class="btn-gold">💰 ${fNum(amuletCost)}</button></div>
+            <div class="shop-info"><span>🍀 합성 대성공 확률업 (Lv.${window.greatChanceLevel})</span> <button onclick="buyItem('amulet', ${amuletCost})" class="btn-gold">💰 ${window.fNum ? window.fNum(amuletCost) : amuletCost}</button></div>
             <div class="shop-desc">치아 합성 시 2단계가 상승하는 대성공 확률을 증가시킵니다.<br>
             <span style="color:#2ecc71;">대성공 확률: ${curGreat}% ➔ ${curGreat+2}%</span></div>
         </div>`;
@@ -64,7 +67,7 @@ function renderShopItems() {
         const nextSpd = Math.max(1, 10 - (window.autoMineLevel * 0.2)).toFixed(1);
         html += `
         <div class="shop-item">
-            <div class="shop-info"><span>🤖 자동채굴 속도업 (Lv.${window.autoMineLevel})</span> <button onclick="buyItem('auto', ${autoCost})" class="btn-gold">💰 ${fNum(autoCost)}</button></div>
+            <div class="shop-info"><span>🤖 자동채굴 속도업 (Lv.${window.autoMineLevel})</span> <button onclick="buyItem('auto', ${autoCost})" class="btn-gold">💰 ${window.fNum ? window.fNum(autoCost) : autoCost}</button></div>
             <div class="shop-desc">방치형 오프라인 상태에서도 치아가 쌓이는 주기를 단축합니다.<br>
             <span style="color:#2ecc71;">채굴 속도: ${curSpd}초 ➔ ${nextSpd}초</span></div>
         </div>`;
@@ -83,7 +86,7 @@ function renderShopItems() {
         const nextMerge = Math.max(2, 30 - (window.autoMergeSpeedLevel * 0.5)).toFixed(1);
         html += `
         <div class="shop-item">
-            <div class="shop-info"><span>⚡ 자동합성 속도업 (Lv.${window.autoMergeSpeedLevel})</span> <button onclick="buyItem('merge', ${mergeCost})" class="btn-gold">💰 ${fNum(mergeCost)}</button></div>
+            <div class="shop-info"><span>⚡ 자동합성 속도업 (Lv.${window.autoMergeSpeedLevel})</span> <button onclick="buyItem('merge', ${mergeCost})" class="btn-gold">💰 ${window.fNum ? window.fNum(mergeCost) : mergeCost}</button></div>
             <div class="shop-desc">인벤토리 내의 하위 치아들을 자동으로 병합해 주는 대기 시간을 줄입니다.<br>
             <span style="color:#2ecc71;">합성 주기: ${curMerge}초 ➔ ${nextMerge}초</span></div>
         </div>`;
@@ -100,7 +103,7 @@ function renderShopItems() {
         const expCost = TOOTH_DATA.invExpansion[expansionCount];
         html += `
         <div class="shop-item">
-            <div class="shop-info"><span>🎒 인벤토리 확장 (${expansionCount+1}/4)</span> <button onclick="buyItem('exp', ${expCost})" class="btn-gold">💰 ${fNum(expCost)}</button></div>
+            <div class="shop-info"><span>🎒 인벤토리 확장 (${expansionCount+1}/4)</span> <button onclick="buyItem('exp', ${expCost})" class="btn-gold">💰 ${window.fNum ? window.fNum(expCost) : expCost}</button></div>
             <div class="shop-desc">치아를 보관할 수 있는 슬롯을 8칸 추가로 개방합니다. (최대 56칸)</div>
         </div>`;
     } else {
@@ -111,14 +114,15 @@ function renderShopItems() {
         </div>`;
     }
     
-    html += `</div><button onclick="closeShop()" class="btn-red" style="width:100%; margin-top:15px;">닫기</button>`;
+    html += `</div>`;
     content.innerHTML = html;
 }
+window.renderShopItems = renderShopItems;
 
-function buyItem(type, cost) {
+window.buyItem = function(type, cost) {
     if (window.gold >= cost) {
         window.gold -= cost;
-        playSfx('upgrade'); 
+        if(window.playSfx) window.playSfx('upgrade'); 
         if (type === 'pick') { window.pickaxeIdx++; if(window.cleanupInventory) window.cleanupInventory(); if(window.updatePickaxeVisual) window.updatePickaxeVisual(); } 
         else if (type === 'amulet') window.greatChanceLevel++;
         else if (type === 'auto') window.autoMineLevel++;
@@ -128,20 +132,26 @@ function buyItem(type, cost) {
         renderShopItems(); 
         if(window.renderInventory) window.renderInventory(); 
         if(window.updateUI) window.updateUI();
+        if(window.saveGame) window.saveGame();
     } else { alert("골드가 부족합니다!"); }
-}
+};
 
-function openShop() { document.getElementById('shop-modal').style.display = 'flex'; renderShopItems(); }
-function closeShop() { document.getElementById('shop-modal').style.display = 'none'; }
-
+window.openShop = function() { 
+    const m = document.getElementById('shop-modal');
+    if(m) { m.style.display = 'flex'; renderShopItems(); }
+};
+window.closeShop = function() { 
+    const m = document.getElementById('shop-modal');
+    if(m) m.style.display = 'none'; 
+};
 
 // --- [ 2. Top 8 제련소 (골드 + 다이아 소모) ] ---
-function renderRefineView() {
+window.renderRefineView = function() {
     const grid = document.getElementById('refine-grid');
     if (!grid) return;
     
     const costGlobalCdGold = Math.floor(5000 * Math.pow(1.8, window.globalUpgrades.cd));
-    const costGlobalCdDia = Math.floor(5 * Math.pow(1.2, window.globalUpgrades.cd)); // 다이아 소모 추가
+    const costGlobalCdDia = Math.floor(5 * Math.pow(1.2, window.globalUpgrades.cd));
     const costGlobalRngGold = Math.floor(3000 * Math.pow(1.8, window.globalUpgrades.rng));
     const costGlobalRngDia = Math.floor(3 * Math.pow(1.2, window.globalUpgrades.rng));
     
@@ -154,15 +164,15 @@ function renderRefineView() {
 
     let html = `
     <div style="grid-column: 1 / -1; background: #222; padding: 15px; border-radius: 8px; border: 2px solid var(--gold); margin-bottom: 5px;">
-        <h4 style="margin:0 0 10px 0; color:var(--gold); text-align:center;">🌍 전체 슬롯 동시 강화 (다이아 필요)</h4>
+        <h4 style="margin:0 0 10px 0; color:var(--gold); text-align:center;">🌍 전체 슬롯 동시 강화 (♦️ 필요)</h4>
         <div style="display:flex; gap:10px;">
             ${isCdMax ? 
                 `<button class="btn-sm" style="flex:1; height:70px; background:#444; color:#888;">⏳ 전체 쿨타임 (MAX)<br>-90%</button>` : 
-                `<button onclick="upgradeGlobal('cd', ${costGlobalCdGold}, ${costGlobalCdDia})" class="btn-sm" style="flex:1; height:70px; background:#34495e;">⏳ 전체 쿨타임 Lv.${window.globalUpgrades.cd}<br><span style="color:#2ecc71;">-${curCdReduc}% ➔ -${nextCdReduc}%</span><br>💰${fNum(costGlobalCdGold)} 💎${costGlobalCdDia}</button>`
+                `<button onclick="upgradeGlobal('cd', ${costGlobalCdGold}, ${costGlobalCdDia})" class="btn-sm" style="flex:1; height:70px; background:#34495e;">⏳ 전체 쿨타임 Lv.${window.globalUpgrades.cd}<br><span style="color:#2ecc71;">-${curCdReduc}% ➔ -${nextCdReduc}%</span><br>💰${window.fNum ? window.fNum(costGlobalCdGold) : costGlobalCdGold} ♦️${costGlobalCdDia}</button>`
             }
             ${isRngMax ?
                 `<button class="btn-sm" style="flex:1; height:70px; background:#444; color:#888;">🏹 전체 사거리 (MAX)<br>Lv.50</button>` :
-                `<button onclick="upgradeGlobal('rng', ${costGlobalRngGold}, ${costGlobalRngDia})" class="btn-sm" style="flex:1; height:70px; background:#34495e;">🏹 전체 사거리 Lv.${window.globalUpgrades.rng}<br><span style="color:#2ecc71;">Lv.${curRngVal} ➔ Lv.${curRngVal+1}</span><br>💰${fNum(costGlobalRngGold)} 💎${costGlobalRngDia}</button>`
+                `<button onclick="upgradeGlobal('rng', ${costGlobalRngGold}, ${costGlobalRngDia})" class="btn-sm" style="flex:1; height:70px; background:#34495e;">🏹 전체 사거리 Lv.${window.globalUpgrades.rng}<br><span style="color:#2ecc71;">Lv.${curRngVal} ➔ Lv.${curRngVal+1}</span><br>💰${window.fNum ? window.fNum(costGlobalRngGold) : costGlobalRngGold} ♦️${costGlobalRngDia}</button>`
             }
         </div>
     </div>
@@ -190,15 +200,15 @@ function renderRefineView() {
                 <button class="refine-btn" onclick="upgradeSlot(${idx}, 'atk', ${costAtk})" style="height:100%;">
                     <span>⚔️ 공격력 증폭 Lv.${slot.atk}</span>
                     <span class="refine-val" style="font-size:11px;">(x${curAtk} ➔ x${nextAtk})</span>
-                    <span style="margin-top:5px; color:var(--gold);">💰 ${fNum(costAtk)}</span>
+                    <span style="margin-top:5px; color:var(--gold);">💰 ${window.fNum ? window.fNum(costAtk) : costAtk}</span>
                 </button>
             </div>`;
         }
     });
     grid.innerHTML = html;
-}
+};
 
-function upgradeGlobal(type, costGold, costDia) {
+window.upgradeGlobal = function(type, costGold, costDia) {
     if (type === 'cd' && window.globalUpgrades.cd >= MAX_GLOBAL_CD) return;
     if (type === 'rng' && window.globalUpgrades.rng >= MAX_GLOBAL_RNG) return;
 
@@ -206,37 +216,40 @@ function upgradeGlobal(type, costGold, costDia) {
         window.gold -= costGold;
         window.dia -= costDia;
         window.globalUpgrades[type]++;
-        playSfx('upgrade');
-        renderRefineView();
+        if(window.playSfx) window.playSfx('upgrade');
+        if(window.renderRefineView) window.renderRefineView();
         if(window.updateUI) window.updateUI();
+        if(window.saveGame) window.saveGame();
     } else { 
         alert("골드 또는 다이아가 부족합니다!"); 
     }
-}
+};
 
-function upgradeSlot(idx, type, cost) {
+window.upgradeSlot = function(idx, type, cost) {
     if (window.gold >= cost) {
         window.gold -= cost;
         window.slotUpgrades[idx][type]++;
-        playSfx('upgrade');
-        renderRefineView();
+        if(window.playSfx) window.playSfx('upgrade');
+        if(window.renderRefineView) window.renderRefineView();
         if(window.updateUI) window.updateUI();
+        if(window.saveGame) window.saveGame();
     } else { alert("골드가 부족합니다!"); }
-}
+};
 
 // --- [ 3. 신규 용병 훈련장 (다이아 소모) ] ---
-// window.trainingLevels = { hp: 0, atk: 0, spd: 0 }; (main.js에서 초기화됨)
-
-function openTrainingCamp() {
-    document.getElementById('training-modal').style.display = 'flex';
-    renderTrainingList();
-}
-function closeTrainingCamp() {
-    document.getElementById('training-modal').style.display = 'none';
-}
+window.openTrainingCamp = function() {
+    const m = document.getElementById('training-modal');
+    if(m) { m.style.display = 'flex'; renderTrainingList(); }
+};
+window.closeTrainingCamp = function() {
+    const m = document.getElementById('training-modal');
+    if(m) m.style.display = 'none';
+};
 
 function renderTrainingList() {
     const list = document.getElementById('training-list');
+    if(!list) return;
+    
     const curHp = window.trainingLevels.hp;
     const curAtk = window.trainingLevels.atk;
     const curSpd = window.trainingLevels.spd;
@@ -245,34 +258,37 @@ function renderTrainingList() {
     const costAtk = 20 + Math.floor(curAtk * 8);
     const costSpd = 50 + Math.floor(curSpd * 15);
     
-    document.getElementById('training-dia-display').innerText = fNum(window.dia);
+    const diaDisp = document.getElementById('training-dia-display');
+    if(diaDisp) diaDisp.innerText = window.fNum ? window.fNum(window.dia) : window.dia;
 
     list.innerHTML = `
         <div class="shop-grid">
             <div class="shop-item">
-                <div class="shop-info"><span>❤️ 생존 훈련 (체력 증가)</span> <button onclick="upgradeTraining('hp', ${costHp})" class="btn-sm" style="background:#00fbff; color:black;">💎 ${costHp}</button></div>
+                <div class="shop-info"><span>❤️ 생존 훈련 (체력 증가)</span> <button onclick="upgradeTraining('hp', ${costHp})" class="btn-sm" style="background:#ff4757; color:white; font-weight:bold;">♦️ ${costHp}</button></div>
                 <div class="shop-desc">모든 용병의 최대 체력(HP)을 영구적으로 +5% 증가시킵니다.<br><span style="color:#2ecc71;">현재 보너스: +${curHp * 5}%</span></div>
             </div>
             <div class="shop-item">
-                <div class="shop-info"><span>⚔️ 파괴 훈련 (공격력 증가)</span> <button onclick="upgradeTraining('atk', ${costAtk})" class="btn-sm" style="background:#00fbff; color:black;">💎 ${costAtk}</button></div>
+                <div class="shop-info"><span>⚔️ 파괴 훈련 (공격력 증가)</span> <button onclick="upgradeTraining('atk', ${costAtk})" class="btn-sm" style="background:#ff4757; color:white; font-weight:bold;">♦️ ${costAtk}</button></div>
                 <div class="shop-desc">모든 용병의 기본 화력을 영구적으로 +10% 증폭시킵니다.<br><span style="color:#2ecc71;">현재 보너스: +${curAtk * 10}%</span></div>
             </div>
             <div class="shop-item">
-                <div class="shop-info"><span>💨 신속 훈련 (이동속도 증가)</span> <button onclick="upgradeTraining('spd', ${costSpd})" class="btn-sm" style="background:#00fbff; color:black;">💎 ${costSpd}</button></div>
+                <div class="shop-info"><span>💨 신속 훈련 (이동속도 증가)</span> <button onclick="upgradeTraining('spd', ${costSpd})" class="btn-sm" style="background:#ff4757; color:white; font-weight:bold;">♦️ ${costSpd}</button></div>
                 <div class="shop-desc">적을 유린하는 치고 빠지기! 용병의 이동 속도가 영구적으로 +0.1 증가합니다.<br><span style="color:#2ecc71;">현재 보너스: +${(curSpd * 0.1).toFixed(1)}</span></div>
             </div>
         </div>
     `;
 }
+window.renderTrainingList = renderTrainingList;
 
-function upgradeTraining(stat, costDia) {
+window.upgradeTraining = function(stat, costDia) {
     if (window.dia >= costDia) {
         window.dia -= costDia;
         window.trainingLevels[stat]++;
-        playSfx('upgrade');
+        if(window.playSfx) window.playSfx('upgrade');
         renderTrainingList();
         if(window.updateUI) window.updateUI();
+        if(window.saveGame) window.saveGame();
     } else {
         alert("다이아가 부족합니다! 던전 보스를 처치하여 획득하세요.");
     }
-}
+};
