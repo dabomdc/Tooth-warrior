@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>치아 연대기 v6.7.4</title>
-    <link rel="stylesheet" href="style.css?v=6.7.4">
+    <title>치아 연대기 v6.8.0</title>
+    <link rel="stylesheet" href="style.css?v=6.8.0">
 </head>
 <body>
     <div id="intro-layer">
@@ -34,8 +34,8 @@
         <header>
             <div class="stats-bar">
                 <span class="currency-group">
-                    <span class="ui-gold-text" style="color:var(--gold);">💰 <span id="gold-display">0</span></span>
-                    <span class="ui-dia-text" style="margin-left:15px; color:#ff4757;">♦️ <span id="dia-display">0</span></span>
+                    <span class="ui-gold-text">💰 <span id="gold-display">0</span></span>
+                    <span class="ui-dia-text" style="margin-left:15px;">♦️ <span id="dia-display">0</span></span>
                 </span>
                 <div class="control-group">
                     <button id="mine-toggle-btn" onclick="toggleMining()" class="btn-toggle" style="background:#e74c3c; color:white;">⏸️ 정지</button>
@@ -65,7 +65,7 @@
             <div id="inventory-section">
                 <div id="action-bar">
                     <button onclick="sortInventory()" class="btn-red">🔄 자동 정렬</button>
-                    <button onclick="openShop()" class="btn-gold">♦️ Upgrade Lab</button>
+                    <button onclick="openShop()" class="btn-gold">💰 Upgrade Lab</button>
                 </div>
                 <div id="inventory-scroll-area">
                     <div id="inventory-grid"></div>
@@ -84,17 +84,20 @@
                     </div>
                     <div id="mercenary-list"></div>
                 </div>
+                
                 <div id="dungeon-list-container">
-                    <div id="dungeon-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <h3 style="margin:0;">원정 목록</h3>
-                        <div id="hell-mode-toggle-container" style="display:none;">
-                            <label class="switch">
-                                <input type="checkbox" id="hell-mode-checkbox" onchange="toggleHellMode()">
-                                <span class="slider round"></span>
-                            </label>
-                            <span style="color:#e74c3c; font-weight:bold; margin-left:5px; text-shadow:0 0 5px red;">HELL</span>
-                        </div>
+                    <div class="war-tabs" id="war-tabs-container">
+                        <button class="war-tab-btn active" onclick="switchDungeonTab('normal')" id="d-tab-normal">일반 원정</button>
+                        <button class="war-tab-btn" onclick="switchDungeonTab('boss')" id="d-tab-boss">보스 토벌전</button>
+                        <button class="war-tab-btn hell" onclick="switchDungeonTab('hell')" id="d-tab-hell" style="display:none;">HELL 원정</button>
+                        <button class="war-tab-btn hell" onclick="switchDungeonTab('hellboss')" id="d-tab-hellboss" style="display:none;">HELL 토벌전</button>
                     </div>
+                    
+                    <div id="boss-rush-info" style="display:none; background:rgba(231,76,60,0.1); border:1px solid #e74c3c; border-radius:8px; padding:10px; margin-bottom:10px; font-size:11px; color:#ffcccc; line-height:1.4;">
+                        <strong style="color:#e74c3c; font-size:12px;">⚔️ 토벌전 안내</strong><br>
+                        이곳은 강력한 보스들만 연속으로 출현하는 토벌전입니다. 입장에는 <span style="color:var(--gold);">[골드]</span>와 <span style="color:#ff4757;">[다이아]</span>가 소모되지만, 살아남는다면 엄청난 보상이 기다리고 있습니다. 당신의 한계에 도전하세요!
+                    </div>
+
                     <div id="dungeon-list"></div>
                 </div>
             </div>
@@ -126,35 +129,37 @@
 
     <div id="settings-modal" class="modal-layer">
         <div id="settings-content" class="modal-box">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <div class="sticky-header">
                 <h2 style="color:var(--gold); margin:0;">⚙️ 시스템 설정</h2>
                 <button onclick="closeSettings()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
             </div>
-            <div class="settings-group">
-                <h4>음향 설정</h4>
-                <div style="display:flex; gap:10px; margin-bottom:10px;">
-                    <button id="sound-toggle-btn" onclick="toggleSound()" class="btn-sm" style="flex:1;">🔊 BGM/SFX ON</button>
+            <div class="modal-content-area">
+                <div class="settings-group">
+                    <h4>음향 설정</h4>
+                    <div style="display:flex; gap:10px; margin-bottom:10px;">
+                        <button id="sound-toggle-btn" onclick="toggleSound()" class="btn-sm" style="flex:1;">🔊 BGM/SFX ON</button>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>볼륨</span>
+                        <input type="range" id="volume-slider" min="1" max="3" step="1" value="2" onchange="changeVolume()" style="width:70%;">
+                    </div>
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span>볼륨</span>
-                    <input type="range" id="volume-slider" min="1" max="3" step="1" value="2" onchange="changeVolume()" style="width:70%;">
+                
+                <div class="settings-group">
+                    <h4>데이터 관리</h4>
+                    <div style="display:flex; gap:5px;">
+                        <button onclick="saveGame(); alert('저장완료');" class="btn-sm" style="background:#27ae60; flex:1;">💾 수동 저장</button>
+                        <button onclick="importSave()" class="btn-sm" style="background:#f39c12; flex:1;">📂 로드 (불러오기)</button>
+                    </div>
+                    <button onclick="checkReset()" class="btn-sm" style="background:#c0392b; width:100%; margin-top:10px;">⚠️ 데이터 완전 초기화</button>
                 </div>
-            </div>
-            
-            <div class="settings-group">
-                <h4>데이터 관리</h4>
-                <div style="display:flex; gap:5px;">
-                    <button onclick="saveGame(); alert('저장완료');" class="btn-sm" style="background:#27ae60; flex:1;">💾 수동 저장</button>
-                    <button onclick="importSave()" class="btn-sm" style="background:#f39c12; flex:1;">📂 로드 (불러오기)</button>
-                </div>
-                <button onclick="checkReset()" class="btn-sm" style="background:#c0392b; width:100%; margin-top:10px;">⚠️ 데이터 완전 초기화</button>
-            </div>
 
-            <div class="settings-group">
-                <h4>기타</h4>
-                <div style="display:flex; gap:5px;">
-                    <button onclick="openGuide()" class="btn-sm" style="background:#3498db; flex:1;">📘 게임 가이드</button>
-                    <button onclick="promptCoupon()" class="btn-sm" style="background:#8e44ad; flex:1;">🎟️ 쿠폰 입력</button>
+                <div class="settings-group">
+                    <h4>기타</h4>
+                    <div style="display:flex; gap:5px;">
+                        <button onclick="openGuide()" class="btn-sm" style="background:#3498db; flex:1;">📘 게임 가이드</button>
+                        <button onclick="promptCoupon()" class="btn-sm" style="background:#8e44ad; flex:1;">🎟️ 쿠폰 입력</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -162,31 +167,53 @@
 
     <div id="codex-modal" class="modal-layer">
         <div id="codex-content" class="modal-box" style="width:95%; max-width:500px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #444; padding-bottom:10px; margin-bottom:10px;">
+            <div class="sticky-header">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <h2 style="color:var(--gold); margin:0;">📖 치아 도감</h2>
-                    <span id="codex-progress" style="font-size:12px; color:#aaa;">수집률: 0/40</span>
+                    <span id="codex-progress" style="font-size:12px; color:#aaa;">수집률: 0/24</span>
                 </div>
                 <button onclick="closeCodex()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
             </div>
-            <div id="codex-grid" class="codex-scroll"></div>
+            <div class="modal-content-area">
+                <div id="codex-grid"></div>
+            </div>
         </div>
     </div>
 
     <div id="training-modal" class="modal-layer">
         <div id="training-content" class="modal-box">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #444; padding-bottom:10px; margin-bottom:10px;">
+            <div class="sticky-header">
                 <h2 style="color:var(--gold); margin:0;">💪 용병 훈련장</h2>
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span style="font-size:12px; color:#fff;">보유 ♦️ <span id="training-dia-display" style="color:#ff4757; font-weight:bold;">0</span></span>
                     <button onclick="closeTrainingCamp()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
                 </div>
             </div>
-            <p style="font-size:11px; color:#ccc; text-align:center;">다이아를 소모하여 모든 용병의 기본 능력을 영구적으로 강화합니다.</p>
-            <div id="training-list"></div>
+            <div class="modal-content-area">
+                <p style="font-size:11px; color:#ccc; text-align:center; margin-top:0;">다이아를 소모하여 모든 용병의 기본 능력 및 특수 능력을 영구적으로 강화합니다.</p>
+                <div id="training-list"></div>
+            </div>
         </div>
     </div>
 
+    <div id="ranking-modal" class="modal-layer">
+        <div id="ranking-content" class="modal-box">
+            <div class="sticky-header">
+                <h2 style="color:var(--gold); margin:0;">🏆 명예의 전당</h2>
+                <button onclick="closeRanking()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
+            </div>
+            <div class="modal-content-area">
+                <div class="ranking-header" style="display:flex; justify-content:space-between; font-weight:bold; color:#888; border-bottom:1px solid #444; padding-bottom:5px; margin-bottom:5px; font-size:12px;">
+                    <span style="width:15%;">순위</span><span style="flex:1; text-align:center;">이름</span><span style="width:20%; text-align:center;">던전</span><span style="width:25%; text-align:right;">전투력</span>
+                </div>
+                <div id="ranking-list"></div>
+                <div id="my-rank-display" style="border-top:1px solid #555; padding-top:10px; margin-top:10px; color:var(--gold); font-weight:bold; text-align:center;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="shop-modal" class="modal-layer"><div id="shop-content" class="modal-box"></div></div>
+    
     <div id="tier-unlock-modal" class="modal-layer" style="z-index: 25000;">
         <div id="tier-unlock-content" class="modal-box" style="text-align:center; background: radial-gradient(circle, #2c3e50 0%, #000000 100%); border: 3px solid var(--gold);">
             <h1 style="color:var(--gold); text-shadow: 0 0 10px yellow; animation: blink 1s infinite;">🎉 신규 티어 개방! 🎉</h1>
@@ -196,8 +223,6 @@
             <button onclick="closeTierUnlock()" class="btn-gold" style="width:100%; font-size:16px;">멋지다! (보상 수령)</button>
         </div>
     </div>
-
-    <div id="shop-modal" class="modal-layer"><div id="shop-content" class="modal-box"></div></div>
     
     <div id="dungeon-result-modal" class="modal-layer">
         <div id="result-content" class="modal-box" style="text-align:center;">
@@ -209,42 +234,30 @@
 
     <div id="nickname-modal" class="modal-layer" style="z-index:30000;">
         <div id="nickname-content" class="modal-box">
-            <h3 style="color:var(--gold);">🆔 닉네임 설정</h3>
+            <h3 style="color:var(--gold); margin-top:0;">🆔 닉네임 설정</h3>
             <p style="font-size:12px; color:#ccc;">랭킹에 표시될 이름을 정해주세요.</p>
-            <input type="text" id="nickname-input" style="width:100%; padding:10px; margin:10px 0; text-align:center; font-weight:bold;">
+            <input type="text" id="nickname-input" style="width:100%; padding:10px; margin:10px 0; text-align:center; font-weight:bold; background:#222; color:white; border:1px solid #444; border-radius:4px;">
             <button onclick="confirmNickname()" class="btn-gold" style="width:100%;">시작하기</button>
-        </div>
-    </div>
-
-    <div id="ranking-modal" class="modal-layer">
-        <div id="ranking-content" class="modal-box">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <h2 style="color:var(--gold); margin:0;">🏆 명예의 전당</h2>
-                <button onclick="closeRanking()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
-            </div>
-            <div class="ranking-header"><span>순위</span><span>이름</span><span>던전</span><span>전투력</span></div>
-            <div id="ranking-list" class="guide-scroll"></div>
-            <div id="my-rank-display" style="border-top:1px solid #555; padding-top:10px; margin-top:10px; color:var(--gold); font-weight:bold;"></div>
         </div>
     </div>
 
     <div id="guide-modal" class="modal-layer">
         <div id="guide-content" class="modal-box">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333; padding-bottom:10px;">
+            <div class="sticky-header">
                 <h2 style="color:var(--gold); margin:0;">📘 게임 가이드</h2>
                 <button onclick="closeGuide()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
             </div>
-            <div class="guide-scroll" id="guide-scroll-content"></div>
+            <div class="modal-content-area" id="guide-scroll-content"></div>
         </div>
     </div>
 
     <div id="drag-proxy"></div>
 
-    <script src="data.js?v=6.7.4"></script>
-    <script src="ui.js?v=6.7.4"></script>
-    <script src="upgrade.js?v=6.7.4"></script>
-    <script src="combat.js?v=6.7.4"></script>
-    <script src="battle.js?v=6.7.4"></script>
-    <script src="main.js?v=6.7.4"></script>
+    <script src="data.js?v=6.8.0"></script>
+    <script src="ui.js?v=6.8.0"></script>
+    <script src="upgrade.js?v=6.8.0"></script>
+    <script src="combat.js?v=6.8.0"></script>
+    <script src="battle.js?v=6.8.0"></script>
+    <script src="main.js?v=6.8.0"></script>
 </body>
 </html>
