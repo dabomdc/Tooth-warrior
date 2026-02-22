@@ -1,9 +1,9 @@
-// Version: 6.8.0 - Main Engine (24-Level Cap, Hell Save, Mining Balance)
+// Version: 6.8.1 - Main Engine (Intro Touch & Missing Functions Restored)
 
 window.gold = 0; 
 window.dia = 0; 
 window.unlockedDungeon = 1; 
-window.unlockedHellDungeon = 1; // 신규: 헬 모드 별도 진행도
+window.unlockedHellDungeon = 1; 
 window.pickaxeIdx = 0;
 window.autoMineLevel = 1;
 window.inventory = new Array(56).fill(0);
@@ -37,18 +37,12 @@ const safeGetAtk = (lv) => typeof getAtk === 'function' ? getAtk(lv) : 10;
 const safeGetIcon = (lv) => typeof getToothIcon === 'function' ? getToothIcon(lv) : "🦷";
 const getView = () => typeof currentView !== 'undefined' ? currentView : 'mine';
 
-// 🌟 [핵심 기획 반영] 채굴 기초 레벨 공식 (던전 2개 깰 때마다 1업)
 window.getBaseMiningLevel = function() {
-    // 1. 일반 던전: 2단계 깰 때마다 1업 (최대 10)
     let normalBase = Math.min(10, Math.floor((window.unlockedDungeon - 1) / 2) + 1);
-    
-    // 2. 헬 던전: 2단계 깰 때마다 1업 
     let hellBonus = 0;
     if (window.unlockedHellDungeon > 1) {
         hellBonus = Math.floor((window.unlockedHellDungeon - 1) / 2);
     }
-    
-    // 헬 10단계 클리어 시 -> normalBase(10) + hellBonus(5) = Lv.15 확정 채굴 완벽 구현
     return Math.min(24, normalBase + hellBonus); 
 };
 
@@ -58,11 +52,51 @@ window.onload = () => {
     setupMiningTouch(); 
     if(typeof switchView === 'function') switchView('mine'); 
 
-    const introSeen = localStorage.getItem('toothIntroSeen_v4');
+    const introSeen = localStorage.getItem('toothIntroSeen_v5');
     if (introSeen === 'true') {
         const layer = document.getElementById('intro-layer');
         if(layer) layer.style.display = 'none';
         checkNicknameAndStart();
+    }
+};
+
+// 🌟 [누락되었던 인트로 터치 함수 복구] 🌟
+window.startIntro = function() {
+    const btnLayer = document.getElementById('start-btn-layer');
+    if(btnLayer) btnLayer.style.display = 'none';
+    
+    const vid = document.getElementById('intro-video');
+    const skipBtn = document.getElementById('skip-btn');
+    if(vid) {
+        vid.style.display = 'block';
+        if(skipBtn) skipBtn.style.display = 'block';
+        vid.volume = window.masterVolume ? window.masterVolume * 0.3 : 0.6; 
+        vid.muted = window.isMuted; 
+        vid.play().catch(e => { window.finishIntro(); });
+        vid.onended = () => { setTimeout(window.finishIntro, 500); };
+    } else {
+        window.finishIntro();
+    }
+};
+
+window.skipIntro = function() { 
+    const vid = document.getElementById('intro-video');
+    if(vid) vid.pause(); 
+    window.finishIntro(); 
+};
+
+window.finishIntro = function() {
+    const layer = document.getElementById('intro-layer');
+    if(layer) {
+        layer.style.transition = 'opacity 1.5s ease';
+        layer.style.opacity = '0';
+        setTimeout(() => {
+            layer.style.display = 'none';
+            localStorage.setItem('toothIntroSeen_v5', 'true');
+            window.checkNicknameAndStart();
+        }, 1500);
+    } else {
+        window.checkNicknameAndStart();
     }
 };
 
@@ -121,7 +155,7 @@ function loadGame() {
             window.mercenaryIdx = d.mercenaryIdx || 0; window.ownedMercenaries = d.ownedMercenaries || [0];
             window.autoMergeSpeedLevel = d.autoMergeSpeedLevel || 1; window.isMuted = d.isMuted || false;
             window.masterVolume = d.masterVolume || 2; 
-            window.highestToothLevel = Math.min(24, d.highestToothLevel || 1); // 24단계 제한
+            window.highestToothLevel = Math.min(24, d.highestToothLevel || 1); 
             window.trainingLevels = d.trainingLevels || { hp: 0, atk: 0, spd: 0, crit: 0, splashDmg: 0, splashRange: 0 };
             
             if (d.slotUpgrades) window.slotUpgrades = d.slotUpgrades;
@@ -221,7 +255,7 @@ function massMerge(lv, once = false) {
         let idx1 = indices[2*i]; 
         let idx2 = indices[2*i+1]; 
         
-        let nextLv = Math.min(24, lv + 1); // 대성공 삭제 및 24제한
+        let nextLv = Math.min(24, lv + 1); 
         
         window.inventory[idx2] = nextLv; 
         window.inventory[idx1] = 0; 
@@ -235,7 +269,6 @@ function checkHighestTier(level) {
     if (level > window.highestToothLevel && level <= 24) {
         window.highestToothLevel = level;
         saveGame();
-        // 매 3단계마다(4, 7, 10, 13...) 티어 개방 모달
         if ((level - 1) % 3 === 0 && level > 1) {
             if(typeof showTierUnlock === 'function') showTierUnlock(level);
         }
@@ -386,7 +419,7 @@ function setupMiningTouch() {
         try { if(typeof playSfx === 'function') playSfx('mine'); } catch(e){}
         
         let miningPower = 15;
-        if (window.highestToothLevel >= 4 && Math.random() < 0.2) { // Lv.4 티어2 능력 개방 시
+        if (window.highestToothLevel >= 4 && Math.random() < 0.2) { 
             let tapGold = window.getBaseMiningLevel() * 50;
             window.gold += tapGold;
             const worldDiv = document.getElementById('battle-world');
@@ -415,7 +448,6 @@ function setupMiningTouch() {
 }
 window.setupMiningTouch = setupMiningTouch;
 
-// 🌟 [핵심 기획 반영] 던전 리스트 오버라이드 (헬 모드 분리 저장 완벽 연동)
 window.renderDungeonList = function() { 
     const list = document.getElementById('dungeon-list'); 
     if(!list || typeof TOOTH_DATA === 'undefined') return;
@@ -452,7 +484,6 @@ window.renderDungeonList = function() {
     }); 
 };
 
-// 🌟 [핵심 기획 반영] 던전 결과창 오버라이드 (지옥문 오픈 영상 및 진행도 개별 저장 연동)
 window.showResultModal = function() {
     const modal = document.getElementById('dungeon-result-modal');
     if(!modal || typeof TOOTH_DATA === 'undefined') return;
@@ -464,7 +495,6 @@ window.showResultModal = function() {
     
     let nextStr = "모든 던전을 정복했습니다!";
     
-    // 일반/헬 모드 진행도 분리 업데이트
     if (!window.isBossRush) {
         if (window.isHellMode) {
             if (window.unlockedHellDungeon <= window.currentDungeonIdx + 1 && window.currentDungeonIdx < 19) {
@@ -472,7 +502,6 @@ window.showResultModal = function() {
                 nextStr = `다음 HELL 던전 오픈! 기본 채굴 레벨이 상승합니다!`;
             }
         } else {
-            // 일반 20단계(인덱스 19) 최초 클리어 시 -> 지옥문 오픈 이벤트!
             if (window.currentDungeonIdx === 19 && window.unlockedDungeon === 20) {
                 window.unlockedDungeon = 21;
                 nextStr = `🔥 경고: 지옥문이 열렸습니다... 🔥`;
@@ -535,4 +564,29 @@ window.generateRankings = function() {
     list.innerHTML = html;
     const rankDisp = document.getElementById('my-rank-display');
     if(rankDisp) rankDisp.innerText = `내 순위: ${myRank}위 (전투력: ${safeFNum(myPower)})`;
+};
+
+// --- [ 5. 유틸리티 복구 (누락 방지) ] ---
+window.toggleMining = function() { 
+    window.isMiningPaused = !window.isMiningPaused; 
+    const btn = document.getElementById('mine-toggle-btn');
+    if(btn) btn.innerText = window.isMiningPaused ? "▶️ 재개" : "⏸️ 정지"; 
+    saveGame(); 
+};
+
+window.checkCoupon = function(code) { 
+    if (code === "100b" || code === "RICH100B") { window.gold += 100000000000; alert("치트키 적용!"); updateUI(); } 
+    else if (code === "DIA100") { window.dia += 10000; alert("다이아 치트 적용!"); updateUI(); }
+    else { alert("유효하지 않은 쿠폰입니다."); } 
+};
+
+window.importSave = function() { 
+    const str = prompt("코드 붙여넣기:"); 
+    if (str) { 
+        try { 
+            const decoded = decodeURIComponent(escape(atob(str))); 
+            localStorage.setItem('toothSaveV680', decoded); 
+            location.reload(); 
+        } catch (e) { alert("오류가 발생했습니다. 코드를 확인해주세요."); } 
+    } 
 };
