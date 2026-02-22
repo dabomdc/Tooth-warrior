@@ -1,4 +1,4 @@
-// Version: 6.7.5 - Sticky Header & Crit Training Update
+// Version: 6.8.0 - Upgrade Systems (Splash & Crit Training, Sticky UI, Gold Icons)
 const MAX_AUTO_MINE_LV = 40;
 const MAX_AUTO_MERGE_LV = 15;
 const MAX_GREAT_LV = 25; 
@@ -14,14 +14,14 @@ window.renderShopItems = function() {
     let expansionCount = (window.maxSlots - 24) / 8;
     
     let html = `
-        <div style="position: sticky; top: 0; background: #16213e; z-index: 10; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #444; padding: 15px 20px; border-radius: 13px 13px 0 0;">
-            <h2 style="color:var(--gold); margin:0; font-size:18px;">♦️ Upgrade Lab</h2>
+        <div class="sticky-header">
+            <h2 style="color:var(--gold); margin:0; font-size:18px;">💰 Upgrade Lab</h2>
             <div style="display:flex; align-items:center; gap:10px;">
                 <span style="font-size:12px; color:#fff;">보유: <span style="color:var(--gold); font-weight:bold;">${window.fNum ? window.fNum(window.gold) : window.gold}G</span></span>
                 <button onclick="closeShop()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
             </div>
         </div>
-        <div class="shop-grid" style="padding: 15px 20px 20px 20px;">
+        <div class="modal-content-area shop-grid">
     `;
 
     const pick = TOOTH_DATA.pickaxes[window.pickaxeIdx];
@@ -166,7 +166,7 @@ window.upgradeSlot = function(idx, type, cost) {
     } else { alert("골드가 부족합니다!"); }
 };
 
-// --- [ 3. 용병 훈련장 (Lv.16 치명타 추가) ] ---
+// --- [ 3. 용병 훈련장 (스플래시 & 치명타 신규 적용) ] ---
 window.openTrainingCamp = function() {
     const m = document.getElementById('training-modal');
     if(m) { m.style.display = 'flex'; window.renderTrainingList(); }
@@ -180,18 +180,24 @@ window.renderTrainingList = function() {
     const list = document.getElementById('training-list');
     if(!list) return;
     
-    // 안전장치: crit 속성이 없으면 0으로 생성
+    // 신규 스탯 초기화 안전장치
     if(window.trainingLevels.crit === undefined) window.trainingLevels.crit = 0;
+    if(window.trainingLevels.splashDmg === undefined) window.trainingLevels.splashDmg = 0;
+    if(window.trainingLevels.splashRange === undefined) window.trainingLevels.splashRange = 0;
     
     const curHp = window.trainingLevels.hp;
     const curAtk = window.trainingLevels.atk;
     const curSpd = window.trainingLevels.spd;
     const curCrit = window.trainingLevels.crit;
+    const curSplashDmg = window.trainingLevels.splashDmg;
+    const curSplashRange = window.trainingLevels.splashRange;
     
     const costHp = 10 + Math.floor(curHp * 5);
     const costAtk = 20 + Math.floor(curAtk * 8);
     const costSpd = 50 + Math.floor(curSpd * 15);
-    const costCrit = 100 + Math.floor(curCrit * 20); // 치명타 업그레이드는 비용이 높습니다.
+    const costCrit = 100 + Math.floor(curCrit * 25);
+    const costSplashDmg = 80 + Math.floor(curSplashDmg * 20);
+    const costSplashRange = 80 + Math.floor(curSplashRange * 20);
     
     const diaDisp = document.getElementById('training-dia-display');
     if(diaDisp) diaDisp.innerText = window.fNum ? window.fNum(window.dia) : window.dia;
@@ -203,8 +209,32 @@ window.renderTrainingList = function() {
             <div class="shop-item"><div class="shop-info"><span>💨 신속 훈련 (이동속도 증가)</span> <button onclick="upgradeTraining('spd', ${costSpd})" class="btn-sm" style="background:#ff4757; color:white; font-weight:bold;">♦️ ${costSpd}</button></div><div class="shop-desc">적을 유린하는 치고 빠지기! 용병의 이동 속도가 영구적으로 +0.1 증가합니다.<br><span style="color:#2ecc71;">현재 보너스: +${(curSpd * 0.1).toFixed(1)}</span></div></div>
     `;
 
-    // Lv.16 도달 시 치명타 훈련 슬롯 개방
-    if (window.highestToothLevel >= 16) {
+    // Lv.7 (티어3) 이상 시 스플래시(광역) 훈련 개방
+    if (window.highestToothLevel >= 7) {
+        const splashRatio = Math.min(80, 20 + (curSplashDmg * 5)); // 기본 20%, 업글당 5%, 최대 80%
+        const splashRadius = 50 + (curSplashRange * 10); // 기본 50px, 업글당 10px
+
+        html += `
+            <div class="shop-item" style="border-color:#3498db; box-shadow:0 0 10px rgba(52,152,219,0.3);">
+                <div class="shop-info"><span style="color:#3498db;">💥 파편 훈련 (광역 데미지)</span> ${splashRatio >= 80 ? '<button class="btn-max">MAX</button>' : `<button onclick="upgradeTraining('splashDmg', ${costSplashDmg})" class="btn-sm" style="background:#ff4757; color:white; font-weight:bold;">♦️ ${costSplashDmg}</button>`}</div>
+                <div class="shop-desc">주변 적들에게 입히는 스플래시 데미지 비율을 상승시킵니다. (최대 80%)<br><span style="color:#2ecc71;">광역 피해량: 본무기의 ${splashRatio}%</span></div>
+            </div>
+            <div class="shop-item" style="border-color:#3498db; box-shadow:0 0 10px rgba(52,152,219,0.3);">
+                <div class="shop-info"><span style="color:#3498db;">💣 화약 훈련 (광역 범위)</span> <button onclick="upgradeTraining('splashRange', ${costSplashRange})" class="btn-sm" style="background:#ff4757; color:white; font-weight:bold;">♦️ ${costSplashRange}</button></div>
+                <div class="shop-desc">스플래시가 터지는 폭발 반경을 점점 더 넓힙니다.<br><span style="color:#2ecc71;">폭발 반경: ${splashRadius}px</span></div>
+            </div>
+        `;
+    } else {
+        html += `
+            <div class="shop-item" style="opacity:0.5; filter:grayscale(1);">
+                <div class="shop-info"><span>🔒 미확인 훈련 (광역)</span> <button class="btn-sm" style="background:#444;">잠김</button></div>
+                <div class="shop-desc">Lv.7 치아 도달 시 해금됩니다.</div>
+            </div>
+        `;
+    }
+
+    // Lv.10 (티어4) 이상 시 치명타 훈련 개방
+    if (window.highestToothLevel >= 10) {
         const critChance = 5 + (curCrit * 2);   // 기본 5% + 업글당 2%
         const critDmg = 2.0 + (curCrit * 0.2);  // 기본 2배 + 업글당 0.2배
         html += `
@@ -216,8 +246,8 @@ window.renderTrainingList = function() {
     } else {
         html += `
             <div class="shop-item" style="opacity:0.5; filter:grayscale(1);">
-                <div class="shop-info"><span>🔒 미확인 훈련</span> <button class="btn-sm" style="background:#444;">잠김</button></div>
-                <div class="shop-desc">Lv.16 치아 도달 시 해금됩니다.</div>
+                <div class="shop-info"><span>🔒 미확인 훈련 (치명타)</span> <button class="btn-sm" style="background:#444;">잠김</button></div>
+                <div class="shop-desc">Lv.10 치아 도달 시 해금됩니다.</div>
             </div>
         `;
     }
@@ -227,6 +257,12 @@ window.renderTrainingList = function() {
 };
 
 window.upgradeTraining = function(stat, costDia) {
+    // 최대치 제한 방어 로직
+    if (stat === 'splashDmg') {
+        const curSplashDmg = window.trainingLevels.splashDmg || 0;
+        if (20 + (curSplashDmg * 5) >= 80) return; // 80% 제한
+    }
+
     if (window.dia >= costDia) {
         window.dia -= costDia; 
         if(window.trainingLevels[stat] === undefined) window.trainingLevels[stat] = 0;
