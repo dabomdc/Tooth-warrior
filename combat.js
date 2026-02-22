@@ -1,4 +1,4 @@
-// Version: 6.8.8 - Combat Engine (Background, Mercenary Icon, Map Size Restored)
+// Version: 6.8.9 - Combat Engine (Map Size, Background, & Modal Crash Fixed)
 
 window.dungeonActive = false;
 window.bossDead = false;
@@ -19,6 +19,7 @@ window.startDungeon = function(idx) {
     window.isHellMode = (tab === 'hell' || tab === 'hellboss');
     window.isBossRush = (tab === 'boss' || tab === 'hellboss');
 
+    // 입장료 로직
     if (window.isBossRush) {
         let goldFee = Math.floor(5000 * Math.pow(2.0, idx));
         let diaFee = 5 + (idx * 5);
@@ -35,10 +36,17 @@ window.startDungeon = function(idx) {
 
     document.getElementById('game-container').style.display = 'none';
     const battleScreen = document.getElementById('battle-screen');
+    const worldDiv = document.getElementById('battle-world');
     battleScreen.style.display = 'block';
     
-    // 🌟 배경 테마 복구
-    let theme = "bg-dark";
+    // 🌟 넓은 맵 2000x2000 사이즈 고정
+    window.worldWidth = 2000;
+    window.worldHeight = 2000;
+    worldDiv.style.width = window.worldWidth + 'px';
+    worldDiv.style.height = window.worldHeight + 'px';
+
+    // 🌟 배경 타일 복구 (battle-world에 배경을 입혀야 카메라 이동 시 자연스러움)
+    let theme = "bg-stone";
     if (window.isHellMode) {
         theme = (TOOTH_DATA.hellMobs[0] && TOOTH_DATA.hellMobs[0].theme) ? TOOTH_DATA.hellMobs[0].theme : "bg-hell";
         battleScreen.style.boxShadow = "inset 0 0 50px red";
@@ -47,7 +55,7 @@ window.startDungeon = function(idx) {
         theme = (TOOTH_DATA.dungeonMobs[safeThemeIdx] && TOOTH_DATA.dungeonMobs[safeThemeIdx].theme) ? TOOTH_DATA.dungeonMobs[safeThemeIdx].theme : "bg-stone";
         battleScreen.style.boxShadow = "none";
     }
-    battleScreen.className = theme; // 배경 클래스 적용
+    worldDiv.className = theme;
 
     let dName = window.isHellMode ? (typeof TOOTH_DATA !== 'undefined' ? TOOTH_DATA.hellDungeons[idx] : `HELL Lv.${idx+1}`) 
                                   : (typeof TOOTH_DATA !== 'undefined' ? TOOTH_DATA.dungeons[idx] : `던전 Lv.${idx+1}`);
@@ -66,19 +74,16 @@ window.startDungeon = function(idx) {
     window.relayTimer = 0;
     window.activeSlotIndex = 0;
     
-    // 🌟 맵 크기를 이전처럼 넓게 복구
-    window.worldWidth = 2000;
-    window.worldHeight = 2000;
     window.playerX = window.worldWidth / 2;
     window.playerY = window.worldHeight / 2;
 
-    // 🌟 용병 아이콘 복구
+    // 🌟 주인공 캐릭터를 용병 아이콘으로 완벽 적용
     let curMercIcon = "🦷";
     if (typeof TOOTH_DATA !== 'undefined' && TOOTH_DATA.mercenaries[window.mercenaryIdx]) {
         curMercIcon = TOOTH_DATA.mercenaries[window.mercenaryIdx].icon;
     }
     
-    document.getElementById('battle-world').innerHTML = `<div id="player" style="font-size: 40px; text-shadow: 0 0 5px rgba(255,255,255,0.5);">${curMercIcon}<div id="player-hp-bar-bg"><div id="player-hp-bar-fill"></div></div></div>`;
+    worldDiv.innerHTML = `<div id="player" style="font-size: 40px; text-shadow: 0 0 5px rgba(255,255,255,0.5);">${curMercIcon}<div id="player-hp-bar-bg"><div id="player-hp-bar-fill"></div></div></div>`;
     
     const p = document.getElementById('player');
     p.style.left = window.playerX + 'px';
@@ -133,7 +138,8 @@ window.spawnEnemy = function(isBoss = false) {
     let icon = isBoss ? mobData.boss : mobData.mobs[Math.floor(Math.random() * mobData.mobs.length)];
 
     const angle = Math.random() * Math.PI * 2;
-    const dist = 600; // 넓은 맵에 맞춰서 스폰 거리 확장
+    // 넓어진 맵(2000x2000)에 맞게 적 스폰 거리 확장
+    const dist = 600; 
     let sx = window.playerX + Math.cos(angle) * dist; 
     let sy = window.playerY + Math.sin(angle) * dist;
     
@@ -501,7 +507,7 @@ window.showDmgText = function(x, y, dmg) {
     const worldDiv = document.getElementById('battle-world'); 
     if(!worldDiv) return;
     const txt = document.createElement('div'); txt.className = 'dmg-text'; 
-    txt.innerText = typeof fNum === 'function' ? fNum(dmg) : dmg; 
+    txt.innerText = window.fNum ? window.fNum(dmg) : dmg; 
     txt.style.left = x + 'px'; txt.style.top = (y - 40) + 'px'; 
     worldDiv.appendChild(txt); setTimeout(() => txt.remove(), 500); 
 };
@@ -509,7 +515,7 @@ window.showCritText = function(x, y, dmg) {
     const worldDiv = document.getElementById('battle-world'); 
     if(!worldDiv) return;
     const txt = document.createElement('div'); txt.className = 'crit-text'; 
-    txt.innerText = `CRIT! ${typeof fNum === 'function' ? fNum(dmg) : dmg}`; 
+    txt.innerText = `CRIT! ${window.fNum ? window.fNum(dmg) : dmg}`; 
     txt.style.left = x + 'px'; txt.style.top = (y - 50) + 'px'; 
     worldDiv.appendChild(txt); setTimeout(() => txt.remove(), 600); 
 };
@@ -517,7 +523,7 @@ window.showGoldText = function(x, y, val) {
     const worldDiv = document.getElementById('battle-world'); 
     if(!worldDiv) return;
     const txt = document.createElement('div'); txt.className = 'gold-text'; 
-    txt.innerText = `💰+${typeof fNum === 'function' ? fNum(val) : val}`; 
+    txt.innerText = `💰+${window.fNum ? window.fNum(val) : val}`; 
     txt.style.left = x + 'px'; txt.style.top = (y - 50) + 'px'; 
     worldDiv.appendChild(txt); setTimeout(() => txt.remove(), 800); 
 };
@@ -525,19 +531,37 @@ window.showDiaText = function(x, y, val) {
     const worldDiv = document.getElementById('battle-world'); 
     if(!worldDiv) return;
     const txt = document.createElement('div'); txt.className = 'dia-drop-text'; 
-    txt.innerText = `♦️+${typeof fNum === 'function' ? fNum(val) : val}`; 
+    txt.innerText = `♦️+${window.fNum ? window.fNum(val) : val}`; 
     txt.style.left = x + 'px'; txt.style.top = (y - 70) + 'px'; 
     worldDiv.appendChild(txt); setTimeout(() => txt.remove(), 1000); 
 };
 
+// 🌟 [핵심 수정] 던전 퇴장 함수 안전성 대폭 강화 (에러로 인한 멈춤 방지)
 window.exitDungeon = function() {
-    window.dungeonActive = false;
-    document.getElementById('battle-screen').style.display = 'none';
-    document.getElementById('game-container').style.display = 'flex';
-    document.getElementById('battle-screen').className = ""; // 테마 초기화
-    window.enemies.forEach(e => e.el.remove());
-    window.missiles.forEach(m => m.el.remove());
-    window.enemyMissiles.forEach(em => em.el.remove());
-    window.spawnTimeouts.forEach(t => clearTimeout(t));
-    if(typeof updateUI === 'function') window.updateUI();
+    try {
+        window.dungeonActive = false;
+        window.bossDead = true; 
+        document.getElementById('battle-screen').style.display = 'none';
+        document.getElementById('game-container').style.display = 'flex';
+        document.getElementById('battle-world').className = ""; // 테마 초기화
+        
+        if (window.enemies) window.enemies.forEach(e => { if(e && e.el) e.el.remove() });
+        if (window.missiles) window.missiles.forEach(m => { if(m && m.el) m.el.remove() });
+        if (window.enemyMissiles) window.enemyMissiles.forEach(em => { if(em && em.el) em.el.remove() });
+        if (window.spawnTimeouts) window.spawnTimeouts.forEach(t => clearTimeout(t));
+        
+        window.enemies = [];
+        window.missiles = [];
+        window.enemyMissiles = [];
+        
+        if(typeof updateUI === 'function') window.updateUI();
+    } catch(e) {
+        console.error("Exit Dungeon Error:", e);
+    }
+};
+
+window.closeResultModal = function() {
+    const modal = document.getElementById('dungeon-result-modal');
+    if(modal) modal.style.display = 'none';
+    if(typeof exitDungeon === 'function') window.exitDungeon();
 };
