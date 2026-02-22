@@ -1,4 +1,4 @@
-// Version: 6.8.2 - Main Engine (Mercenaries Restored & Boss Rush List Fixed)
+// Version: 6.8.3 - Main Engine (Boss Rush Tab Fix & TEST Coupon)
 
 window.gold = 0; 
 window.dia = 0; 
@@ -447,14 +447,13 @@ function setupMiningTouch() {
 }
 window.setupMiningTouch = setupMiningTouch;
 
-// 🌟 [누락 복구] 용병 렌더링 및 구매/장착 기능
+// 🌟 용병 렌더링
 window.renderMercenaryCamp = function() { 
     const camp = document.getElementById('mercenary-list'); 
     if(!camp || typeof TOOTH_DATA === 'undefined') return;
     camp.innerHTML = ''; 
     const maxOwned = Math.max(...window.ownedMercenaries); 
     
-    // [티어6] 용병 공격력 2배 각성 효과 반영 (Lv.16부터)
     let tier6Text = (window.highestToothLevel >= 16) ? `<span style="color:yellow;">(x2)</span>` : "";
 
     TOOTH_DATA.mercenaries.forEach(merc => { 
@@ -493,30 +492,31 @@ window.buyMerc = function(id, cost) {
 };
 window.equipMerc = function(id) { window.mercenaryIdx = id; window.renderMercenaryCamp(); saveGame(); };
 
-// 🌟 [수정 완벽 적용] 토벌전 탭 리스트 분기 처리 (5단위 묶음)
+// 🌟 [핵심 수정] 탭 상태를 뷰포트에서 직접 읽어와서 토벌전 목록 분기 처리
 window.renderDungeonList = function() { 
     const list = document.getElementById('dungeon-list'); 
     if(!list || typeof TOOTH_DATA === 'undefined') return;
     list.innerHTML = ''; 
     
-    const isHell = window.isHellMode;
-    const isBoss = window.isBossRush;
+    // 이 부분이 핵심! 전투 로직의 상태가 아닌 탭 자체의 상태를 읽어옵니다.
+    const tab = window.currentDungeonTab || 'normal';
+    const isHell = (tab === 'hell' || tab === 'hellboss');
+    const isBoss = (tab === 'boss' || tab === 'hellboss');
+    
     const currentUnlocked = isHell ? window.unlockedHellDungeon : window.unlockedDungeon;
     
     if (isBoss) {
-        // [토벌전] 5구간씩 묶어서 블록으로 노출
+        // [토벌전] 5구간씩 묶어서 노출
         const rushNames = isHell ? 
             ["HELL 1~5구간", "HELL 6~10구간", "HELL 11~15구간", "HELL 16~20구간"] :
             ["일반 1~5구간", "일반 6~10구간", "일반 11~15구간", "일반 16~20구간"];
         
         rushNames.forEach((name, i) => {
-            // 입장 조건: 해당 구간의 5단계를 깨야 열림 (ex. 1~5구간은 던전 5를 깨서 unlocked가 6 이상일때 열림)
             const reqLevel = (i * 5) + 6; 
             const isUnlocked = currentUnlocked >= reqLevel;
             const div = document.createElement('div'); 
             div.className = `dungeon-card ${isUnlocked ? 'unlocked' : 'locked'}`; 
             
-            // 입장료 계산 (구간이 올라갈수록 기하급수적 상승)
             let goldFee = Math.floor(5000 * Math.pow(2.0, i * 5));
             let diaFee = 5 + ((i * 5) * 5);
             if (isHell) { goldFee *= 10; diaFee *= 5; }
@@ -525,8 +525,6 @@ window.renderDungeonList = function() {
                 div.innerHTML = `<h4>🔥 ${name} 보스 토벌전</h4>
                 <p style="margin:5px 0 0 0; font-size:12px; color:#ff8888;">입장료: <span style="color:var(--gold);">${safeFNum(goldFee)}G</span>, ♦️${diaFee}</p>
                 <p style="color:#f1c40f; font-size:11px; margin:5px 0 0 0;">보스 5연속 처치 시 엄청난 보상!</p>`;
-                
-                // startDungeon 에 구간의 첫 번째 인덱스를 넘겨 난이도를 스케일링
                 div.onclick = () => { if(typeof startDungeon === 'function') startDungeon(i * 5); };
             } else {
                 div.innerHTML = `<h4>🔒 잠김</h4><p style="margin:5px 0 0 0; font-size:12px; color:#888;">${isHell ? 'HELL ' : '일반 '}던전 ${reqLevel-1}단계 클리어 시 열림</p>`;
@@ -534,7 +532,7 @@ window.renderDungeonList = function() {
             list.appendChild(div);
         });
     } else {
-        // [일반 / HELL 원정] 기존처럼 1개씩 노출
+        // [일반 / HELL 원정] 1단계씩 개별 노출
         const dungeonData = isHell ? TOOTH_DATA.hellDungeons : TOOTH_DATA.dungeons;
         dungeonData.forEach((name, idx) => { 
             const div = document.createElement('div'); 
@@ -641,7 +639,7 @@ window.generateRankings = function() {
     if(rankDisp) rankDisp.innerText = `내 순위: ${myRank}위 (전투력: ${safeFNum(myPower)})`;
 };
 
-// --- [ 5. 유틸리티 복구 (누락 방지) ] ---
+// --- [ 5. 유틸리티 (쿠폰 등) ] ---
 window.toggleMining = function() { 
     window.isMiningPaused = !window.isMiningPaused; 
     const btn = document.getElementById('mine-toggle-btn');
@@ -650,8 +648,15 @@ window.toggleMining = function() {
 };
 
 window.checkCoupon = function(code) { 
-    if (code === "100b" || code === "RICH100B") { window.gold += 100000000000; alert("치트키 적용!"); updateUI(); } 
-    else if (code === "DIA100") { window.dia += 10000; alert("다이아 치트 적용!"); updateUI(); }
+    if (code === "100b" || code === "RICH100B") { window.gold += 100000000000; alert("치트키 적용!"); updateUI(); saveGame(); } 
+    else if (code === "DIA100") { window.dia += 10000; alert("다이아 치트 적용!"); updateUI(); saveGame(); }
+    // 🌟 신규: 테스트용 만능 재화 쿠폰
+    else if (code === "TEST") { 
+        window.gold += 1e25; 
+        window.dia += 999999; 
+        alert("테스트용 절대 재화가 지급되었습니다! (골드 +1e25 / 다이아 +999,999)"); 
+        updateUI(); saveGame();
+    }
     else { alert("유효하지 않은 쿠폰입니다."); } 
 };
 
