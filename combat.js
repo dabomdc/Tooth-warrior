@@ -1,4 +1,4 @@
-// Version: 6.8.5 - Combat Engine (Boss Rush Sequential Spawns & Splashes)
+// Version: 6.8.8 - Combat Engine (Background, Mercenary Icon, Map Size Restored)
 
 window.dungeonActive = false;
 window.bossDead = false;
@@ -34,17 +34,23 @@ window.startDungeon = function(idx) {
     }
 
     document.getElementById('game-container').style.display = 'none';
-    document.getElementById('battle-screen').style.display = 'block';
+    const battleScreen = document.getElementById('battle-screen');
+    battleScreen.style.display = 'block';
     
-    let dName = "";
+    // 🌟 배경 테마 복구
+    let theme = "bg-dark";
     if (window.isHellMode) {
-        dName = typeof TOOTH_DATA !== 'undefined' ? TOOTH_DATA.hellDungeons[idx] : `HELL Lv.${idx+1}`;
-        document.getElementById('battle-screen').style.boxShadow = "inset 0 0 50px red";
+        theme = (TOOTH_DATA.hellMobs[0] && TOOTH_DATA.hellMobs[0].theme) ? TOOTH_DATA.hellMobs[0].theme : "bg-hell";
+        battleScreen.style.boxShadow = "inset 0 0 50px red";
     } else {
-        dName = typeof TOOTH_DATA !== 'undefined' ? TOOTH_DATA.dungeons[idx] : `던전 Lv.${idx+1}`;
-        document.getElementById('battle-screen').style.boxShadow = "none";
+        let safeThemeIdx = Math.min(idx, TOOTH_DATA.dungeonMobs.length - 1);
+        theme = (TOOTH_DATA.dungeonMobs[safeThemeIdx] && TOOTH_DATA.dungeonMobs[safeThemeIdx].theme) ? TOOTH_DATA.dungeonMobs[safeThemeIdx].theme : "bg-stone";
+        battleScreen.style.boxShadow = "none";
     }
-    
+    battleScreen.className = theme; // 배경 클래스 적용
+
+    let dName = window.isHellMode ? (typeof TOOTH_DATA !== 'undefined' ? TOOTH_DATA.hellDungeons[idx] : `HELL Lv.${idx+1}`) 
+                                  : (typeof TOOTH_DATA !== 'undefined' ? TOOTH_DATA.dungeons[idx] : `던전 Lv.${idx+1}`);
     if (window.isBossRush) dName = `[토벌전] ` + dName;
     document.getElementById('current-dungeon-name').innerText = dName;
     
@@ -53,39 +59,42 @@ window.startDungeon = function(idx) {
     window.dungeonActive = true;
     window.bossDead = false;
     window.currentWave = 1;
-    // 일반 모드는 마지막이 보스, 토벌전은 매 웨이브가 보스
     window.isBossWave = window.isBossRush ? true : false; 
     window.enemies = [];
     window.missiles = [];
     window.enemyMissiles = [];
     window.relayTimer = 0;
     window.activeSlotIndex = 0;
-    document.getElementById('battle-world').innerHTML = '<div id="player">🦷<div id="player-hp-bar-bg"><div id="player-hp-bar-fill"></div></div></div>';
     
-    window.worldWidth = window.innerWidth;
-    window.worldHeight = window.innerHeight;
+    // 🌟 맵 크기를 이전처럼 넓게 복구
+    window.worldWidth = 2000;
+    window.worldHeight = 2000;
     window.playerX = window.worldWidth / 2;
     window.playerY = window.worldHeight / 2;
+
+    // 🌟 용병 아이콘 복구
+    let curMercIcon = "🦷";
+    if (typeof TOOTH_DATA !== 'undefined' && TOOTH_DATA.mercenaries[window.mercenaryIdx]) {
+        curMercIcon = TOOTH_DATA.mercenaries[window.mercenaryIdx].icon;
+    }
+    
+    document.getElementById('battle-world').innerHTML = `<div id="player" style="font-size: 40px; text-shadow: 0 0 5px rgba(255,255,255,0.5);">${curMercIcon}<div id="player-hp-bar-bg"><div id="player-hp-bar-fill"></div></div></div>`;
     
     const p = document.getElementById('player');
     p.style.left = window.playerX + 'px';
     p.style.top = window.playerY + 'px';
     
     if(window.renderBattleSlots) window.renderBattleSlots();
-    
     setTimeout(() => { window.spawnWave(); }, 1000);
 };
 
 window.spawnWave = function() {
     if (!window.dungeonActive || window.bossDead) return;
-    
-    // 일반 던전의 보스 웨이브일 때 이미 보스가 있으면 중복 소환 방지
     if (!window.isBossRush && window.isBossWave && window.enemies.some(e => e.isBoss)) return;
 
     const waveInfo = document.getElementById('wave-info');
     if (window.isBossRush) {
         if(waveInfo) waveInfo.innerText = `🔥 BOSS RUSH ${window.currentWave}/5 🔥`;
-        // 🌟 토벌전: 오직 보스 1마리만 소환
         setTimeout(() => { 
             if(window.dungeonActive && !window.bossDead) window.spawnEnemy(true); 
         }, 800);
@@ -113,7 +122,6 @@ window.spawnEnemy = function(isBoss = false) {
     
     let mobList = window.isHellMode ? TOOTH_DATA.hellMobs : TOOTH_DATA.dungeonMobs;
     
-    // 🌟 토벌전일 경우: 시작 idx + (웨이브 - 1) 로 보스 단계를 순차적으로 올림
     let safeIdx = window.currentDungeonIdx;
     if (window.isBossRush) {
         safeIdx = Math.min(window.currentDungeonIdx + (window.currentWave - 1), mobList.length - 1);
@@ -125,9 +133,12 @@ window.spawnEnemy = function(isBoss = false) {
     let icon = isBoss ? mobData.boss : mobData.mobs[Math.floor(Math.random() * mobData.mobs.length)];
 
     const angle = Math.random() * Math.PI * 2;
-    const dist = Math.min(window.worldWidth, window.worldHeight) / 2 - 50;
-    let sx = (window.worldWidth / 2) + Math.cos(angle) * dist; 
-    let sy = (window.worldHeight / 2) + Math.sin(angle) * dist;
+    const dist = 600; // 넓은 맵에 맞춰서 스폰 거리 확장
+    let sx = window.playerX + Math.cos(angle) * dist; 
+    let sy = window.playerY + Math.sin(angle) * dist;
+    
+    sx = Math.max(50, Math.min(window.worldWidth - 50, sx));
+    sy = Math.max(50, Math.min(window.worldHeight - 50, sy));
     
     let baseHp = Math.floor(100 * Math.pow(window.isHellMode ? 2.5 : 2.2, safeIdx));
     if (window.isHellMode) baseHp *= 50;
@@ -142,16 +153,9 @@ window.spawnEnemy = function(isBoss = false) {
     worldDiv.appendChild(en); 
     
     window.enemies.push({ 
-        el: en, 
-        hpFill: en.querySelector('.hp-bar-fill'), 
-        x: sx, 
-        y: sy, 
-        isBoss, 
-        phase: 1, 
-        hp: maxHp, 
-        maxHp: maxHp,
-        speed: isBoss ? 1.5 : 2.5 + (safeIdx * 0.1),
-        shootTimer: 0 
+        el: en, hpFill: en.querySelector('.hp-bar-fill'), 
+        x: sx, y: sy, isBoss, phase: 1, 
+        hp: maxHp, maxHp: maxHp, speed: isBoss ? 1.5 : 2.5 + (safeIdx * 0.1), shootTimer: 0 
     });
 };
 
@@ -166,7 +170,6 @@ window.updateCombat = function() {
         
         let moveSpeed = en.speed;
         if(window.isHellMode) moveSpeed *= 1.5;
-        
         if (en.isBoss && distToPlayer < 300 && en.phase === 1) moveSpeed = 0; 
         
         en.x += Math.cos(angle) * moveSpeed; 
@@ -395,9 +398,9 @@ window.processEnemyDeath = function(en) {
         const scr = document.getElementById('battle-screen');
         if(scr) {
             scr.style.background = 'rgba(255,0,0,0.5)';
-            setTimeout(() => scr.style.background = '#000', 150);
+            setTimeout(() => scr.style.background = '', 150);
             setTimeout(() => scr.style.background = 'rgba(255,0,0,0.5)', 300);
-            setTimeout(() => scr.style.background = '#000', 450);
+            setTimeout(() => scr.style.background = '', 450);
         }
         
         en.el.style.filter = 'drop-shadow(0 0 20px red) hue-rotate(180deg)';
@@ -531,6 +534,7 @@ window.exitDungeon = function() {
     window.dungeonActive = false;
     document.getElementById('battle-screen').style.display = 'none';
     document.getElementById('game-container').style.display = 'flex';
+    document.getElementById('battle-screen').className = ""; // 테마 초기화
     window.enemies.forEach(e => e.el.remove());
     window.missiles.forEach(m => m.el.remove());
     window.enemyMissiles.forEach(em => em.el.remove());
