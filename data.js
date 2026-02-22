@@ -1,12 +1,14 @@
-// Version: 6.7.0 - Data Structure (Hell & Codex)
+// Version: 6.8.0 - Master Data (Full Content Preserved, 24-Level Tooth System)
+
 const TOOTH_DATA = {
-    // 8개의 기본 티어 이모지 (5레벨마다 바뀜)
+    // 8개의 기본 티어 이모지 (이제 3레벨마다 바뀝니다)
     icons: ["🦷", "🦴", "🛡️", "⚜️", "💎", "🌋", "🌌", "👑"],
-    // 8개의 기본 테마 이름
-    baseNames: ["유치", "영구치", "강철 치아", "황금 치아", "다이아 치아", "용암 치아", "공허 치아", "신성 치아"],
-    // 5단계 강화 접두사
-    prefix: ["일반", "예리한", "단단한", "빛나는", "완벽한"],
+    // 8개의 기본 테마 이름 (기획안 반영)
+    baseNames: ["유치", "푸른 치아", "초록 치아", "붉은 치아", "보라 치아", "황금 치아", "다이아 치아", "용암 치아"],
+    // 3단계 로테이션 (소, 중, 대)
+    prefix: ["일반", "단단한", "거대한"],
     
+    // 원본 데이터 완벽 보존: 곡괭이 9종
     pickaxes: [
         { name: "허름한 나무 곡괭이", cost: 0, luck: 0, icon: "🪵" },
         { name: "무딘 구리 곡괭이", cost: 300, luck: 0.10, icon: "🪨" }, 
@@ -18,6 +20,8 @@ const TOOTH_DATA = {
         { name: "카본 초합금 곡괭이", cost: 50000000, luck: 0.70, icon: "🔮" },
         { name: "신화의 오리할콘 곡괭이", cost: 1000000000, luck: 0.80, icon: "👑" }
     ],
+    
+    // 원본 데이터 완벽 보존: 용병 20종 (엔드게임 골드 소모처 유지)
     mercenaries: [
         { id: 0, name: "농부 듀드", cost: 0, atkMul: 1.0, baseHp: 100, spd: 1.0, icon: "👨‍🌾" },
         { id: 1, name: "마을 경비병", cost: 500, atkMul: 1.2, baseHp: 150, spd: 1.1, icon: "👮‍♂️" },
@@ -40,7 +44,8 @@ const TOOTH_DATA = {
         { id: 18, name: "천상의 수호자", cost: 25000000000000, atkMul: 150.0, baseHp: 2000, spd: 1.4, icon: "👼" },
         { id: 19, name: "치아의 신", cost: 100000000000000, atkMul: 300.0, baseHp: 5000, spd: 2.0, icon: "🦷" }
     ],
-    // 일반 던전 20종
+    
+    // 원본 데이터 완벽 보존: 일반 던전 20종
     dungeons: [
         "시작의 이끼 동굴", "낡은 해골 병영", "침묵의 지하 수로", "버려진 광산 심부", 
         "혹한의 얼음 감옥", "작열하는 용암 터널", "맹독의 늪지대", "고대 거인의 무덤", 
@@ -48,12 +53,14 @@ const TOOTH_DATA = {
         "초월자의 시험장", "파멸의 잿더미", "영겁의 감시자 탑", "신의 영역: 입구", 
         "황혼의 그림자 성소", "우주 너머의 공허", "혼돈의 끝자락", "카오스 울트라 최종장"
     ],
-    // 신규: HELL 모드 던전 10종
+    
+    // 원본 데이터 완벽 보존: HELL 모드 던전 10종
     hellDungeons: [
         "지옥: 피의 강물", "지옥: 절망의 절벽", "지옥: 악몽의 요람", "지옥: 뼈의 산", 
         "지옥: 영혼 파쇄기", "지옥: 타락한 여명", "지옥: 심연의 심장", "지옥: 멸망의 전조", 
         "지옥: 신살자의 투기장", "지옥: 절대 카오스"
     ],
+    
     dungeonMobs: [
         { theme: 'bg-grass', mobs: ['🍄','🐌','🐛'], boss: '🥦' }, 
         { theme: 'bg-stone', mobs: ['💀','🦴','🦇'], boss: '☠️' }, 
@@ -76,7 +83,7 @@ const TOOTH_DATA = {
         { theme: 'bg-chaos', mobs: ['🤡','🃏','🎭'], boss: '😈' }, 
         { theme: 'bg-tooth', mobs: ['🍬','🍫','🦠'], boss: '👑' }  
     ],
-    // 신규: HELL 몬스터 및 보스
+    
     hellMobs: [
         { theme: 'bg-hell', mobs: ['🩸','🔪','🩸'], boss: '🧛‍♂️' },
         { theme: 'bg-hell', mobs: ['👁️','🧠','🫀'], boss: '🕷️' },
@@ -89,11 +96,12 @@ const TOOTH_DATA = {
         { theme: 'bg-hell', mobs: ['👹','👺','👿'], boss: '😈' },
         { theme: 'bg-hell', mobs: ['👑','🔱','⚜️'], boss: '👁️‍🗨️' }
     ],
+    
     botNames: ["이빨요정", "치과무서워", "Driller", "Gold_Hunter", "사랑니", "임플란트", "충치균", "양치질", "스케일링", "치아왕", "강철턱", "GumGuard", "RootCanal", "MolarBear", "ToothHurty", "FlossBoss"],
     invExpansion: [2000, 20000, 200000, 2000000]
 };
 
-// --- 사운드 시스템 ---
+// --- 사운드 시스템 (그대로 보존) ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 function playTone(freq, type, duration, vol = 0.1) {
@@ -103,7 +111,6 @@ function playTone(freq, type, duration, vol = 0.1) {
         const gain = audioCtx.createGain();
         osc.type = type;
         osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        // 설정에서 조절한 볼륨 적용 (masterVolume 1, 2, 3 단계)
         const finalVol = vol * (window.masterVolume || 2) * 0.5;
         gain.gain.setValueAtTime(finalVol, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
@@ -126,7 +133,6 @@ function playSfx(name) {
         case 'hit': playTone(100, 'noise', 0.05, 0.1); break;
         case 'upgrade': playTone(600, 'square', 0.1, 0.1); setTimeout(() => playTone(900, 'square', 0.1, 0.1), 100); break;
         case 'damage': playTone(80, 'sawtooth', 0.2, 0.2); break;
-        // 신규: 티어 개방 축하 팡파레
         case 'unlock': playTone(440, 'sine', 0.2, 0.2); setTimeout(() => playTone(554, 'sine', 0.2, 0.2), 200); setTimeout(() => playTone(659, 'sine', 0.4, 0.2), 400); break;
     }
 }
@@ -140,34 +146,36 @@ function fNum(num) {
     return shortNum.toFixed(2).replace(/\.00$/, "") + units[unitIdx];
 }
 
-// 40레벨 압축 공격력 공식 & 36렙 10배 버프 적용
+// 🌟 [수정됨] 24단계 압축 대응 공격력 공식 (스케일링 강화)
 function getAtk(lv) { 
     if(lv === 0) return 0;
-    let atk = Math.floor(20 * Math.pow(1.6, lv - 1));
+    // 24단계로 줄어든 만큼, 1단계당 상승폭을 1.6배에서 1.8배로 높여 후반 밸런스를 맞춥니다.
+    let atk = Math.floor(20 * Math.pow(1.8, lv - 1));
     
-    // 36레벨 이상 도달 시 모든 치아 공격력 10배
-    if(window.highestToothLevel >= 36) {
+    // [티어 7] Lv.19 이상: 지옥의 파괴자 (공격력 10배 증폭 영구 효과)
+    if(window.highestToothLevel >= 19) {
         atk *= 10; 
     }
     return atk;
 }
 
-// 신규: 도감을 위한 이름 생성기 (예: 완벽한 황금 치아)
+// 🌟 [수정됨] 도감을 위한 이름 생성기 (총 24단계 = 8티어 * 3단계)
 function getToothName(lv) {
     if (lv === 0) return "";
-    let safeLv = Math.min(40, lv); // 최대 40레벨 고정
-    let tier = Math.floor((safeLv - 1) / 5);
-    let step = (safeLv - 1) % 5;
+    let safeLv = Math.min(24, lv); // 최대 24레벨로 고정
+    let tier = Math.floor((safeLv - 1) / 3); // 0 ~ 7 (색상 티어)
+    let step = (safeLv - 1) % 3; // 0: 소, 1: 중, 2: 대
     return TOOTH_DATA.prefix[step] + " " + TOOTH_DATA.baseNames[tier];
 }
 
-// 신규: CSS Tiers가 적용된 치아 아이콘 반환기
+// 🌟 [수정됨] CSS 클래스가 적용된 치아 아이콘 반환기 (3단계 로테이션)
 function getToothIcon(lv) {
     if (lv === 0) return "";
-    let safeLv = Math.min(40, lv); // 최대 40레벨 고정
-    let tier = Math.floor((safeLv - 1) / 5);
-    let step = (safeLv - 1) % 5;
+    let safeLv = Math.min(24, lv); // 최대 24레벨로 고정
+    let tier = Math.floor((safeLv - 1) / 3);
+    let step = (safeLv - 1) % 3; // 0, 1, 2
     
     let icon = TOOTH_DATA.icons[tier] || "🦷";
-    return `<div class="tooth-icon effect-${step}">${icon}</div>`;
+    // effect-tier-X 로 색상을 칠하고, effect-size-X 로 소/중/대 크기를 조절하도록 CSS 연동
+    return `<div class="tooth-icon effect-tier-${tier} effect-size-${step}">${icon}</div>`;
 }
