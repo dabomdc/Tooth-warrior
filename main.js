@@ -1,4 +1,4 @@
-// Version: 6.8.3 - Main Engine (Boss Rush Tab Fix & TEST Coupon)
+// Version: 6.8.4 - Main Engine (Mining Level Text Fixes)
 
 window.gold = 0; 
 window.dia = 0; 
@@ -46,7 +46,6 @@ window.getBaseMiningLevel = function() {
     return Math.min(24, normalBase + hellBonus); 
 };
 
-// --- [ 1. 초기화 및 세이브/로드 ] ---
 window.onload = () => { 
     loadGame(); 
     setupMiningTouch(); 
@@ -73,9 +72,7 @@ window.startIntro = function() {
         vid.muted = window.isMuted; 
         vid.play().catch(e => { window.finishIntro(); });
         vid.onended = () => { setTimeout(window.finishIntro, 500); };
-    } else {
-        window.finishIntro();
-    }
+    } else { window.finishIntro(); }
 };
 
 window.skipIntro = function() { 
@@ -94,9 +91,7 @@ window.finishIntro = function() {
             localStorage.setItem('toothIntroSeen_v5', 'true');
             window.checkNicknameAndStart();
         }, 1500);
-    } else {
-        window.checkNicknameAndStart();
-    }
+    } else { window.checkNicknameAndStart(); }
 };
 
 window.checkNicknameAndStart = function() {
@@ -179,7 +174,6 @@ function loadGame() {
 }
 window.loadGame = loadGame;
 
-// --- [ 2. 루프 & 인벤토리 ] ---
 function gameLoop() { 
     if(!window.isMiningPaused) { 
         const miningSpeedSec = Math.max(1, 10 - ((window.autoMineLevel - 1) * 0.2)); 
@@ -275,7 +269,6 @@ function checkHighestTier(level) {
 }
 window.checkHighestTier = checkHighestTier;
 
-// --- [ 3. UI 및 컨트롤 ] ---
 function updateUI() { 
     const gd = document.getElementById('gold-display');
     if(gd) gd.innerText = safeFNum(window.gold); 
@@ -447,13 +440,11 @@ function setupMiningTouch() {
 }
 window.setupMiningTouch = setupMiningTouch;
 
-// 🌟 용병 렌더링
 window.renderMercenaryCamp = function() { 
     const camp = document.getElementById('mercenary-list'); 
     if(!camp || typeof TOOTH_DATA === 'undefined') return;
     camp.innerHTML = ''; 
     const maxOwned = Math.max(...window.ownedMercenaries); 
-    
     let tier6Text = (window.highestToothLevel >= 16) ? `<span style="color:yellow;">(x2)</span>` : "";
 
     TOOTH_DATA.mercenaries.forEach(merc => { 
@@ -469,7 +460,6 @@ window.renderMercenaryCamp = function() {
             <div style="font-size:10px; color:#aaa;">공격 x${merc.atkMul} ${tier6Text}</div>
             <div style="font-size:10px; color:#f55;">HP ${safeFNum(merc.baseHp)}</div> 
         `; 
-        
         if (isEquipped) {
             div.style.border = '2px solid #2ecc71'; 
             div.innerHTML += `<button class="btn-sm" style="background:#2ecc71; color:white; width:100%; margin-top:5px; cursor:default;">고용중</button>`;
@@ -492,21 +482,18 @@ window.buyMerc = function(id, cost) {
 };
 window.equipMerc = function(id) { window.mercenaryIdx = id; window.renderMercenaryCamp(); saveGame(); };
 
-// 🌟 [핵심 수정] 탭 상태를 뷰포트에서 직접 읽어와서 토벌전 목록 분기 처리
+// 🌟 [수정] 2단계당 1업 안내 텍스트 정확하게 반영
 window.renderDungeonList = function() { 
     const list = document.getElementById('dungeon-list'); 
     if(!list || typeof TOOTH_DATA === 'undefined') return;
     list.innerHTML = ''; 
     
-    // 이 부분이 핵심! 전투 로직의 상태가 아닌 탭 자체의 상태를 읽어옵니다.
     const tab = window.currentDungeonTab || 'normal';
     const isHell = (tab === 'hell' || tab === 'hellboss');
     const isBoss = (tab === 'boss' || tab === 'hellboss');
-    
     const currentUnlocked = isHell ? window.unlockedHellDungeon : window.unlockedDungeon;
     
     if (isBoss) {
-        // [토벌전] 5구간씩 묶어서 노출
         const rushNames = isHell ? 
             ["HELL 1~5구간", "HELL 6~10구간", "HELL 11~15구간", "HELL 16~20구간"] :
             ["일반 1~5구간", "일반 6~10구간", "일반 11~15구간", "일반 16~20구간"];
@@ -532,7 +519,6 @@ window.renderDungeonList = function() {
             list.appendChild(div);
         });
     } else {
-        // [일반 / HELL 원정] 1단계씩 개별 노출
         const dungeonData = isHell ? TOOTH_DATA.hellDungeons : TOOTH_DATA.dungeons;
         dungeonData.forEach((name, idx) => { 
             const div = document.createElement('div'); 
@@ -541,13 +527,15 @@ window.renderDungeonList = function() {
             
             let baseHp = Math.floor(100 * Math.pow(isHell ? 2.5 : 2.2, idx));
             if (isHell) baseHp *= 50;
-            const bossHp = baseHp * 30;
-            const recAtk = bossHp / 40;
+            const recAtk = (baseHp * 30) / 40;
+
+            // 짝수 던전(인덱스 홀수)을 깰 때만 채굴 레벨이 오름
+            let levelUpText = ((idx + 1) % 2 === 0) ? `<p style="color:#f1c40f; font-size:11px; margin:5px 0 0 0;">✨ 클리어 시 채굴 레벨 확정 상승!</p>` : `<p style="color:#888; font-size:11px; margin:5px 0 0 0;">(다음 단계 클리어 시 채굴 레벨 상승)</p>`;
 
             if (isUnlocked) { 
                 div.innerHTML = `<h4>⚔️ Lv.${idx+1} ${name}</h4>
                 <p style="margin:5px 0 0 0; font-size:12px; color:#aaa;">권장 공격력: ${safeFNum(recAtk)}+</p>
-                <p style="color:#f1c40f; font-size:11px; margin:5px 0 0 0;">클리어 시 채굴 레벨 상승!</p>`;
+                ${levelUpText}`;
                 div.onclick = () => { if(typeof startDungeon === 'function') startDungeon(idx); };
             } else { 
                 div.innerHTML = `<h4>🔒 잠김</h4><p style="margin:5px 0 0 0; font-size:12px; color:#888;">이전 던전 클리어 시 열림</p>`; 
@@ -572,7 +560,7 @@ window.showResultModal = function() {
         if (window.isHellMode) {
             if (window.unlockedHellDungeon <= window.currentDungeonIdx + 1 && window.currentDungeonIdx < 19) {
                 window.unlockedHellDungeon = window.currentDungeonIdx + 2;
-                nextStr = `다음 HELL 던전 오픈! 기본 채굴 레벨이 상승합니다!`;
+                nextStr = ((window.unlockedHellDungeon - 1) % 2 === 0) ? `다음 HELL 오픈! (채굴 레벨 상승!)` : `다음 HELL 오픈!`;
             }
         } else {
             if (window.currentDungeonIdx === 19 && window.unlockedDungeon === 20) {
@@ -596,7 +584,7 @@ window.showResultModal = function() {
             } 
             else if (window.unlockedDungeon <= window.currentDungeonIdx + 1 && window.currentDungeonIdx < 19) {
                 window.unlockedDungeon = window.currentDungeonIdx + 2;
-                nextStr = `다음 던전 오픈! 기본 채굴 레벨이 상승합니다!`;
+                nextStr = ((window.unlockedDungeon - 1) % 2 === 0) ? `다음 던전 오픈! (채굴 레벨 상승!)` : `다음 던전 오픈!`;
             }
         }
     }
@@ -650,7 +638,6 @@ window.toggleMining = function() {
 window.checkCoupon = function(code) { 
     if (code === "100b" || code === "RICH100B") { window.gold += 100000000000; alert("치트키 적용!"); updateUI(); saveGame(); } 
     else if (code === "DIA100") { window.dia += 10000; alert("다이아 치트 적용!"); updateUI(); saveGame(); }
-    // 🌟 신규: 테스트용 만능 재화 쿠폰
     else if (code === "TEST") { 
         window.gold += 1e25; 
         window.dia += 999999; 
