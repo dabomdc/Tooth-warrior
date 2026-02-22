@@ -1,8 +1,9 @@
-// Version: 6.8.9 - Dynamic Joystick & Camera Tracking (Smooth Move)
+// Version: 6.9.0 - Dynamic Joystick & Camera Tracking (Speed Bug Fixed)
 
 window.playerMoveX = 0;
 window.playerMoveY = 0;
 window.isInvincible = false;
+window.battleLoopInterval = null; // 중복 실행 방지용 변수
 
 window.renderBattleSlots = function() {
     const slotsDiv = document.getElementById('war-weapon-slots');
@@ -23,7 +24,7 @@ window.renderBattleSlots = function() {
         slotsDiv.appendChild(slot);
     }
 
-    // 🌟 동적 조이스틱 이벤트 세팅
+    // 🌟 동적 조이스틱 활성화
     setupDynamicJoystick();
     
     // 체력 초기화 (던전 진입 시마다 최대 체력으로 회복)
@@ -32,11 +33,17 @@ window.renderBattleSlots = function() {
     let baseMaxHp = curMerc ? curMerc.baseHp : 100;
     window.currentHp = baseMaxHp * (1 + trainingHpBonus);
 
-    if (window.battleLoopInterval) cancelAnimationFrame(window.battleLoopInterval);
+    // 🌟 [핵심 버그 수정] 기존에 돌고 있던 게임 루프가 있다면 무조건 정지 (속도 폭주 방지)
+    if (window.battleLoopInterval) {
+        cancelAnimationFrame(window.battleLoopInterval);
+        window.battleLoopInterval = null;
+    }
+    
+    // 새로운 루프 시작
     window.battleLoopInterval = requestAnimationFrame(battleLoop);
 };
 
-// 🌟 [핵심 1] 화면 어디든 터치하면 조이스틱이 생성되는 로직
+// 🌟 화면 어디든 터치하면 조이스틱이 생성되는 로직
 function setupDynamicJoystick() {
     const screen = document.getElementById('battle-screen');
     const zone = document.getElementById('joystick-zone');
@@ -112,8 +119,9 @@ function setupDynamicJoystick() {
     };
 }
 
-// 🌟 [핵심 2] 카메라가 캐릭터를 따라다니는 로직
+// 🌟 [핵심] 카메라 추적 및 플레이어 이동 루프
 function battleLoop() {
+    // 던전이 종료되었거나 보스가 죽었으면 루프를 멈춥니다.
     if (!window.dungeonActive || window.bossDead) return;
     
     // 기본 이동 속도
@@ -142,7 +150,7 @@ function battleLoop() {
         p.style.top = window.playerY + 'px';
     }
 
-    // 📸 [카메라 시점 이동] 화면 중앙에 캐릭터가 위치하도록 배경(world) 전체를 반대로 밀어줍니다.
+    // 📸 [카메라 시점 이동] 화면 중앙에 캐릭터가 오도록 배경(battle-world)을 반대로 밀어줍니다!
     const worldDiv = document.getElementById('battle-world');
     if (worldDiv) {
         let offsetX = (window.innerWidth / 2) - window.playerX;
@@ -152,6 +160,8 @@ function battleLoop() {
 
     // 투사체 및 몹 로직 업데이트 호출
     if (typeof updateCombat === 'function') updateCombat();
+    
+    // 다음 프레임 요청
     window.battleLoopInterval = requestAnimationFrame(battleLoop);
 }
 
