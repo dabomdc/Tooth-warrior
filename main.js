@@ -1,4 +1,4 @@
-// Version: 6.8.1 - Main Engine (Intro Touch & Missing Functions Restored)
+// Version: 6.8.2 - Main Engine (Mercenaries Restored & Boss Rush List Fixed)
 
 window.gold = 0; 
 window.dia = 0; 
@@ -60,7 +60,6 @@ window.onload = () => {
     }
 };
 
-// 🌟 [누락되었던 인트로 터치 함수 복구] 🌟
 window.startIntro = function() {
     const btnLayer = document.getElementById('start-btn-layer');
     if(btnLayer) btnLayer.style.display = 'none';
@@ -448,40 +447,116 @@ function setupMiningTouch() {
 }
 window.setupMiningTouch = setupMiningTouch;
 
+// 🌟 [누락 복구] 용병 렌더링 및 구매/장착 기능
+window.renderMercenaryCamp = function() { 
+    const camp = document.getElementById('mercenary-list'); 
+    if(!camp || typeof TOOTH_DATA === 'undefined') return;
+    camp.innerHTML = ''; 
+    const maxOwned = Math.max(...window.ownedMercenaries); 
+    
+    // [티어6] 용병 공격력 2배 각성 효과 반영 (Lv.16부터)
+    let tier6Text = (window.highestToothLevel >= 16) ? `<span style="color:yellow;">(x2)</span>` : "";
+
+    TOOTH_DATA.mercenaries.forEach(merc => { 
+        if (merc.id > maxOwned + 1) return; 
+        const div = document.createElement('div'); 
+        div.className = 'merc-card'; 
+        const isOwned = window.ownedMercenaries.includes(merc.id); 
+        const isEquipped = window.mercenaryIdx === merc.id; 
+        
+        div.innerHTML = `
+            <div style="font-size:25px;">${merc.icon}</div>
+            <div style="font-size:12px; font-weight:bold; margin:5px 0;">${merc.name}</div>
+            <div style="font-size:10px; color:#aaa;">공격 x${merc.atkMul} ${tier6Text}</div>
+            <div style="font-size:10px; color:#f55;">HP ${safeFNum(merc.baseHp)}</div> 
+        `; 
+        
+        if (isEquipped) {
+            div.style.border = '2px solid #2ecc71'; 
+            div.innerHTML += `<button class="btn-sm" style="background:#2ecc71; color:white; width:100%; margin-top:5px; cursor:default;">고용중</button>`;
+        } else if (isOwned) {
+            div.innerHTML += `<button onclick="window.equipMerc(${merc.id})" class="btn-sm" style="background:#777; width:100%; margin-top:5px;">대기중</button>`; 
+        } else {
+            div.innerHTML += `<button onclick="window.buyMerc(${merc.id}, ${merc.cost})" class="btn-gold" style="padding:4px 5px; font-size:11px; width:100%; margin-top:5px;">${safeFNum(merc.cost)}G</button>`; 
+        }
+        camp.appendChild(div); 
+    }); 
+};
+
+window.buyMerc = function(id, cost) { 
+    if(window.gold >= cost) { 
+        window.gold -= cost; 
+        try { if(typeof playSfx === 'function') playSfx('upgrade'); } catch(e){} 
+        window.ownedMercenaries.push(id); 
+        window.renderMercenaryCamp(); updateUI(); 
+    } else { alert("골드가 부족합니다!"); } 
+};
+window.equipMerc = function(id) { window.mercenaryIdx = id; window.renderMercenaryCamp(); saveGame(); };
+
+// 🌟 [수정 완벽 적용] 토벌전 탭 리스트 분기 처리 (5단위 묶음)
 window.renderDungeonList = function() { 
     const list = document.getElementById('dungeon-list'); 
     if(!list || typeof TOOTH_DATA === 'undefined') return;
     list.innerHTML = ''; 
     
     const isHell = window.isHellMode;
-    const dungeonData = isHell ? TOOTH_DATA.hellDungeons : TOOTH_DATA.dungeons;
+    const isBoss = window.isBossRush;
     const currentUnlocked = isHell ? window.unlockedHellDungeon : window.unlockedDungeon;
     
-    dungeonData.forEach((name, idx) => { 
-        const div = document.createElement('div'); 
-        const isUnlocked = idx < currentUnlocked; 
-        div.className = `dungeon-card ${isUnlocked ? 'unlocked' : 'locked'}`; 
+    if (isBoss) {
+        // [토벌전] 5구간씩 묶어서 블록으로 노출
+        const rushNames = isHell ? 
+            ["HELL 1~5구간", "HELL 6~10구간", "HELL 11~15구간", "HELL 16~20구간"] :
+            ["일반 1~5구간", "일반 6~10구간", "일반 11~15구간", "일반 16~20구간"];
         
-        let baseHp = Math.floor(100 * Math.pow(isHell ? 2.5 : 2.2, idx));
-        if (isHell) baseHp *= 50;
-        const bossHp = baseHp * (window.isBossRush ? (20 * Math.pow(1.5, 1)) : 30);
-        const recAtk = bossHp / 40;
-
-        if (isUnlocked) { 
-            div.innerHTML = `<h4>⚔️ Lv.${idx+1} ${name}</h4>
-            <p style="margin:5px 0 0 0; font-size:12px; color:#aaa;">권장 공격력: ${safeFNum(recAtk)}+</p>`;
+        rushNames.forEach((name, i) => {
+            // 입장 조건: 해당 구간의 5단계를 깨야 열림 (ex. 1~5구간은 던전 5를 깨서 unlocked가 6 이상일때 열림)
+            const reqLevel = (i * 5) + 6; 
+            const isUnlocked = currentUnlocked >= reqLevel;
+            const div = document.createElement('div'); 
+            div.className = `dungeon-card ${isUnlocked ? 'unlocked' : 'locked'}`; 
             
-            if(window.isBossRush) {
-                div.innerHTML += `<p style="color:#e74c3c; font-size:11px; margin:5px 0 0 0;">입장료 발생! 보스 5연전 진행</p>`;
+            // 입장료 계산 (구간이 올라갈수록 기하급수적 상승)
+            let goldFee = Math.floor(5000 * Math.pow(2.0, i * 5));
+            let diaFee = 5 + ((i * 5) * 5);
+            if (isHell) { goldFee *= 10; diaFee *= 5; }
+
+            if (isUnlocked) {
+                div.innerHTML = `<h4>🔥 ${name} 보스 토벌전</h4>
+                <p style="margin:5px 0 0 0; font-size:12px; color:#ff8888;">입장료: <span style="color:var(--gold);">${safeFNum(goldFee)}G</span>, ♦️${diaFee}</p>
+                <p style="color:#f1c40f; font-size:11px; margin:5px 0 0 0;">보스 5연속 처치 시 엄청난 보상!</p>`;
+                
+                // startDungeon 에 구간의 첫 번째 인덱스를 넘겨 난이도를 스케일링
+                div.onclick = () => { if(typeof startDungeon === 'function') startDungeon(i * 5); };
             } else {
-                div.innerHTML += `<p style="color:#f1c40f; font-size:11px; margin:5px 0 0 0;">클리어 시 채굴 레벨 상승!</p>`;
+                div.innerHTML = `<h4>🔒 잠김</h4><p style="margin:5px 0 0 0; font-size:12px; color:#888;">${isHell ? 'HELL ' : '일반 '}던전 ${reqLevel-1}단계 클리어 시 열림</p>`;
             }
-            div.onclick = () => { if(typeof startDungeon === 'function') startDungeon(idx); };
-        } else { 
-            div.innerHTML = `<h4>🔒 잠김</h4><p style="margin:5px 0 0 0; font-size:12px; color:#888;">이전 던전 클리어 시 열림</p>`; 
-        } 
-        list.appendChild(div); 
-    }); 
+            list.appendChild(div);
+        });
+    } else {
+        // [일반 / HELL 원정] 기존처럼 1개씩 노출
+        const dungeonData = isHell ? TOOTH_DATA.hellDungeons : TOOTH_DATA.dungeons;
+        dungeonData.forEach((name, idx) => { 
+            const div = document.createElement('div'); 
+            const isUnlocked = idx < currentUnlocked; 
+            div.className = `dungeon-card ${isUnlocked ? 'unlocked' : 'locked'}`; 
+            
+            let baseHp = Math.floor(100 * Math.pow(isHell ? 2.5 : 2.2, idx));
+            if (isHell) baseHp *= 50;
+            const bossHp = baseHp * 30;
+            const recAtk = bossHp / 40;
+
+            if (isUnlocked) { 
+                div.innerHTML = `<h4>⚔️ Lv.${idx+1} ${name}</h4>
+                <p style="margin:5px 0 0 0; font-size:12px; color:#aaa;">권장 공격력: ${safeFNum(recAtk)}+</p>
+                <p style="color:#f1c40f; font-size:11px; margin:5px 0 0 0;">클리어 시 채굴 레벨 상승!</p>`;
+                div.onclick = () => { if(typeof startDungeon === 'function') startDungeon(idx); };
+            } else { 
+                div.innerHTML = `<h4>🔒 잠김</h4><p style="margin:5px 0 0 0; font-size:12px; color:#888;">이전 던전 클리어 시 열림</p>`; 
+            } 
+            list.appendChild(div); 
+        }); 
+    }
 };
 
 window.showResultModal = function() {
