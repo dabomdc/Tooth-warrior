@@ -1,9 +1,9 @@
-// Version: 6.9.1 - Dynamic Joystick & Camera Tracking (Ultimate Fix)
+// Version: 6.9.2 - Dynamic Joystick (Mobile Touch-Action Fixed)
 
 window.playerMoveX = 0;
 window.playerMoveY = 0;
 window.isInvincible = false;
-window.battleLoopInterval = null; // 중복 실행 방지용
+window.battleLoopInterval = null; 
 
 window.renderBattleSlots = function() {
     const slotsDiv = document.getElementById('war-weapon-slots');
@@ -24,26 +24,21 @@ window.renderBattleSlots = function() {
         slotsDiv.appendChild(slot);
     }
 
-    // 🌟 동적 조이스틱 활성화
     setupDynamicJoystick();
     
-    // 체력 초기화 (던전 진입 시마다 최대 체력으로 회복)
     let curMerc = typeof TOOTH_DATA !== 'undefined' ? TOOTH_DATA.mercenaries[window.mercenaryIdx] : null;
     let trainingHpBonus = window.trainingLevels && window.trainingLevels.hp ? window.trainingLevels.hp * 0.05 : 0;
     let baseMaxHp = curMerc ? curMerc.baseHp : 100;
     window.currentHp = baseMaxHp * (1 + trainingHpBonus);
 
-    // 🌟 [핵심 버그 수정] 기존에 돌고 있던 게임 루프가 있다면 무조건 정지 (속도 폭주 완벽 차단)
     if (window.battleLoopInterval) {
         cancelAnimationFrame(window.battleLoopInterval);
         window.battleLoopInterval = null;
     }
     
-    // 새로운 루프 시작
     window.battleLoopInterval = requestAnimationFrame(battleLoop);
 };
 
-// 🌟 화면 어디든 터치하면 조이스틱이 생성되는 로직
 function setupDynamicJoystick() {
     const screen = document.getElementById('battle-screen');
     const zone = document.getElementById('joystick-zone');
@@ -51,15 +46,16 @@ function setupDynamicJoystick() {
     
     if(!screen || !zone || !knob) return;
 
+    // 🌟 [핵심 수정 1] 모바일 브라우저의 스와이프/스크롤 제스처 강제 차단!
+    screen.style.touchAction = 'none';
+
     let isDragging = false;
     let centerX = 0;
     let centerY = 0;
-    const maxRadius = 50; // 조이스틱 감도 (반지름)
+    const maxRadius = 50; 
 
-    // 평소에는 조이스틱을 화면에서 숨겨둡니다.
     zone.style.display = 'none';
 
-    // 🌟 [핵심 수정] 조이스틱을 안전하게 끄는 공통 함수 (손 뗐을 때 계속 움직이는 버그 해결)
     function stopDrag() {
         isDragging = false;
         window.playerMoveX = 0;
@@ -68,18 +64,18 @@ function setupDynamicJoystick() {
         zone.style.display = 'none';
     }
 
+    // 🌟 [핵심 수정 2] iOS 사파리 등에서 터치 이동 시 화면이 들썩거리는 현상 방지
+    screen.addEventListener('touchmove', function(e) {
+        if (isDragging) e.preventDefault();
+    }, { passive: false });
+
     screen.onpointerdown = (e) => {
-        // 무기 슬롯(스킬창)이나 후퇴 버튼을 눌렀을 때는 조이스틱이 생기지 않도록 예외 처리
         if (e.target.closest('#war-weapon-slots') || e.target.closest('.btn-exit')) return;
         
-        e.preventDefault(); // 화면 스크롤 등 기본 동작 방지
         isDragging = true;
-        
-        // 터치한 위치를 조이스틱의 중심점(Center)으로 설정
         centerX = e.clientX;
         centerY = e.clientY;
         
-        // 터치한 위치에 조이스틱 UI 띄우기 (zone 크기가 120이므로 절반인 60을 빼서 중앙 정렬)
         zone.style.display = 'block';
         zone.style.right = 'auto'; 
         zone.style.bottom = 'auto';
@@ -95,13 +91,11 @@ function setupDynamicJoystick() {
 
     screen.onpointermove = (e) => {
         if (!isDragging) return;
-        e.preventDefault();
         
         let dx = e.clientX - centerX;
         let dy = e.clientY - centerY;
         let distance = Math.hypot(dx, dy);
         
-        // 🌟 [핵심 수정] 드래그가 조이스틱 반경을 절대 벗어나지 않도록 강제 제한 (두 번째 사진 버그 해결)
         if (distance > maxRadius) {
             dx = (dx / distance) * maxRadius;
             dy = (dy / distance) * maxRadius;
@@ -110,7 +104,6 @@ function setupDynamicJoystick() {
         
         knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
         
-        // 이동 벡터 설정 (0.0 ~ 1.0 비율)
         if (distance > 0) {
             window.playerMoveX = dx / maxRadius;
             window.playerMoveY = dy / maxRadius;
@@ -125,50 +118,37 @@ function setupDynamicJoystick() {
         try { screen.releasePointerCapture(e.pointerId); } catch(err){}
     };
     
-    // 화면 밖으로 손가락이 나가거나 전화가 와서 터치가 취소될 때 방어
+    // 브라우저가 제스처로 착각해 터치를 뺏어갔을 때도 멈추도록 처리
     screen.onpointercancel = (e) => {
         stopDrag();
         try { screen.releasePointerCapture(e.pointerId); } catch(err){}
     };
-
-    // 최후의 보루: 화면 전체에서 손가락이 떨어지면 강제 정지
-    document.addEventListener('pointerup', () => {
-        if (isDragging) stopDrag();
-    });
 }
 
-// 🌟 [핵심] 카메라 추적 및 플레이어 이동 루프
 function battleLoop() {
-    // 던전이 종료되었거나 보스가 죽었으면 루프를 멈춥니다.
     if (!window.dungeonActive || window.bossDead) return;
     
-    // 기본 이동 속도
     let baseSpeed = 6; 
     let curMerc = typeof TOOTH_DATA !== 'undefined' ? TOOTH_DATA.mercenaries[window.mercenaryIdx] : null;
     let mercSpd = curMerc ? curMerc.spd : 1.0;
     
-    // 용병 훈련소 신속 스탯 반영
     let trainingSpdBonus = window.trainingLevels && window.trainingLevels.spd ? window.trainingLevels.spd * 0.1 : 0;
     let finalSpeed = baseSpeed * (mercSpd + trainingSpdBonus);
 
-    // 실제 위치 이동 연산
     window.playerX += window.playerMoveX * finalSpeed;
     window.playerY += window.playerMoveY * finalSpeed;
     
-    // 맵 경계선 밖으로 나가지 못하게 제한 (넓은 2000x2000 맵 기준)
     let mapW = window.worldWidth || 2000;
     let mapH = window.worldHeight || 2000;
     window.playerX = Math.max(30, Math.min(mapW - 30, window.playerX));
     window.playerY = Math.max(30, Math.min(mapH - 30, window.playerY));
     
-    // 플레이어 캐릭터 DOM 위치 업데이트
     const p = document.getElementById('player');
     if (p) {
         p.style.left = window.playerX + 'px';
         p.style.top = window.playerY + 'px';
     }
 
-    // 📸 [카메라 시점 이동 로직] 화면 중앙에 캐릭터가 오도록 배경(battle-world)을 반대로 밀어줍니다!
     const worldDiv = document.getElementById('battle-world');
     if (worldDiv) {
         let offsetX = (window.innerWidth / 2) - window.playerX;
@@ -176,10 +156,7 @@ function battleLoop() {
         worldDiv.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
     }
 
-    // 투사체 및 몹 로직 업데이트 호출
     if (typeof updateCombat === 'function') updateCombat();
-    
-    // 다음 프레임 요청
     window.battleLoopInterval = requestAnimationFrame(battleLoop);
 }
 
@@ -198,7 +175,6 @@ window.takeDamage = function(dmg) {
     
     window.currentHp -= dmg;
     
-    // 피격 시 무적 시간 부여
     window.isInvincible = true;
     if (p) p.classList.add('invincible');
     
@@ -207,7 +183,6 @@ window.takeDamage = function(dmg) {
         if (p) p.classList.remove('invincible');
     }, 500);
 
-    // 피격 이펙트 (화면 깜빡임)
     const scr = document.getElementById('battle-screen');
     if(scr) {
         scr.style.background = 'rgba(255,0,0,0.3)';
@@ -224,7 +199,6 @@ window.takeDamage = function(dmg) {
     }
 };
 
-// 🌟 [안전 장치] 팝업창 확인 버튼 안 눌리는 현상 원천 차단
 window.closeResultModal = function() {
     try {
         const modal = document.getElementById('dungeon-result-modal');
