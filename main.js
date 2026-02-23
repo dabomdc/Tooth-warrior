@@ -1,4 +1,4 @@
-// Version: 6.8.4 - Main Engine (Mining Level Text Fixes)
+// Version: 6.9.0 - Main Engine (TimeAttack, Rich Rankings, Clear Texts)
 
 window.gold = 0; 
 window.dia = 0; 
@@ -27,6 +27,9 @@ window.isHellMode = false;
 window.isBossRush = false;
 window.isResetting = false;
 
+// 🌟 신규: 최고 기록(클리어 타임) 저장 객체
+window.bestClearTimes = {};
+
 let gameLoopInterval = null; 
 let lastTapTime = 0; 
 let lastTapIdx = -1;
@@ -35,6 +38,7 @@ const dragProxy = document.getElementById('drag-proxy');
 const safeFNum = (val) => typeof fNum === 'function' ? fNum(val) : val;
 const safeGetAtk = (lv) => typeof getAtk === 'function' ? getAtk(lv) : 10;
 const safeGetIcon = (lv) => typeof getToothIcon === 'function' ? getToothIcon(lv) : "🦷";
+const safeGetName = (lv) => typeof getToothName === 'function' ? getToothName(lv) : `Lv.${lv} 치아`;
 const getView = () => typeof currentView !== 'undefined' ? currentView : 'mine';
 
 window.getBaseMiningLevel = function() {
@@ -46,6 +50,7 @@ window.getBaseMiningLevel = function() {
     return Math.min(24, normalBase + hellBonus); 
 };
 
+// --- [ 1. 초기화 및 세이브/로드 ] ---
 window.onload = () => { 
     loadGame(); 
     setupMiningTouch(); 
@@ -57,6 +62,9 @@ window.onload = () => {
         if(layer) layer.style.display = 'none';
         checkNicknameAndStart();
     }
+    // 초기 버튼 텍스트 세팅
+    const btn = document.getElementById('mine-toggle-btn');
+    if(btn) btn.innerText = window.isMiningPaused ? "▶️ 자동채굴/합성 재개" : "⏸️ 자동채굴/합성 정지"; 
 };
 
 window.startIntro = function() {
@@ -113,6 +121,19 @@ window.confirmNickname = function() {
     } else { alert("닉네임을 입력해주세요."); }
 };
 
+// 🌟 설정 창에서 닉네임 변경 기능
+window.updateNickname = function() {
+    const input = document.getElementById('settings-nickname-input').value.trim();
+    if(input.length > 0) {
+        window.nickname = input;
+        alert("닉네임이 성공적으로 변경되었습니다: " + window.nickname);
+        document.getElementById('settings-nickname-input').value = "";
+        saveGame();
+    } else {
+        alert("새로운 닉네임을 입력해주세요.");
+    }
+};
+
 function startGameLoop() {
     if (gameLoopInterval) clearInterval(gameLoopInterval);
     gameLoopInterval = setInterval(gameLoop, 50);
@@ -129,15 +150,16 @@ function saveGame() {
         isMuted: window.isMuted, masterVolume: window.masterVolume, slotUpgrades: window.slotUpgrades, globalUpgrades: window.globalUpgrades, 
         greatChanceLevel: window.greatChanceLevel, nickname: window.nickname, 
         highestToothLevel: window.highestToothLevel, trainingLevels: window.trainingLevels,
+        bestClearTimes: window.bestClearTimes, // 🌟 최고 기록 저장
         lastTime: Date.now(), isMiningPaused: window.isMiningPaused 
     };
-    localStorage.setItem('toothSaveV680', JSON.stringify(data));
+    localStorage.setItem('toothSaveV690', JSON.stringify(data));
 }
 window.saveGame = saveGame;
 
 function loadGame() {
     try {
-        const saved = localStorage.getItem('toothSaveV680') || localStorage.getItem('toothSaveV674');
+        const saved = localStorage.getItem('toothSaveV690') || localStorage.getItem('toothSaveV680');
         let d = saved ? JSON.parse(saved) : null;
         if (d) {
             window.gold = d.gold || 0; window.dia = d.dia || 0;
@@ -151,6 +173,7 @@ function loadGame() {
             window.masterVolume = d.masterVolume || 2; 
             window.highestToothLevel = Math.min(24, d.highestToothLevel || 1); 
             window.trainingLevels = d.trainingLevels || { hp: 0, atk: 0, spd: 0, crit: 0, splashDmg: 0, splashRange: 0 };
+            window.bestClearTimes = d.bestClearTimes || {}; // 🌟 최고 기록 로드
             
             if (d.slotUpgrades) window.slotUpgrades = d.slotUpgrades;
             if (d.globalUpgrades) window.globalUpgrades = d.globalUpgrades;
@@ -411,6 +434,9 @@ function setupMiningTouch() {
         try { if(typeof playSfx === 'function') playSfx('mine'); } catch(e){}
         
         let miningPower = 15;
+        // 🌟 곡괭이 업그레이드 시 수동 채굴 게이지 대폭 증가 (기본 + 곡괭이레벨*10)
+        miningPower += (window.pickaxeIdx * 10);
+
         if (window.highestToothLevel >= 4 && Math.random() < 0.2) { 
             let tapGold = window.getBaseMiningLevel() * 50;
             window.gold += tapGold;
@@ -440,49 +466,7 @@ function setupMiningTouch() {
 }
 window.setupMiningTouch = setupMiningTouch;
 
-window.renderMercenaryCamp = function() { 
-    const camp = document.getElementById('mercenary-list'); 
-    if(!camp || typeof TOOTH_DATA === 'undefined') return;
-    camp.innerHTML = ''; 
-    const maxOwned = Math.max(...window.ownedMercenaries); 
-    let tier6Text = (window.highestToothLevel >= 16) ? `<span style="color:yellow;">(x2)</span>` : "";
-
-    TOOTH_DATA.mercenaries.forEach(merc => { 
-        if (merc.id > maxOwned + 1) return; 
-        const div = document.createElement('div'); 
-        div.className = 'merc-card'; 
-        const isOwned = window.ownedMercenaries.includes(merc.id); 
-        const isEquipped = window.mercenaryIdx === merc.id; 
-        
-        div.innerHTML = `
-            <div style="font-size:25px;">${merc.icon}</div>
-            <div style="font-size:12px; font-weight:bold; margin:5px 0;">${merc.name}</div>
-            <div style="font-size:10px; color:#aaa;">공격 x${merc.atkMul} ${tier6Text}</div>
-            <div style="font-size:10px; color:#f55;">HP ${safeFNum(merc.baseHp)}</div> 
-        `; 
-        if (isEquipped) {
-            div.style.border = '2px solid #2ecc71'; 
-            div.innerHTML += `<button class="btn-sm" style="background:#2ecc71; color:white; width:100%; margin-top:5px; cursor:default;">고용중</button>`;
-        } else if (isOwned) {
-            div.innerHTML += `<button onclick="window.equipMerc(${merc.id})" class="btn-sm" style="background:#777; width:100%; margin-top:5px;">대기중</button>`; 
-        } else {
-            div.innerHTML += `<button onclick="window.buyMerc(${merc.id}, ${merc.cost})" class="btn-gold" style="padding:4px 5px; font-size:11px; width:100%; margin-top:5px;">${safeFNum(merc.cost)}G</button>`; 
-        }
-        camp.appendChild(div); 
-    }); 
-};
-
-window.buyMerc = function(id, cost) { 
-    if(window.gold >= cost) { 
-        window.gold -= cost; 
-        try { if(typeof playSfx === 'function') playSfx('upgrade'); } catch(e){} 
-        window.ownedMercenaries.push(id); 
-        window.renderMercenaryCamp(); updateUI(); 
-    } else { alert("골드가 부족합니다!"); } 
-};
-window.equipMerc = function(id) { window.mercenaryIdx = id; window.renderMercenaryCamp(); saveGame(); };
-
-// 🌟 [수정] 2단계당 1업 안내 텍스트 정확하게 반영
+// 🌟 [핵심 변경] 던전 목록에서 클리어 타임 상시 노출 및 명확한 보상 텍스트 표시
 window.renderDungeonList = function() { 
     const list = document.getElementById('dungeon-list'); 
     if(!list || typeof TOOTH_DATA === 'undefined') return;
@@ -508,10 +492,15 @@ window.renderDungeonList = function() {
             let diaFee = 5 + ((i * 5) * 5);
             if (isHell) { goldFee *= 10; diaFee *= 5; }
 
+            // 기록 가져오기
+            let recKey = isHell ? `hellboss_${i}` : `boss_${i}`;
+            let recordText = window.bestClearTimes[recKey] ? `<span style="color:#00fbff;">🏆 최고 기록: ${window.bestClearTimes[recKey]}</span>` : `<span style="color:#888;">🏆 최고 기록: 없음</span>`;
+
             if (isUnlocked) {
                 div.innerHTML = `<h4>🔥 ${name} 보스 토벌전</h4>
                 <p style="margin:5px 0 0 0; font-size:12px; color:#ff8888;">입장료: <span style="color:var(--gold);">${safeFNum(goldFee)}G</span>, ♦️${diaFee}</p>
-                <p style="color:#f1c40f; font-size:11px; margin:5px 0 0 0;">보스 5연속 처치 시 엄청난 보상!</p>`;
+                <p style="color:#f1c40f; font-size:11px; margin:5px 0 0 0;">보스 5연속 처치 시 엄청난 보상!</p>
+                <p style="margin:5px 0 0 0; font-size:11px;">${recordText}</p>`;
                 div.onclick = () => { if(typeof startDungeon === 'function') startDungeon(i * 5); };
             } else {
                 div.innerHTML = `<h4>🔒 잠김</h4><p style="margin:5px 0 0 0; font-size:12px; color:#888;">${isHell ? 'HELL ' : '일반 '}던전 ${reqLevel-1}단계 클리어 시 열림</p>`;
@@ -529,13 +518,27 @@ window.renderDungeonList = function() {
             if (isHell) baseHp *= 50;
             const recAtk = (baseHp * 30) / 40;
 
-            // 짝수 던전(인덱스 홀수)을 깰 때만 채굴 레벨이 오름
-            let levelUpText = ((idx + 1) % 2 === 0) ? `<p style="color:#f1c40f; font-size:11px; margin:5px 0 0 0;">✨ 클리어 시 채굴 레벨 확정 상승!</p>` : `<p style="color:#888; font-size:11px; margin:5px 0 0 0;">(다음 단계 클리어 시 채굴 레벨 상승)</p>`;
+            // 기록 가져오기
+            let recKey = isHell ? `hell_${idx}` : `normal_${idx}`;
+            let recordText = window.bestClearTimes[recKey] ? `<span style="color:#00fbff;">🏆 최고 기록: ${window.bestClearTimes[recKey]}</span>` : `<span style="color:#888;">🏆 최고 기록: 없음</span>`;
+
+            // 🌟 확정 채굴 레벨 텍스트 직관화
+            let levelUpText = `<p style="color:#888; font-size:11px; margin:5px 0 0 0;">(다음 단계 클리어 시 채굴 레벨 상승)</p>`;
+            if ((idx + 1) % 2 === 0) {
+                // 이 던전을 깨면 채굴 레벨이 오름. 오를 레벨 계산.
+                let curBase = isHell ? Math.min(10, Math.floor((window.unlockedDungeon - 1) / 2) + 1) : 0;
+                let nextLv = Math.min(24, curBase + Math.floor((idx + 2) / 2));
+                if(!isHell) nextLv = Math.min(10, Math.floor((idx + 2) / 2) + 1);
+                
+                let nextName = safeGetName(nextLv);
+                levelUpText = `<p style="color:#f1c40f; font-size:11px; margin:5px 0 0 0;">✨ 클리어 시 [${nextName}] 확정 채굴!</p>`;
+            }
 
             if (isUnlocked) { 
                 div.innerHTML = `<h4>⚔️ Lv.${idx+1} ${name}</h4>
                 <p style="margin:5px 0 0 0; font-size:12px; color:#aaa;">권장 공격력: ${safeFNum(recAtk)}+</p>
-                ${levelUpText}`;
+                ${levelUpText}
+                <p style="margin:5px 0 0 0; font-size:11px;">${recordText}</p>`;
                 div.onclick = () => { if(typeof startDungeon === 'function') startDungeon(idx); };
             } else { 
                 div.innerHTML = `<h4>🔒 잠김</h4><p style="margin:5px 0 0 0; font-size:12px; color:#888;">이전 던전 클리어 시 열림</p>`; 
@@ -545,73 +548,36 @@ window.renderDungeonList = function() {
     }
 };
 
-window.showResultModal = function() {
-    const modal = document.getElementById('dungeon-result-modal');
-    if(!modal || typeof TOOTH_DATA === 'undefined') return;
-    modal.style.display = 'flex';
-    
-    let dName = window.isHellMode ? TOOTH_DATA.hellDungeons[window.currentDungeonIdx] : TOOTH_DATA.dungeons[window.currentDungeonIdx];
-    if (window.isBossRush) dName = `[토벌전] ` + dName;
-    document.getElementById('result-title').innerText = `${dName} CLEAR!`;
-    
-    let nextStr = "모든 던전을 정복했습니다!";
-    
-    if (!window.isBossRush) {
-        if (window.isHellMode) {
-            if (window.unlockedHellDungeon <= window.currentDungeonIdx + 1 && window.currentDungeonIdx < 19) {
-                window.unlockedHellDungeon = window.currentDungeonIdx + 2;
-                nextStr = ((window.unlockedHellDungeon - 1) % 2 === 0) ? `다음 HELL 오픈! (채굴 레벨 상승!)` : `다음 HELL 오픈!`;
-            }
-        } else {
-            if (window.currentDungeonIdx === 19 && window.unlockedDungeon === 20) {
-                window.unlockedDungeon = 21;
-                nextStr = `🔥 경고: 지옥문이 열렸습니다... 🔥`;
-                
-                setTimeout(() => {
-                    const layer = document.getElementById('hell-video-layer');
-                    const vid = document.getElementById('hell-video');
-                    const skipBtn = document.getElementById('skip-hell-btn');
-                    if(layer && vid) {
-                        layer.style.display = 'flex';
-                        vid.style.display = 'block';
-                        if(skipBtn) skipBtn.style.display = 'block';
-                        vid.volume = window.masterVolume ? window.masterVolume * 0.3 : 0.6;
-                        vid.muted = window.isMuted;
-                        vid.play().catch(e => { window.skipHellIntro(); });
-                        vid.onended = () => { setTimeout(window.skipHellIntro, 500); };
-                    }
-                }, 1500);
-            } 
-            else if (window.unlockedDungeon <= window.currentDungeonIdx + 1 && window.currentDungeonIdx < 19) {
-                window.unlockedDungeon = window.currentDungeonIdx + 2;
-                nextStr = ((window.unlockedDungeon - 1) % 2 === 0) ? `다음 던전 오픈! (채굴 레벨 상승!)` : `다음 던전 오픈!`;
-            }
-        }
-    }
-
-    document.getElementById('result-desc').innerHTML = `
-        <div style="margin: 15px 0; font-size:18px;">
-            획득 골드: <span style="color:var(--gold); font-weight:bold;">${safeFNum(window.dungeonGoldEarned)}G</span><br>
-            획득 다이아: <span style="color:#ff4757; font-weight:bold;">${window.dungeonDiaEarned}♦️</span>
-        </div>
-        <div style="color:#2ecc71; font-weight:bold;">${nextStr}</div>
-    `;
-    saveGame();
-};
-
+// 🌟 50명의 풍성한 랜덤 랭킹 생성기
 window.generateRankings = function() {
     const list = document.getElementById('ranking-list');
     if(!list || typeof TOOTH_DATA === 'undefined') return;
+    
+    // 고정 컨셉 유저
     let ranks = [
-        { name: "치아신", d: 20, p: 9999999 }, { name: "임플란트마스터", d: 19, p: 850000 },
-        { name: "발치왕", d: 17, p: 600000 }, { name: "Driller", d: 15, p: 450000 },
-        { name: "충치파괴자", d: 12, p: 200000 }, { name: "초보원장", d: 5, p: 15000 }
+        { name: "치아신", d: 20, p: 99999999 }, 
+        { name: "임플란트마스터", d: 19, p: 8500000 },
+        { name: "초보원장", d: 5, p: 15000 }
     ];
+    
+    // 무작위 랜덤 유저 47명 생성
+    const adjectives = ["행복한", "졸린", "강력한", "빛나는", "어둠의", "빠른", "용감한", "배고픈", "전설의", "신비한", "무서운", "귀여운"];
+    const nouns = ["치과검진", "충치", "사랑니", "임플란트", "스케일링", "양치질", "칫솔", "치약", "금니", "은니", "원장님", "의사"];
+    
+    for(let i=0; i<47; i++) {
+        let randD = Math.floor(Math.random() * 20) + 1;
+        let randP = Math.floor(Math.random() * 500000) + (Math.pow(1.5, randD) * 1000);
+        let rName = adjectives[Math.floor(Math.random()*adjectives.length)] + nouns[Math.floor(Math.random()*nouns.length)] + Math.floor(Math.random()*99);
+        ranks.push({ name: rName, d: randD, p: randP });
+    }
+
+    // 내 전투력 계산
     let myPower = safeGetAtk(window.highestToothLevel);
     if (TOOTH_DATA.mercenaries[window.mercenaryIdx]) myPower *= TOOTH_DATA.mercenaries[window.mercenaryIdx].atkMul;
-    
     let myData = { name: window.nickname || "나", d: window.unlockedDungeon, p: myPower, isMe: true };
     ranks.push(myData);
+    
+    // 전투력 순 정렬
     ranks.sort((a, b) => b.p - a.p);
     
     let html = ''; let myRank = -1;
@@ -627,11 +593,11 @@ window.generateRankings = function() {
     if(rankDisp) rankDisp.innerText = `내 순위: ${myRank}위 (전투력: ${safeFNum(myPower)})`;
 };
 
-// --- [ 5. 유틸리티 (쿠폰 등) ] ---
+// 🌟 버튼 텍스트 변경 적용
 window.toggleMining = function() { 
     window.isMiningPaused = !window.isMiningPaused; 
     const btn = document.getElementById('mine-toggle-btn');
-    if(btn) btn.innerText = window.isMiningPaused ? "▶️ 재개" : "⏸️ 정지"; 
+    if(btn) btn.innerText = window.isMiningPaused ? "▶️ 자동채굴/합성 재개" : "⏸️ 자동채굴/합성 정지"; 
     saveGame(); 
 };
 
@@ -652,7 +618,7 @@ window.importSave = function() {
     if (str) { 
         try { 
             const decoded = decodeURIComponent(escape(atob(str))); 
-            localStorage.setItem('toothSaveV680', decoded); 
+            localStorage.setItem('toothSaveV690', decoded); 
             location.reload(); 
         } catch (e) { alert("오류가 발생했습니다. 코드를 확인해주세요."); } 
     } 
