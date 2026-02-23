@@ -1,4 +1,4 @@
-// Version: 6.9.1 - Main Engine (TimeAttack, Rich Rankings, Mercenaries Restored)
+// Version: 6.9.1 - Main Engine (TimeAttack, Rich Rankings, Mercenaries Restored & UI Fixed)
 
 window.gold = 0; 
 window.dia = 0; 
@@ -462,7 +462,7 @@ function setupMiningTouch() {
 }
 window.setupMiningTouch = setupMiningTouch;
 
-// 🌟 [누락 복구] 용병 리스트 및 구매 기능
+// 🌟 [통합] 용병 리스트 및 2줄 UI 표기 기능 (공/체/이속 모두)
 window.renderMercenaryCamp = function() { 
     const camp = document.getElementById('mercenary-list'); 
     if(!camp || typeof TOOTH_DATA === 'undefined') return;
@@ -470,6 +470,7 @@ window.renderMercenaryCamp = function() {
     const maxOwned = Math.max(...window.ownedMercenaries); 
     
     let tier6Text = (window.highestToothLevel >= 16) ? `<span style="color:yellow;">(x2)</span>` : "";
+    let trainingSpdBonus = window.trainingLevels && window.trainingLevels.spd ? window.trainingLevels.spd * 0.1 : 0;
 
     TOOTH_DATA.mercenaries.forEach(merc => { 
         if (merc.id > maxOwned + 1) return; 
@@ -478,11 +479,14 @@ window.renderMercenaryCamp = function() {
         const isOwned = window.ownedMercenaries.includes(merc.id); 
         const isEquipped = window.mercenaryIdx === merc.id; 
         
+        let finalSpd = (merc.spd + trainingSpdBonus).toFixed(1);
+
+        // 🌟 공/체/이속을 가독성 있게 2줄 배치
         div.innerHTML = `
             <div style="font-size:25px;">${merc.icon}</div>
-            <div style="font-size:12px; font-weight:bold; margin:5px 0;">${merc.name}</div>
-            <div style="font-size:10px; color:#aaa;">공격 x${merc.atkMul} ${tier6Text}</div>
-            <div style="font-size:10px; color:#f55;">HP ${safeFNum(merc.baseHp)}</div> 
+            <div style="font-size:12px; font-weight:bold; margin:3px 0;">${merc.name}</div>
+            <div style="font-size:10px; color:#aaa; margin-bottom:2px;">⚔️ x${merc.atkMul} ${tier6Text} | ❤️ ${safeFNum(merc.baseHp)}</div>
+            <div style="font-size:10px; color:#00fbff;">👟 이속: ${finalSpd}</div>
         `; 
         
         if (isEquipped) {
