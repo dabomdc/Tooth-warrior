@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>치아 연대기 v6.8.0</title>
-    <link rel="stylesheet" href="style.css?v=6.8.0">
+    <title>치아 연대기 v6.9.0</title>
+    <link rel="stylesheet" href="style.css?v=6.9.0">
 </head>
 <body>
     <div id="intro-layer">
@@ -38,7 +38,7 @@
                     <span class="ui-dia-text" style="margin-left:15px;">♦️ <span id="dia-display">0</span></span>
                 </span>
                 <div class="control-group">
-                    <button id="mine-toggle-btn" onclick="toggleMining()" class="btn-toggle" style="background:#e74c3c; color:white;">⏸️ 정지</button>
+                    <button id="mine-toggle-btn" onclick="toggleMining()" class="btn-toggle" style="background:#e74c3c; color:white; font-size:10px;">⏸️ 자동채굴/합성 정지</button>
                 </div>
             </div>
         </header>
@@ -117,7 +117,8 @@
         <div id="battle-ui-layer">
             <div id="battle-header">
                 <span id="current-dungeon-name">던전 이름</span><br>
-                <span id="wave-info">WAVE 1/5</span>
+                <span id="wave-info">WAVE 1/5</span><br>
+                <span id="battle-timer" style="color:#f1c40f; font-weight:bold; font-size:18px; text-shadow: 1px 1px 2px #000;">00:00</span>
             </div>
             <button onclick="exitDungeon()" class="btn-exit">후퇴</button>
             <div id="war-weapon-slots"></div>
@@ -134,6 +135,15 @@
                 <button onclick="closeSettings()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
             </div>
             <div class="modal-content-area">
+                
+                <div class="settings-group">
+                    <h4>계정 설정</h4>
+                    <div style="display:flex; gap:5px; align-items:center;">
+                        <input type="text" id="settings-nickname-input" placeholder="새 닉네임 입력" style="flex:1; padding:8px; border-radius:4px; border:1px solid #555; background:#222; color:#fff; text-align:center; font-weight:bold;">
+                        <button onclick="updateNickname()" class="btn-sm" style="background:#2ecc71; padding:8px 15px; font-weight:bold;">이름 변경</button>
+                    </div>
+                </div>
+
                 <div class="settings-group">
                     <h4>음향 설정</h4>
                     <div style="display:flex; gap:10px; margin-bottom:10px;">
@@ -226,9 +236,14 @@
     
     <div id="dungeon-result-modal" class="modal-layer">
         <div id="result-content" class="modal-box" style="text-align:center;">
-            <h2 id="result-title" style="color:var(--gold);">CLEAR!</h2>
+            <h2 id="result-title" style="color:var(--gold); margin-bottom:5px;">CLEAR!</h2>
             <div id="result-desc"></div>
-            <button onclick="closeResultModal()" class="btn-gold" style="margin-top:20px; width:100%;">확인</button>
+            
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button onclick="retryDungeon()" class="btn-gold" style="flex:1; padding:12px 5px; font-size:13px; font-weight:bold;">🔄 다시하기</button>
+                <button id="next-dungeon-btn" onclick="nextDungeon()" class="btn-gold" style="flex:1; padding:12px 5px; font-size:13px; font-weight:bold;">▶️ 다음단계</button>
+                <button onclick="closeResultModal()" class="btn-gold" style="flex:1; padding:12px 5px; font-size:13px; font-weight:bold; background:#e74c3c; color:white; border:none;">🏠 나가기</button>
+            </div>
         </div>
     </div>
 
@@ -253,11 +268,11 @@
 
     <div id="drag-proxy"></div>
 
-    <script src="data.js?v=6.8.0"></script>
-    <script src="ui.js?v=6.8.0"></script>
-    <script src="upgrade.js?v=6.8.0"></script>
-    <script src="combat.js?v=6.8.0"></script>
-    <script src="battle.js?v=6.8.0"></script>
-    <script src="main.js?v=6.8.0"></script>
+    <script src="data.js?v=6.9.0"></script>
+    <script src="ui.js?v=6.9.0"></script>
+    <script src="upgrade.js?v=6.9.0"></script>
+    <script src="combat.js?v=6.9.0"></script>
+    <script src="battle.js?v=6.9.0"></script>
+    <script src="main.js?v=6.9.0"></script>
 </body>
 </html>
