@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>치아 연대기 v6.9.0</title>
-    <link rel="stylesheet" href="style.css?v=6.9.0">
+    <title>치아 연대기 v6.9.3</title>
+    <link rel="stylesheet" href="style.css?v=6.9.3">
 </head>
 <body>
     <div id="intro-layer">
@@ -77,12 +77,12 @@
             </div>
 
             <div id="war-view" style="display:none;">
-                <div id="mercenary-camp">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <h4 style="color:var(--gold); margin:0 0 10px 5px;">🏰 용병 모집 & 훈련소</h4>
-                        <button onclick="openTrainingCamp()" class="btn-sm" style="background:#ff4757; font-weight:bold; margin-bottom:5px;">💪 훈련장 입장 (♦️)</button>
-                    </div>
-                    <div id="mercenary-list"></div>
+                
+                <div id="partner-section" style="margin-bottom: 15px;">
+                    <h4 style="color:var(--gold); margin:0 0 5px 5px;">🏕️ 나의 파트너</h4>
+                    <div id="equipped-mercenary-card" class="merc-card" style="width:100%; text-align:left; display:flex; padding:10px; gap:15px; box-sizing:border-box;">
+                        </div>
+                    <button onclick="openGuildModal()" class="btn-gold" style="width:100%; margin-top:10px; font-size:14px; padding:12px;">🤝 용병 길드 입장 (고용 / 훈련)</button>
                 </div>
                 
                 <div id="dungeon-list-container">
@@ -128,6 +128,31 @@
         </div>
     </div>
 
+    <div id="guild-modal" class="modal-layer">
+        <div id="guild-content" class="modal-box" style="width:95%; max-width:500px;">
+            <div class="sticky-header">
+                <h2 style="color:var(--gold); margin:0;">🏰 용병 길드</h2>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:12px; color:#fff;">보유: <span id="guild-gold-display" style="color:var(--gold); font-weight:bold;">0G</span> | <span id="guild-dia-display" style="color:#ff4757; font-weight:bold;">0♦️</span></span>
+                    <button onclick="closeGuildModal()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
+                </div>
+            </div>
+            <div class="guild-tabs" style="display:flex; gap:5px; margin:10px 0;">
+                <button id="tab-hire" class="btn-sm" style="flex:1; background:#3498db; font-size:14px; padding:10px;" onclick="switchGuildTab('hire')">파트너 고용/교체</button>
+                <button id="tab-train" class="btn-sm" style="flex:1; background:#444; font-size:14px; padding:10px;" onclick="switchGuildTab('train')">길드 훈련소 (♦️)</button>
+            </div>
+            <div class="modal-content-area" id="guild-scroll-area">
+                <div id="guild-hire-view">
+                    <div id="mercenary-list" class="shop-grid"></div>
+                </div>
+                <div id="guild-train-view" style="display:none;">
+                    <p style="font-size:11px; color:#ccc; text-align:center; margin-top:0;">다이아를 소모하여 모든 용병의 능력을 영구적으로 강화합니다.</p>
+                    <div id="training-list" class="shop-grid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="settings-modal" class="modal-layer">
         <div id="settings-content" class="modal-box">
             <div class="sticky-header">
@@ -138,9 +163,10 @@
                 
                 <div class="settings-group">
                     <h4>계정 설정</h4>
+                    <div style="font-size:12px; color:#aaa; margin-bottom:5px;">현재 닉네임: <span id="current-nickname-display" style="color:var(--gold); font-weight:bold;">-</span></div>
                     <div style="display:flex; gap:5px; align-items:center;">
                         <input type="text" id="settings-nickname-input" placeholder="새 닉네임 입력" style="flex:1; padding:8px; border-radius:4px; border:1px solid #555; background:#222; color:#fff; text-align:center; font-weight:bold;">
-                        <button onclick="updateNickname()" class="btn-sm" style="background:#2ecc71; padding:8px 15px; font-weight:bold;">이름 변경</button>
+                        <button onclick="updateNickname()" class="btn-sm" style="background:#2ecc71; padding:8px 15px; font-weight:bold;">변경</button>
                     </div>
                 </div>
 
@@ -157,9 +183,9 @@
                 
                 <div class="settings-group">
                     <h4>데이터 관리</h4>
-                    <div style="display:flex; gap:5px;">
-                        <button onclick="saveGame(); alert('저장완료');" class="btn-sm" style="background:#27ae60; flex:1;">💾 수동 저장</button>
-                        <button onclick="importSave()" class="btn-sm" style="background:#f39c12; flex:1;">📂 로드 (불러오기)</button>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <button onclick="exportSave()" class="btn-sm" style="background:#3498db; padding:10px; font-size:13px;">📤 세이브 코드 복사 (백업용)</button>
+                        <button onclick="importSave()" class="btn-sm" style="background:#f39c12; padding:10px; font-size:13px;">📥 세이브 코드 붙여넣기 (복원용)</button>
                     </div>
                     <button onclick="checkReset()" class="btn-sm" style="background:#c0392b; width:100%; margin-top:10px;">⚠️ 데이터 완전 초기화</button>
                 </div>
@@ -167,8 +193,8 @@
                 <div class="settings-group">
                     <h4>기타</h4>
                     <div style="display:flex; gap:5px;">
-                        <button onclick="openGuide()" class="btn-sm" style="background:#3498db; flex:1;">📘 게임 가이드</button>
-                        <button onclick="promptCoupon()" class="btn-sm" style="background:#8e44ad; flex:1;">🎟️ 쿠폰 입력</button>
+                        <button onclick="openGuide()" class="btn-sm" style="background:#8e44ad; flex:1;">📘 게임 가이드</button>
+                        <button onclick="promptCoupon()" class="btn-sm" style="background:#e67e22; flex:1;">🎟️ 쿠폰 입력</button>
                     </div>
                 </div>
             </div>
@@ -186,22 +212,6 @@
             </div>
             <div class="modal-content-area">
                 <div id="codex-grid"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="training-modal" class="modal-layer">
-        <div id="training-content" class="modal-box">
-            <div class="sticky-header">
-                <h2 style="color:var(--gold); margin:0;">💪 용병 훈련장</h2>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:12px; color:#fff;">보유 ♦️ <span id="training-dia-display" style="color:#ff4757; font-weight:bold;">0</span></span>
-                    <button onclick="closeTrainingCamp()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
-                </div>
-            </div>
-            <div class="modal-content-area">
-                <p style="font-size:11px; color:#ccc; text-align:center; margin-top:0;">다이아를 소모하여 모든 용병의 기본 능력 및 특수 능력을 영구적으로 강화합니다.</p>
-                <div id="training-list"></div>
             </div>
         </div>
     </div>
@@ -268,11 +278,11 @@
 
     <div id="drag-proxy"></div>
 
-    <script src="data.js?v=6.9.0"></script>
-    <script src="ui.js?v=6.9.0"></script>
-    <script src="upgrade.js?v=6.9.0"></script>
-    <script src="combat.js?v=6.9.0"></script>
-    <script src="battle.js?v=6.9.0"></script>
-    <script src="main.js?v=6.9.0"></script>
+    <script src="data.js?v=6.9.3"></script>
+    <script src="ui.js?v=6.9.3"></script>
+    <script src="upgrade.js?v=6.9.3"></script>
+    <script src="combat.js?v=6.9.3"></script>
+    <script src="battle.js?v=6.9.3"></script>
+    <script src="main.js?v=6.9.3"></script>
 </body>
 </html>
