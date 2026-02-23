@@ -1,9 +1,9 @@
-// Version: 6.9.0 - Dynamic Joystick & Camera Tracking (Speed Bug Fixed)
+// Version: 6.9.1 - Dynamic Joystick & Camera Tracking (Ultimate Fix)
 
 window.playerMoveX = 0;
 window.playerMoveY = 0;
 window.isInvincible = false;
-window.battleLoopInterval = null; // 중복 실행 방지용 변수
+window.battleLoopInterval = null; // 중복 실행 방지용
 
 window.renderBattleSlots = function() {
     const slotsDiv = document.getElementById('war-weapon-slots');
@@ -33,7 +33,7 @@ window.renderBattleSlots = function() {
     let baseMaxHp = curMerc ? curMerc.baseHp : 100;
     window.currentHp = baseMaxHp * (1 + trainingHpBonus);
 
-    // 🌟 [핵심 버그 수정] 기존에 돌고 있던 게임 루프가 있다면 무조건 정지 (속도 폭주 방지)
+    // 🌟 [핵심 버그 수정] 기존에 돌고 있던 게임 루프가 있다면 무조건 정지 (속도 폭주 완벽 차단)
     if (window.battleLoopInterval) {
         cancelAnimationFrame(window.battleLoopInterval);
         window.battleLoopInterval = null;
@@ -59,10 +59,20 @@ function setupDynamicJoystick() {
     // 평소에는 조이스틱을 화면에서 숨겨둡니다.
     zone.style.display = 'none';
 
+    // 🌟 [핵심 수정] 조이스틱을 안전하게 끄는 공통 함수 (손 뗐을 때 계속 움직이는 버그 해결)
+    function stopDrag() {
+        isDragging = false;
+        window.playerMoveX = 0;
+        window.playerMoveY = 0;
+        knob.style.transform = `translate(-50%, -50%)`;
+        zone.style.display = 'none';
+    }
+
     screen.onpointerdown = (e) => {
         // 무기 슬롯(스킬창)이나 후퇴 버튼을 눌렀을 때는 조이스틱이 생기지 않도록 예외 처리
         if (e.target.closest('#war-weapon-slots') || e.target.closest('.btn-exit')) return;
         
+        e.preventDefault(); // 화면 스크롤 등 기본 동작 방지
         isDragging = true;
         
         // 터치한 위치를 조이스틱의 중심점(Center)으로 설정
@@ -80,17 +90,18 @@ function setupDynamicJoystick() {
         window.playerMoveX = 0;
         window.playerMoveY = 0;
         
-        screen.setPointerCapture(e.pointerId);
+        try { screen.setPointerCapture(e.pointerId); } catch(err){}
     };
 
     screen.onpointermove = (e) => {
         if (!isDragging) return;
+        e.preventDefault();
         
         let dx = e.clientX - centerX;
         let dy = e.clientY - centerY;
         let distance = Math.hypot(dx, dy);
         
-        // 드래그가 조이스틱 반경을 벗어나지 않도록 제한
+        // 🌟 [핵심 수정] 드래그가 조이스틱 반경을 절대 벗어나지 않도록 강제 제한 (두 번째 사진 버그 해결)
         if (distance > maxRadius) {
             dx = (dx / distance) * maxRadius;
             dy = (dy / distance) * maxRadius;
@@ -110,13 +121,20 @@ function setupDynamicJoystick() {
     };
 
     screen.onpointerup = (e) => {
-        isDragging = false;
-        window.playerMoveX = 0;
-        window.playerMoveY = 0;
-        knob.style.transform = `translate(-50%, -50%)`;
-        zone.style.display = 'none'; // 손을 떼면 조이스틱 다시 숨김
-        screen.releasePointerCapture(e.pointerId);
+        stopDrag();
+        try { screen.releasePointerCapture(e.pointerId); } catch(err){}
     };
+    
+    // 화면 밖으로 손가락이 나가거나 전화가 와서 터치가 취소될 때 방어
+    screen.onpointercancel = (e) => {
+        stopDrag();
+        try { screen.releasePointerCapture(e.pointerId); } catch(err){}
+    };
+
+    // 최후의 보루: 화면 전체에서 손가락이 떨어지면 강제 정지
+    document.addEventListener('pointerup', () => {
+        if (isDragging) stopDrag();
+    });
 }
 
 // 🌟 [핵심] 카메라 추적 및 플레이어 이동 루프
@@ -150,7 +168,7 @@ function battleLoop() {
         p.style.top = window.playerY + 'px';
     }
 
-    // 📸 [카메라 시점 이동] 화면 중앙에 캐릭터가 오도록 배경(battle-world)을 반대로 밀어줍니다!
+    // 📸 [카메라 시점 이동 로직] 화면 중앙에 캐릭터가 오도록 배경(battle-world)을 반대로 밀어줍니다!
     const worldDiv = document.getElementById('battle-world');
     if (worldDiv) {
         let offsetX = (window.innerWidth / 2) - window.playerX;
@@ -203,5 +221,18 @@ window.takeDamage = function(dmg) {
         window.currentHp = maxHp; 
         alert("사망했습니다! 던전 탐험 실패!");
         if (typeof exitDungeon === 'function') exitDungeon();
+    }
+};
+
+// 🌟 [안전 장치] 팝업창 확인 버튼 안 눌리는 현상 원천 차단
+window.closeResultModal = function() {
+    try {
+        const modal = document.getElementById('dungeon-result-modal');
+        if(modal) modal.style.display = 'none';
+        if(typeof window.exitDungeon === 'function') window.exitDungeon();
+    } catch (e) {
+        console.error(e);
+        document.getElementById('battle-screen').style.display = 'none';
+        document.getElementById('game-container').style.display = 'flex';
     }
 };
