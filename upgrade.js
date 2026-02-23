@@ -1,4 +1,4 @@
-// Version: 6.8.7 - Upgrade Systems (Speed Max Limit Added)
+// Version: 6.9.0 - Upgrade Systems (Crit 80% MAX, Speed MAX Limit)
 const MAX_AUTO_MINE_LV = 40;
 const MAX_AUTO_MERGE_LV = 15;
 const MAX_GREAT_LV = 25; 
@@ -27,9 +27,9 @@ window.renderShopItems = function() {
     const pick = TOOTH_DATA.pickaxes[window.pickaxeIdx];
     const pickNext = TOOTH_DATA.pickaxes[window.pickaxeIdx + 1];
     if (pickNext) {
-        html += `<div class="shop-item"><div class="shop-info"><span>⚒️ 곡괭이 업그레이드</span> <button onclick="buyItem('pick', ${pickNext.cost})" class="btn-gold">💰 ${window.fNum ? window.fNum(pickNext.cost) : pickNext.cost}</button></div><div class="shop-desc">채굴 시 +1레벨 더 높은 치아를 발견할 확률을 높입니다.<br><span style="color:#2ecc71;">Lv+1 확률: ${Math.round(pick.luck*100)}% ➔ ${Math.round(pickNext.luck*100)}%</span></div></div>`;
+        html += `<div class="shop-item"><div class="shop-info"><span>⚒️ 곡괭이 업그레이드</span> <button onclick="buyItem('pick', ${pickNext.cost})" class="btn-gold">💰 ${window.fNum ? window.fNum(pickNext.cost) : pickNext.cost}</button></div><div class="shop-desc">채굴 시 +1레벨 더 높은 치아 발견 확률 및 <b>수동 터치 채굴량</b>을 대폭 높입니다.<br><span style="color:#2ecc71;">Lv+1 확률: ${Math.round(pick.luck*100)}% ➔ ${Math.round(pickNext.luck*100)}%</span></div></div>`;
     } else {
-        html += `<div class="shop-item"><div class="shop-info"><span>⚒️ 곡괭이 업그레이드 (MAX)</span> <button class="btn-max">MAX</button></div><div class="shop-desc">최고 등급의 곡괭이입니다.<br><span style="color:#2ecc71;">Lv+1 확률: ${Math.round(pick.luck*100)}% (최대)</span></div></div>`;
+        html += `<div class="shop-item"><div class="shop-info"><span>⚒️ 곡괭이 업그레이드 (MAX)</span> <button class="btn-max">MAX</button></div><div class="shop-desc">최고 등급의 곡괭이입니다. 수동 채굴 효율이 극대화됩니다.<br><span style="color:#2ecc71;">Lv+1 확률: ${Math.round(pick.luck*100)}% (최대)</span></div></div>`;
     }
 
     const curGreat = window.greatChanceLevel * 2; 
@@ -166,7 +166,7 @@ window.upgradeSlot = function(idx, type, cost) {
     } else { alert("골드가 부족합니다!"); }
 };
 
-// --- [ 3. 용병 훈련장 (신속 MAX 15레벨 적용) ] ---
+// --- [ 3. 용병 훈련장 (치명타 80% 제한 및 신속 15레벨 제한) ] ---
 window.openTrainingCamp = function() {
     const m = document.getElementById('training-modal');
     if(m) { m.style.display = 'flex'; window.renderTrainingList(); }
@@ -180,7 +180,6 @@ window.renderTrainingList = function() {
     const list = document.getElementById('training-list');
     if(!list) return;
     
-    // 신규 스탯 초기화 안전장치
     if(window.trainingLevels.crit === undefined) window.trainingLevels.crit = 0;
     if(window.trainingLevels.splashDmg === undefined) window.trainingLevels.splashDmg = 0;
     if(window.trainingLevels.splashRange === undefined) window.trainingLevels.splashRange = 0;
@@ -211,14 +210,13 @@ window.renderTrainingList = function() {
                 <div class="shop-info"><span>💨 신속 훈련 (이동속도 증가)</span> 
                 ${curSpd >= 15 ? '<button class="btn-max">MAX</button>' : `<button onclick="upgradeTraining('spd', ${costSpd})" class="btn-sm" style="background:#ff4757; color:white; font-weight:bold;">♦️ ${costSpd}</button>`}
                 </div>
-                <div class="shop-desc">적을 유린하는 치고 빠지기! 용병의 이동 속도가 영구적으로 +0.1 증가합니다. (최대 +1.5)<br><span style="color:#2ecc71;">현재 보너스: +${(curSpd * 0.1).toFixed(1)}</span></div>
+                <div class="shop-desc">용병의 이동 속도가 영구적으로 +0.1 증가합니다. (최대 +1.5)<br><span style="color:#2ecc71;">현재 보너스: +${(curSpd * 0.1).toFixed(1)}</span></div>
             </div>
     `;
 
-    // Lv.7 (티어3) 이상 시 스플래시(광역) 훈련 개방
     if (window.highestToothLevel >= 7) {
-        const splashRatio = Math.min(80, 20 + (curSplashDmg * 5)); // 기본 20%, 업글당 5%, 최대 80%
-        const splashRadius = 50 + (curSplashRange * 10); // 기본 50px, 업글당 10px
+        const splashRatio = Math.min(80, 20 + (curSplashDmg * 5)); 
+        const splashRadius = 50 + (curSplashRange * 10); 
 
         html += `
             <div class="shop-item" style="border-color:#3498db; box-shadow:0 0 10px rgba(52,152,219,0.3);">
@@ -239,14 +237,18 @@ window.renderTrainingList = function() {
         `;
     }
 
-    // Lv.10 (티어4) 이상 시 치명타 훈련 개방
     if (window.highestToothLevel >= 10) {
-        const critChance = 5 + (curCrit * 2);   
+        // 🌟 치명타 확률 계산 (기본 5% + 업글당 2%) -> 80% 제한
+        const calcCrit = 5 + (curCrit * 2);
+        const critChance = Math.min(80, calcCrit);   
         const critDmg = 2.0 + (curCrit * 0.2);  
+        
         html += `
             <div class="shop-item" style="border-color:var(--gold); box-shadow:0 0 10px rgba(241,196,15,0.3);">
-                <div class="shop-info"><span style="color:var(--gold);">⚡ 약점 훈련 (치명타)</span> <button onclick="upgradeTraining('crit', ${costCrit})" class="btn-sm" style="background:#ff4757; color:white; font-weight:bold;">♦️ ${costCrit}</button></div>
-                <div class="shop-desc">치명타 발동 확률과 데미지 배율을 높입니다.<br><span style="color:#2ecc71;">확률: ${critChance}% / 데미지: x${critDmg.toFixed(1)}</span></div>
+                <div class="shop-info"><span style="color:var(--gold);">⚡ 약점 훈련 (치명타)</span> 
+                ${calcCrit >= 80 ? '<button class="btn-max">MAX</button>' : `<button onclick="upgradeTraining('crit', ${costCrit})" class="btn-sm" style="background:#ff4757; color:white; font-weight:bold;">♦️ ${costCrit}</button>`}
+                </div>
+                <div class="shop-desc">치명타 발동 확률과 데미지 배율을 높입니다. (확률 최대 80%)<br><span style="color:#2ecc71;">확률: ${critChance}% / 데미지: x${critDmg.toFixed(1)}</span></div>
             </div>
         `;
     } else {
@@ -263,14 +265,18 @@ window.renderTrainingList = function() {
 };
 
 window.upgradeTraining = function(stat, costDia) {
-    // 🌟 최대치 제한 방어 로직
+    // 🌟 MAX치 초과 방지 방어 로직
     if (stat === 'splashDmg') {
         const curSplashDmg = window.trainingLevels.splashDmg || 0;
-        if (20 + (curSplashDmg * 5) >= 80) return; // 80% 제한
+        if (20 + (curSplashDmg * 5) >= 80) return; 
     }
     if (stat === 'spd') {
         const curSpd = window.trainingLevels.spd || 0;
-        if (curSpd >= 15) return; // 15레벨 (추가 +1.5) 제한
+        if (curSpd >= 15) return; 
+    }
+    if (stat === 'crit') {
+        const curCrit = window.trainingLevels.crit || 0;
+        if (5 + (curCrit * 2) >= 80) return; 
     }
 
     if (window.dia >= costDia) {
