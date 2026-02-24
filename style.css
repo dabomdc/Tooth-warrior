@@ -1,19 +1,19 @@
-/* Version: 6.9.8 - Design Rollback (Restore colors, 5-col grid, fix proportions) */
+/* Version: 7.0.0 - Full Monolithic Style (All Systems Integrated) */
 
 :root {
     --gold: #f1c40f;
-    --dark-bg: #2c3e50; /* 예전의 부드러운 남색 배경 */
-    --panel-bg: #34495e; /* 패널 배경을 밝게 변경 */
-    --border-color: #555;
-    --text-color: #ecf0f1; /* 텍스트 색상 밝게 */
+    --dark-bg: #2c3e50;    /* 복구된 부드러운 배경색 */
+    --panel-bg: #34495e;   /* 복구된 패널 색상 */
+    --border: #444;
     --danger: #e74c3c;
     --success: #2ecc71;
     --info: #3498db;
+    --text: #ecf0f1;
 }
 
 body {
     margin: 0; padding: 0;
-    background-color: #111; color: var(--text-color);
+    background-color: #000; color: var(--text);
     font-family: 'Pretendard', 'Malgun Gothic', sans-serif;
     user-select: none; touch-action: manipulation;
     overflow: hidden;
@@ -25,131 +25,145 @@ body {
     height: 100vh; height: 100dvh;
     display: flex; flex-direction: column;
     position: relative; overflow: hidden;
-    border-left: 1px solid #333; border-right: 1px solid #333;
 }
 
-/* --- 상단/하단 네비게이션 --- */
-nav { display: flex; background: var(--panel-bg); border-bottom: 2px solid var(--border-color); flex: 0 0 auto; }
+/* --- 🎬 인트로 및 영상 레이어 (최우선 순위 복구) --- */
+#intro-layer, #hell-video-layer {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: #000; z-index: 999999; 
+    display: flex; justify-content: center; align-items: center;
+}
+
+#start-btn-layer {
+    position: absolute; width: 100%; height: 100%;
+    background: transparent; border: none; z-index: 1000001;
+    display: flex; justify-content: center; align-items: center;
+}
+
+#start-btn-text {
+    color: #fff; font-size: 22px; font-weight: bold;
+    text-shadow: 0 0 10px var(--gold);
+    animation: blink 1.5s infinite;
+}
+
+#intro-video, #hell-video {
+    width: 100%; height: 100%; object-fit: cover;
+}
+
+#skip-btn {
+    position: absolute; bottom: 30px; right: 20px;
+    z-index: 1000002; background: rgba(0,0,0,0.6);
+    color: white; border: 1px solid white; padding: 10px 15px; border-radius: 5px;
+}
+
+/* --- 상단 네비게이션 --- */
+nav { display: flex; background: #1a1a1a; border-bottom: 2px solid var(--danger); flex: 0 0 auto; }
 nav button {
     flex: 1; padding: 12px 5px; background: none; border: none;
-    color: #bdc3c7; font-weight: bold; font-size: 14px; cursor: pointer; /* 비활성 탭 색상 밝게 */
+    color: #888; font-weight: bold; font-size: 14px; cursor: pointer;
 }
 nav button.active { color: var(--gold); border-bottom: 3px solid var(--gold); background: var(--dark-bg); }
-#bottom-nav { border-bottom: none; border-top: 2px solid var(--border-color); margin-top: auto; }
 
-/* --- 재화 표시 바 --- */
-header { background: var(--panel-bg); padding: 10px; border-bottom: 1px solid var(--border-color); flex: 0 0 auto; }
-.stats-bar { display: flex; justify-content: space-between; align-items: center; }
-.currency-group { display: flex; gap: 10px; font-weight: bold; font-size: 14px; }
+/* --- 상단 재화 바 --- */
+header { background: #1a1a1a; padding: 10px; border-bottom: 1px solid var(--border); flex: 0 0 auto; }
+.stats-bar { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+.currency-group { display: flex; gap: 10px; font-weight: bold; font-size: 15px; }
 .ui-gold-text { color: var(--gold); }
 .ui-dia-text { color: #ff4757; }
+.btn-toggle { padding: 6px 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; }
 
-/* --- 1. 채굴/합성 뷰 (비율 자연스럽게) --- */
-#main-content { flex: 1; overflow-y: auto; position: relative; }
-#mine-view { display: flex; flex-direction: column; min-height: 100%; }
+/* --- 메인 콘텐츠 영역 --- */
+#main-content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
 
+/* 1. 채굴 뷰 */
+#mine-view { display: flex; flex-direction: column; flex: 1; }
 #mine-rock-area {
-    /* 고정 비율 제거하고 자연스럽게 설정 */
-    padding: 30px 0; display: flex; justify-content: center; align-items: center;
+    padding: 35px 0; display: flex; justify-content: center; align-items: center;
     position: relative; background: radial-gradient(circle, var(--panel-bg) 0%, var(--dark-bg) 100%);
-    border-bottom: 3px solid var(--gold); cursor: pointer;
-    flex: 0 0 auto; /* 크기 고정 해제 */
+    border-bottom: 2px solid var(--gold); flex: 0 0 auto;
 }
-#giant-tooth { font-size: 80px; filter: drop-shadow(0 0 15px rgba(255,255,255,0.2)); }
-#miner-char { font-size: 50px; position: absolute; right: 15%; bottom: 10%; transform-origin: bottom right; }
+#giant-tooth { font-size: 70px; filter: drop-shadow(0 0 15px rgba(255,255,255,0.2)); }
+#miner-char { font-size: 45px; position: absolute; right: 20%; bottom: 15%; transform-origin: bottom right; }
 
-#pickaxe-info { padding: 12px; background: var(--panel-bg); text-align: center; border-bottom: 1px solid var(--border-color); flex: 0 0 auto; }
+#pickaxe-info { padding: 10px; background: var(--panel-bg); text-align: center; border-bottom: 1px solid var(--border); flex: 0 0 auto; }
 #pickaxe-name { color: var(--gold); font-weight: bold; margin-bottom: 8px; font-size: 15px; }
-.progress-wrapper { display: flex; align-items: center; margin: 5px 0; font-size: 11px; }
-.progress-label { width: 60px; text-align: left; color: #bdc3c7; }
-.progress-container { flex: 1; height: 12px; background: #111; border-radius: 6px; overflow: hidden; border: 1px solid #555; }
+.progress-wrapper { display: flex; align-items: center; margin: 4px 0; font-size: 11px; }
+.progress-label { width: 55px; text-align: left; color: #bdc3c7; }
+.progress-container { flex: 1; height: 10px; background: #111; border-radius: 5px; overflow: hidden; border: 1px solid #444; }
 #mine-bar { width: 0%; height: 100%; background: #2ecc71; }
 #merge-bar { width: 0%; height: 100%; background: #9b59b6; }
 
-/* 인벤토리 (5칸으로 복구 및 비율 정상화) */
-#inventory-section { flex: 1; display: flex; flex-direction: column; background: var(--dark-bg); }
-#action-bar { display: flex; gap: 10px; padding: 10px; background: var(--panel-bg); flex: 0 0 auto; border-bottom: 1px solid var(--border-color); }
-#action-bar button { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; color: #fff; font-size: 13px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+/* 2. 인벤토리 (8칸 그리드 복구) */
+#inventory-section { flex: 1; display: flex; flex-direction: column; background: var(--dark-bg); overflow: hidden; }
+#action-bar { display: flex; gap: 10px; padding: 10px; background: var(--panel-bg); flex: 0 0 auto; border-bottom: 1px solid var(--border); }
+#action-bar button { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; color: #fff; font-size: 13px; }
+.btn-red { background: var(--danger); }
+.btn-gold { background: var(--gold); color: #2c3e50 !important; }
 
-#inventory-scroll-area { flex: 1; overflow-y: auto; padding: 10px; }
+#inventory-scroll-area { flex: 1; overflow-y: auto; padding: 8px; }
 #inventory-grid {
-    display: grid; 
-    grid-template-columns: repeat(5, 1fr); /* 🌟 5칸으로 복구! 🌟 */
-    gap: 8px; /* 간격 넓힘 */
-    background: var(--panel-bg); padding: 10px; border-radius: 10px; box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+    display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px;
+    background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px;
 }
 .slot {
-    aspect-ratio: 1 / 1; background: #2c3e50; border: 2px solid var(--border-color); border-radius: 8px;
-    display: flex; justify-content: center; align-items: center; font-size: 28px; /* 아이콘 크기 키움 */
-    position: relative; touch-action: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    aspect-ratio: 1; background: var(--panel-bg); border: 1px solid #555; border-radius: 4px;
+    display: flex; justify-content: center; align-items: center; font-size: 22px; position: relative;
 }
 .slot.attack-slot { border-color: var(--danger); background: rgba(231,76,60,0.2); }
-.slot.locked-slot { background: #222; border-color: #333; font-size: 20px; opacity: 0.6; }
-.slot.drag-target { border-color: var(--gold); background: rgba(241,196,15,0.3); transform: scale(1.05); z-index: 10; }
+.slot.locked-slot { background: #222; border-color: #333; opacity: 0.5; font-size: 14px; }
+.slot.picked { opacity: 0.3; }
+.slot.drag-target { border-color: var(--gold); background: rgba(241,196,15,0.3); transform: scale(1.05); }
 
-.dmg-label { position: absolute; top: 2px; right: 2px; font-size: 9px; background: rgba(0,0,0,0.7); padding: 1px 3px; border-radius: 4px; color: #ff9f43; font-weight: bold; }
-.lv-text { position: absolute; bottom: 2px; left: 2px; font-size: 10px; color: white; font-weight: bold; text-shadow: 1px 1px 2px #000; }
+.dmg-label { position: absolute; top: 1px; right: 1px; font-size: 7px; background: rgba(0,0,0,0.7); padding: 1px 2px; border-radius: 2px; color: #ff9f43; }
+.lv-text { position: absolute; bottom: 1px; left: 1px; font-size: 8px; color: white; font-weight: bold; }
 
-/* --- 타격 이펙트 --- */
-.hit-effect {
-    position: fixed; pointer-events: none; z-index: 99999;
-    font-size: 50px; transform: translate(-50%, -50%);
-    animation: hit-pop 0.3s ease-out forwards; filter: drop-shadow(0 0 10px gold);
+/* 3. 제련 & 던전 & 용병 카드 */
+.refine-grid, .shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; }
+.refine-card, .shop-item, .merc-card, .dungeon-card {
+    background: var(--panel-bg); border: 2px solid var(--border); border-radius: 10px; padding: 12px;
 }
-@keyframes hit-pop {
-    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
-    100% { transform: translate(-50%, -100%) scale(1.8); opacity: 0; }
-}
+.merc-card { text-align: left; }
+.dungeon-card { text-align: left; margin: 8px; border-left: 5px solid var(--info); cursor: pointer; }
+.dungeon-card.locked { opacity: 0.6; filter: grayscale(1); }
 
-/* --- 2. 제련 & 3. 던전 UI & 상점 카드 --- */
-.refine-grid, .shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px; }
-/* 훈련소 카드 찌그러짐 방지 */
-#guild-train-view .shop-grid { align-items: start; } 
-
-.refine-card, .shop-item, .merc-card, .dungeon-card { 
-    background: var(--panel-bg); border: 2px solid var(--border-color); border-radius: 10px; 
-    padding: 12px; text-align: center; box-shadow: 0 3px 6px rgba(0,0,0,0.3);
-    display: flex; flex-direction: column; /* 내용물 자연스럽게 배치 */
+/* --- 📌 모달 및 스티키 헤더 --- */
+.modal-layer {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8); display: none; z-index: 50000;
+    justify-content: center; align-items: center;
 }
-.dungeon-card { text-align: left; margin: 10px; cursor: pointer; border-left: 5px solid var(--info); }
-.dungeon-card.locked { opacity: 0.6; filter: grayscale(1); background: #222; border-color: #333; cursor: default; }
-.dungeon-card h4 { font-size: 16px; margin-bottom: 8px; color: var(--gold); }
-
-/* --- 📌 팝업 모달 & Sticky Header (색감 조정) --- */
-.modal-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 10000; }
-.modal-box { 
-    background: var(--dark-bg); width: 92%; max-width: 480px; max-height: 90vh; 
-    border-radius: 15px; border: 3px solid var(--gold); 
-    display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+.modal-box {
+    background: var(--dark-bg); width: 92%; max-height: 85vh;
+    border: 2px solid var(--gold); border-radius: 15px; overflow: hidden;
+    display: flex; flex-direction: column;
 }
-.sticky-header { 
-    background: var(--panel-bg); /* 헤더 배경 밝게 */
-    padding: 15px 20px; border-bottom: 2px solid var(--border-color); 
-    display: flex; justify-content: space-between; align-items: center; z-index: 100; flex: 0 0 auto; 
+.sticky-header {
+    background: #1a1a1a; padding: 15px; border-bottom: 2px solid #555;
+    display: flex; justify-content: space-between; align-items: center; flex: 0 0 auto;
 }
 .modal-content-area { padding: 15px; overflow-y: auto; flex: 1; }
 
-/* 🌟 길드 탭 버튼 스타일 복구 */
-.guild-tabs button {
-    flex:1; padding: 12px; border: none; font-weight: bold; cursor: pointer; font-size: 14px;
-    background: #34495e; color: #bdc3c7; transition: all 0.2s;
-}
-.guild-tabs button.active { background: var(--gold) !important; color: #2c3e50 !important; }
-#tab-hire.active { background: #3498db !important; color: white !important; }
-#tab-train.active { background: #e74c3c !important; color: white !important; }
-
-
-/* 나머지 전투 UI 등은 기존 유지... */
+/* --- 💥 전투 및 특수효과 --- */
 #battle-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; display: none; z-index: 5000; overflow: hidden; }
 #battle-camera { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; }
 #battle-world { position: absolute; top: 0; left: 0; }
-.bg-stone { background-color: #2c3e50; }
-.bg-grass { background-color: #27ae60; }
-.bg-hell { background-color: #8b0000; }
-#player { position: absolute; transform: translate(-50%, -50%); z-index: 100; font-size: 40px; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5)); }
-#player-hp-bar-bg { position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%); width: 40px; height: 6px; background: rgba(0,0,0,0.8); border: 1px solid #fff; border-radius: 3px; }
-#player-hp-bar-fill { width: 100%; height: 100%; background: #2ecc71; border-radius: 2px; }
 
-/* 애니메이션 및 드래그 프록시 */
-@keyframes floatUp { 0% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -50px); } }
-#drag-proxy { position: fixed; pointer-events: none; z-index: 99999; font-size: 40px; transform: translate(-50%, -50%); display: none; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.5)); }
+.hit-effect {
+    position: fixed; pointer-events: none; z-index: 20000;
+    font-size: 40px; transform: translate(-50%, -50%);
+    animation: hit-pop 0.3s ease-out forwards;
+}
+
+.gold-text { position: fixed; color: var(--gold); font-weight: bold; font-size: 16px; animation: floatUp 0.8s ease-out forwards; pointer-events: none; z-index: 10005; }
+
+@keyframes hit-pop { 0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); } 100% { opacity: 0; transform: translate(-50%, -100%) scale(1.5); } }
+@keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-40px); } }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@keyframes hammer { 0% { transform: rotate(0deg); } 50% { transform: rotate(-45deg); } 100% { transform: rotate(0deg); } }
+
+/* 드래그 프록시 */
+#drag-proxy { position: fixed; pointer-events: none; z-index: 99999; font-size: 35px; transform: translate(-50%, -50%); display: none; }
+
+/* 하단 네비게이션 */
+#bottom-nav { border-top: 2px solid var(--border); }
+.bottom-btn { flex: 1; padding: 12px; background: none; border: none; color: #bdc3c7; font-weight: bold; font-size: 13px; }
