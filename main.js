@@ -1,4 +1,4 @@
-// Version: 6.8.4 - Main Engine (Mining Level Text Fixes)
+// Version: 6.9.1 - Main Engine (Dynamic Mining Level Text Fixes)
 
 window.gold = 0; 
 window.dia = 0; 
@@ -482,7 +482,7 @@ window.buyMerc = function(id, cost) {
 };
 window.equipMerc = function(id) { window.mercenaryIdx = id; window.renderMercenaryCamp(); saveGame(); };
 
-// 🌟 [수정] 2단계당 1업 안내 텍스트 정확하게 반영
+// 🌟 [핵심 수정] 짝수 던전 클리어 시 얻게 될 정확한 치아 레벨과 이름 멘트로 노출
 window.renderDungeonList = function() { 
     const list = document.getElementById('dungeon-list'); 
     if(!list || typeof TOOTH_DATA === 'undefined') return;
@@ -529,8 +529,21 @@ window.renderDungeonList = function() {
             if (isHell) baseHp *= 50;
             const recAtk = (baseHp * 30) / 40;
 
-            // 짝수 던전(인덱스 홀수)을 깰 때만 채굴 레벨이 오름
-            let levelUpText = ((idx + 1) % 2 === 0) ? `<p style="color:#f1c40f; font-size:11px; margin:5px 0 0 0;">✨ 클리어 시 채굴 레벨 확정 상승!</p>` : `<p style="color:#888; font-size:11px; margin:5px 0 0 0;">(다음 단계 클리어 시 채굴 레벨 상승)</p>`;
+            // 해당 던전을 깼을 때 동적으로 얻게 될 채굴 레벨 계산
+            let expectedMineLv = 1;
+            if (isHell) {
+                let normalBase = Math.min(10, Math.floor((window.unlockedDungeon - 1) / 2) + 1);
+                let expectedHellBonus = Math.floor((idx + 1) / 2);
+                expectedMineLv = Math.min(24, normalBase + expectedHellBonus);
+            } else {
+                let hellBonus = window.unlockedHellDungeon > 1 ? Math.floor((window.unlockedHellDungeon - 1) / 2) : 0;
+                let expectedNormalBase = Math.min(10, Math.floor((idx + 1) / 2) + 1);
+                expectedMineLv = Math.min(24, expectedNormalBase + hellBonus);
+            }
+            let expectedMineName = typeof getToothName === 'function' ? getToothName(expectedMineLv) : `치아`;
+
+            // 짝수 던전(인덱스 홀수)을 깰 때만 채굴 레벨이 오르므로, 텍스트를 정확하게 안내
+            let levelUpText = ((idx + 1) % 2 === 0) ? `<p style="color:#f1c40f; font-size:11px; margin:5px 0 0 0;">✨ 클리어 시 Lv.${expectedMineLv} ${expectedMineName} 확정 채굴!</p>` : `<p style="color:#888; font-size:11px; margin:5px 0 0 0;">(다음 단계 클리어 시 채굴 레벨 상승)</p>`;
 
             if (isUnlocked) { 
                 div.innerHTML = `<h4>⚔️ Lv.${idx+1} ${name}</h4>
