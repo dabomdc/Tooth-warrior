@@ -1,4 +1,4 @@
-// Version: 6.8.9 - Combat Engine (Map Size, Background, & Modal Crash Fixed)
+// Version: 6.9.0 - Combat Engine (Damage Formula & Dungeon Refresh Fixed)
 
 window.dungeonActive = false;
 window.bossDead = false;
@@ -355,9 +355,18 @@ window.playerShoot = function(slotIdx, target) {
     const angle = Math.atan2(target.y - window.playerY, target.x - window.playerX); 
     const speed = 18; 
     
-    let refineMul = 1 + (window.slotUpgrades[slotIdx].atk * 0.1); 
+    // 🌟 [핵심 수정] 데미지 계산식 정상화 (용병 배수 및 훈련 보너스 완벽 반영)
+    let refineMul = 1 + ((window.slotUpgrades && window.slotUpgrades[slotIdx]) ? window.slotUpgrades[slotIdx].atk * 0.1 : 0); 
     let baseAtk = typeof getAtk === 'function' ? getAtk(window.inventory[slotIdx]) : 10;
-    let dmg = baseAtk * (window.currentMercenary ? window.currentMercenary.atkMul : 1) * refineMul; 
+    
+    let curMerc = (typeof TOOTH_DATA !== 'undefined' && TOOTH_DATA.mercenaries[window.mercenaryIdx]) ? TOOTH_DATA.mercenaries[window.mercenaryIdx] : null;
+    let mercMul = curMerc ? curMerc.atkMul : 1.0;
+    
+    let trainingAtkBonus = (window.trainingLevels && window.trainingLevels.atk) ? window.trainingLevels.atk * 0.1 : 0;
+    let trainingMul = 1 + trainingAtkBonus;
+
+    // 최종 데미지 = 기본공격력 * 용병배수 * 제련증폭 * 훈련증폭
+    let dmg = baseAtk * mercMul * refineMul * trainingMul; 
     
     let isCrit = false;
     if (window.highestToothLevel >= 10) { 
@@ -536,14 +545,14 @@ window.showDiaText = function(x, y, val) {
     worldDiv.appendChild(txt); setTimeout(() => txt.remove(), 1000); 
 };
 
-// 🌟 [핵심 수정] 던전 퇴장 함수 안전성 대폭 강화 (에러로 인한 멈춤 방지)
+// 🌟 [핵심 수정] 던전 퇴장 시 목록 강제 갱신 (새로고침 버그 해결)
 window.exitDungeon = function() {
     try {
         window.dungeonActive = false;
         window.bossDead = true; 
         document.getElementById('battle-screen').style.display = 'none';
         document.getElementById('game-container').style.display = 'flex';
-        document.getElementById('battle-world').className = ""; // 테마 초기화
+        document.getElementById('battle-world').className = ""; 
         
         if (window.enemies) window.enemies.forEach(e => { if(e && e.el) e.el.remove() });
         if (window.missiles) window.missiles.forEach(m => { if(m && m.el) m.el.remove() });
@@ -555,6 +564,10 @@ window.exitDungeon = function() {
         window.enemyMissiles = [];
         
         if(typeof updateUI === 'function') window.updateUI();
+        
+        // 추가된 UI 즉시 갱신 로직
+        if(typeof renderDungeonList === 'function') window.renderDungeonList();
+        if(typeof renderMercenaryCamp === 'function') window.renderMercenaryCamp();
     } catch(e) {
         console.error("Exit Dungeon Error:", e);
     }
