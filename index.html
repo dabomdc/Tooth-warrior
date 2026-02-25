@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>치아 연대기 v7.0.3</title>
-    <link rel="stylesheet" href="style.css?v=7.0.3">
+    <title>치아 연대기 v6.9.3</title>
+    <link rel="stylesheet" href="style.css?v=6.9.3">
 </head>
 <body>
     <div id="intro-layer">
@@ -80,7 +80,7 @@
                 <div id="partner-section" style="margin-bottom: 15px; padding: 10px;">
                     <h4 style="color:var(--gold); margin:0 0 5px 0;">🏕️ 나의 파트너</h4>
                     <div id="equipped-mercenary-card" class="merc-card" style="width:100%; text-align:left; display:flex; padding:10px; gap:15px; box-sizing:border-box;"></div>
-                    <button onclick="openGuildModal()" class="btn-gold" style="width:100%; margin-top:10px; font-size:14px; padding:12px; font-weight:bold;">🤝 용병 길드 입장 (고용 / 훈련)</button>
+                    <button onclick="openGuildModal()" class="btn-gold" style="width:100%; margin-top:10px; font-size:14px; padding:12px;">🤝 용병 길드 입장 (고용 / 훈련)</button>
                 </div>
                 
                 <div id="dungeon-list-container">
@@ -108,14 +108,12 @@
         </div>
         <div id="battle-ui-layer">
             <div id="battle-header">
-                <span id="current-dungeon-name" style="font-size:20px; color:var(--gold);">던전 이름</span><br>
-                <span id="wave-info" style="font-size:16px; color:#ff4d4d;">WAVE 1/5</span><br>
-                <span id="battle-timer" style="color:#f1c40f; font-weight:bold; font-size:22px;">00:00</span>
+                <span id="current-dungeon-name">던전 이름</span><br>
+                <span id="wave-info">WAVE 1/5</span><br>
+                <span id="battle-timer" style="color:#f1c40f; font-weight:bold; font-size:18px;">00:00</span>
             </div>
-            <button onclick="exitDungeon()" class="btn-exit" style="position:absolute; top:20px; right:20px; padding:10px 15px; background:var(--danger); color:white; border:2px solid white; border-radius:8px; font-weight:bold; pointer-events:auto;">후퇴</button>
-            
+            <button onclick="exitDungeon()" class="btn-exit" style="position:absolute; top:15px; right:15px; padding:8px 15px; background:var(--danger); color:white; border:2px solid white; border-radius:8px; pointer-events:auto;">후퇴</button>
             <div id="war-weapon-slots"></div>
-            
             <div id="joystick-zone"><div id="joystick-knob"></div></div>
         </div>
     </div>
@@ -123,15 +121,15 @@
     <div id="guild-modal" class="modal-layer">
         <div id="guild-content" class="modal-box">
             <div class="sticky-header">
-                <h2 style="color:var(--gold); margin:0; font-size:18px;">🏰 용병 길드</h2>
+                <h2 style="color:var(--gold); margin:0;">🏰 용병 길드</h2>
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span style="font-size:12px; color:#fff;"><span id="guild-gold-display" style="color:var(--gold); font-weight:bold;">0G</span> | <span id="guild-dia-display" style="color:#ff4757; font-weight:bold;">0♦️</span></span>
                     <button onclick="closeGuildModal()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold;">✕</button>
                 </div>
             </div>
             <div class="guild-tabs" style="display:flex; background:#111; padding:5px;">
-                <button id="tab-hire" class="btn-sm" style="flex:1; background:#3498db; padding:10px;" onclick="switchGuildTab('hire')">고용/교체</button>
-                <button id="tab-train" class="btn-sm" style="flex:1; background:#444; padding:10px;" onclick="switchGuildTab('train')">길드 훈련소 (♦️)</button>
+                <button id="tab-hire" style="flex:1; padding:10px; background:#3498db; color:#fff; border:none;" onclick="switchGuildTab('hire')">고용/교체</button>
+                <button id="tab-train" style="flex:1; padding:10px; background:#444; color:#fff; border:none;" onclick="switchGuildTab('train')">길드 훈련소</button>
             </div>
             <div class="modal-content-area" id="guild-scroll-area">
                 <div id="guild-hire-view"><div id="mercenary-list" class="shop-grid"></div></div>
@@ -142,23 +140,11 @@
 
     <div id="settings-modal" class="modal-layer">
         <div id="settings-content" class="modal-box">
-            <div class="sticky-header">
-                <h2 style="color:var(--gold); margin:0;">⚙️ 설정</h2>
-                <button onclick="closeSettings()" style="background:none; border:none; color:#e74c3c; font-size:24px;">✕</button>
-            </div>
+            <div class="sticky-header"><h2>⚙️ 설정</h2><button onclick="closeSettings()">✕</button></div>
             <div class="modal-content-area">
-                <div class="settings-group">
-                    <p style="font-size:12px; color:#aaa;">현재 닉네임: <span id="current-nickname-display" style="color:var(--gold);"></span></p>
-                    <div style="display:flex; gap:5px;">
-                        <input type="text" id="settings-nickname-input" style="flex:1; padding:10px; background:#111; color:#fff; border:1px solid #444;">
-                        <button onclick="updateNickname()" class="btn-sm" style="background:#2ecc71; padding:0 15px;">변경</button>
-                    </div>
-                </div>
-                <div style="margin-top:20px;">
-                    <button onclick="exportSave()" class="btn-sm" style="width:100%; background:#3498db; margin-bottom:10px; padding:12px;">📤 세이브 코드 복사</button>
-                    <button onclick="importSave()" class="btn-sm" style="width:100%; background:#f39c12; padding:12px;">📥 세이브 코드 붙여넣기</button>
-                    <button onclick="checkReset()" class="btn-sm" style="width:100%; background:#c0392b; margin-top:10px; padding:12px;">⚠️ 데이터 초기화</button>
-                </div>
+                <p style="font-size:12px; color:#aaa;">현재 닉네임: <span id="current-nickname-display"></span></p>
+                <button onclick="exportSave()" class="btn-sm" style="width:100%; background:#3498db; margin-bottom:10px;">📤 세이브 코드 복사</button>
+                <button onclick="importSave()" class="btn-sm" style="width:100%; background:#f39c12;">📥 세이브 코드 붙여넣기</button>
             </div>
         </div>
     </div>
@@ -166,10 +152,7 @@
     <div id="ranking-modal" class="modal-layer">
         <div id="ranking-content" class="modal-box">
             <div class="sticky-header"><h2>🏆 랭킹</h2><button onclick="closeRanking()">✕</button></div>
-            <div class="modal-content-area">
-                <div id="ranking-list"></div>
-                <div id="my-rank-display" style="margin-top:15px; text-align:center; color:var(--gold); font-weight:bold;"></div>
-            </div>
+            <div class="modal-content-area"><div id="ranking-list"></div><div id="my-rank-display" style="text-align:center; color:var(--gold); margin-top:10px;"></div></div>
         </div>
     </div>
 
@@ -180,6 +163,8 @@
         </div>
     </div>
 
+    <div id="shop-modal" class="modal-layer"><div id="shop-content" class="modal-box"></div></div>
+
     <div id="dungeon-result-modal" class="modal-layer">
         <div id="result-content" class="modal-box" style="text-align:center; padding:20px;">
             <h2 id="result-title" style="color:var(--gold);">CLEAR!</h2>
@@ -187,42 +172,26 @@
             <div style="display:flex; gap:10px; margin-top:20px;">
                 <button onclick="retryDungeon()" class="btn-gold" style="flex:1;">🔄 다시</button>
                 <button id="next-dungeon-btn" onclick="nextDungeon()" class="btn-gold" style="flex:1;">▶️ 다음</button>
-                <button onclick="closeResultModal()" class="btn-gold" style="flex:1; background:#e74c3c!important; color:#fff!important;">🏠 로비</button>
+                <button onclick="closeResultModal()" class="btn-gold" style="flex:1; background:#e74c3c!important; color:#fff!important; border:none;">🏠 나가기</button>
             </div>
         </div>
     </div>
 
-    <div id="shop-modal" class="modal-layer"><div id="shop-content" class="modal-box"></div></div>
-    <div id="tier-unlock-modal" class="modal-layer">
-        <div id="tier-unlock-content" class="modal-box" style="text-align:center; padding:20px;">
-            <h2 style="color:var(--gold);">🎉 신규 티어 개방!</h2>
-            <div id="tier-unlock-icon" style="font-size:60px; margin:15px;"></div>
-            <h3 id="tier-unlock-name">치아 이름</h3>
-            <p id="tier-unlock-desc"></p>
-            <button onclick="closeTierUnlock()" class="btn-gold" style="width:100%;">확인</button>
-        </div>
-    </div>
     <div id="nickname-modal" class="modal-layer">
         <div id="nickname-content" class="modal-box" style="padding:20px; text-align:center;">
-            <h3 style="color:var(--gold);">🆔 닉네임 설정</h3>
-            <input type="text" id="nickname-input" style="width:100%; padding:10px; margin:15px 0; text-align:center; background:#222; color:#fff; border:1px solid #444;">
+            <h3>🆔 닉네임 설정</h3>
+            <input type="text" id="nickname-input" style="width:100%; padding:10px; margin:15px 0; background:#222; color:#fff; border:1px solid #444;">
             <button onclick="confirmNickname()" class="btn-gold" style="width:100%;">시작</button>
-        </div>
-    </div>
-    <div id="guide-modal" class="modal-layer">
-        <div id="guide-content" class="modal-box">
-            <div class="sticky-header"><h2>📘 가이드</h2><button onclick="closeGuide()">✕</button></div>
-            <div class="modal-content-area" id="guide-scroll-content"></div>
         </div>
     </div>
 
     <div id="drag-proxy"></div>
 
-    <script src="data.js?v=7.0.3"></script>
-    <script src="ui.js?v=7.0.3"></script>
-    <script src="upgrade.js?v=7.0.3"></script>
-    <script src="combat.js?v=7.0.3"></script>
-    <script src="battle.js?v=7.0.3"></script>
-    <script src="main.js?v=7.0.3"></script>
+    <script src="data.js?v=6.9.3"></script>
+    <script src="ui.js?v=6.9.3"></script>
+    <script src="upgrade.js?v=6.9.3"></script>
+    <script src="combat.js?v=6.9.3"></script>
+    <script src="battle.js?v=6.9.3"></script>
+    <script src="main.js?v=6.9.3"></script>
 </body>
 </html>
