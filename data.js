@@ -1,14 +1,10 @@
-// Version: 6.8.0 - Master Data (Full Content Preserved, 24-Level Tooth System)
+// Version: 7.0.0 - Master Data (Artifacts Added, Retro Fonts, Level 24 Awakening)
 
 const TOOTH_DATA = {
-    // 8개의 기본 티어 이모지 (이제 3레벨마다 바뀝니다)
     icons: ["🦷", "🦴", "🛡️", "⚜️", "💎", "🌋", "🌌", "👑"],
-    // 8개의 기본 테마 이름 (기획안 반영)
     baseNames: ["유치", "푸른 치아", "초록 치아", "붉은 치아", "보라 치아", "황금 치아", "다이아 치아", "용암 치아"],
-    // 3단계 로테이션 (소, 중, 대)
     prefix: ["일반", "단단한", "거대한"],
     
-    // 원본 데이터 완벽 보존: 곡괭이 9종
     pickaxes: [
         { name: "허름한 나무 곡괭이", cost: 0, luck: 0, icon: "🪵" },
         { name: "무딘 구리 곡괭이", cost: 300, luck: 0.10, icon: "🪨" }, 
@@ -21,7 +17,6 @@ const TOOTH_DATA = {
         { name: "신화의 오리할콘 곡괭이", cost: 1000000000, luck: 0.80, icon: "👑" }
     ],
     
-    // 원본 데이터 완벽 보존: 용병 20종 (엔드게임 골드 소모처 유지)
     mercenaries: [
         { id: 0, name: "농부 듀드", cost: 0, atkMul: 1.0, baseHp: 100, spd: 1.0, icon: "👨‍🌾" },
         { id: 1, name: "마을 경비병", cost: 500, atkMul: 1.2, baseHp: 150, spd: 1.1, icon: "👮‍♂️" },
@@ -45,7 +40,6 @@ const TOOTH_DATA = {
         { id: 19, name: "치아의 신", cost: 100000000000000, atkMul: 300.0, baseHp: 5000, spd: 2.0, icon: "🦷" }
     ],
     
-    // 원본 데이터 완벽 보존: 일반 던전 20종
     dungeons: [
         "시작의 이끼 동굴", "낡은 해골 병영", "침묵의 지하 수로", "버려진 광산 심부", 
         "혹한의 얼음 감옥", "작열하는 용암 터널", "맹독의 늪지대", "고대 거인의 무덤", 
@@ -54,11 +48,30 @@ const TOOTH_DATA = {
         "황혼의 그림자 성소", "우주 너머의 공허", "혼돈의 끝자락", "카오스 울트라 최종장"
     ],
     
-    // 원본 데이터 완벽 보존: HELL 모드 던전 10종
     hellDungeons: [
         "지옥: 피의 강물", "지옥: 절망의 절벽", "지옥: 악몽의 요람", "지옥: 뼈의 산", 
         "지옥: 영혼 파쇄기", "지옥: 타락한 여명", "지옥: 심연의 심장", "지옥: 멸망의 전조", 
         "지옥: 신살자의 투기장", "지옥: 절대 카오스"
+    ],
+
+    // 🌟 신규: 던전 유물 30종 (일반 20종 + 지옥 10종)
+    artifacts: [
+        { name: "이끼 낀 톱니", icon: "⚙️" }, { name: "부서진 해골바가지", icon: "💀" },
+        { name: "하수구 쥐의 꼬리", icon: "🐁" }, { name: "녹슨 곡괭이 날", icon: "🪓" },
+        { name: "얼어붙은 눈물", icon: "💧" }, { name: "식지 않는 용암석", icon: "🌋" },
+        { name: "맹독 버섯 포자", icon: "🍄" }, { name: "거인의 부러진 뼈", icon: "🦴" },
+        { name: "안개꽃 잎사귀", icon: "🌿" }, { name: "부유석 조각", icon: "☁️" },
+        { name: "심연의 비늘", icon: "🐟" }, { name: "차원의 파편", icon: "🌌" },
+        { name: "초월자의 징표", icon: "🏅" }, { name: "꺼지지 않는 불씨", icon: "🔥" },
+        { name: "감시자의 눈알", icon: "👁️" }, { name: "신성한 깃털", icon: "🪽" },
+        { name: "그림자 단검", icon: "🗡️" }, { name: "공허의 결정", icon: "🔮" },
+        { name: "혼돈의 주사위", icon: "🎲" }, { name: "카오스의 왕관", icon: "👑" },
+        // --- HELL 유물 ---
+        { name: "피로 물든 성배", icon: "🍷" }, { name: "절망의 밧줄", icon: "🪢" },
+        { name: "악몽의 드림캐처", icon: "🕸️" }, { name: "마수석 뼈대", icon: "☠️" },
+        { name: "영혼을 담은 호리병", icon: "🏺" }, { name: "타락한 천사의 고리", icon: "🪹" },
+        { name: "마왕의 심장", icon: "🫀" }, { name: "멸망의 나침반", icon: "🧭" },
+        { name: "신살자의 투구", icon: "🪖" }, { name: "절대자의 증명", icon: "📜" }
     ],
     
     dungeonMobs: [
@@ -97,11 +110,17 @@ const TOOTH_DATA = {
         { theme: 'bg-hell', mobs: ['👑','🔱','⚜️'], boss: '👁️‍🗨️' }
     ],
     
-    botNames: ["이빨요정", "치과무서워", "Driller", "Gold_Hunter", "사랑니", "임플란트", "충치균", "양치질", "스케일링", "치아왕", "강철턱", "GumGuard", "RootCanal", "MolarBear", "ToothHurty", "FlossBoss"],
-    invExpansion: [2000, 20000, 200000, 2000000]
+    invExpansion: [2000, 20000, 200000, 2000000],
+
+    // 🌟 신규: 24레벨 전설의 치아 봉인 해제 요구치
+    AWAKEN_REQ: {
+        gold: 1000000000000000, // 1000조 골드
+        dia: 100000,            // 10만 다이아
+        bossMarks: 50           // 보스 토벌 징표 50개
+    }
 };
 
-// --- 사운드 시스템 (그대로 보존) ---
+// --- 사운드 시스템 ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 function playTone(freq, type, duration, vol = 0.1) {
@@ -134,6 +153,7 @@ function playSfx(name) {
         case 'upgrade': playTone(600, 'square', 0.1, 0.1); setTimeout(() => playTone(900, 'square', 0.1, 0.1), 100); break;
         case 'damage': playTone(80, 'sawtooth', 0.2, 0.2); break;
         case 'unlock': playTone(440, 'sine', 0.2, 0.2); setTimeout(() => playTone(554, 'sine', 0.2, 0.2), 200); setTimeout(() => playTone(659, 'sine', 0.4, 0.2), 400); break;
+        case 'awaken': playTone(300, 'sine', 0.5, 0.2); setTimeout(() => playTone(600, 'sine', 1.0, 0.3), 500); break; // 🌟 신규 각성 사운드
     }
 }
 
@@ -146,36 +166,59 @@ function fNum(num) {
     return shortNum.toFixed(2).replace(/\.00$/, "") + units[unitIdx];
 }
 
-// 🌟 [수정됨] 24단계 압축 대응 공격력 공식 (스케일링 강화)
+// 🌟 [핵심 변경] 24레벨(봉인 해제 시) 공격력 폭증 공식 적용
 function getAtk(lv) { 
     if(lv === 0) return 0;
-    // 24단계로 줄어든 만큼, 1단계당 상승폭을 1.6배에서 1.8배로 높여 후반 밸런스를 맞춥니다.
+    
+    // 24레벨(봉인 상태)는 23레벨보다 1.2배만 높음 (아직 힘을 발휘 못함)
+    if(lv === 24 && !window.isToothAwakened) {
+        return Math.floor(20 * Math.pow(1.8, 22) * 1.2); 
+    }
+    
+    // 24레벨(봉인 해제 상태)는 23레벨의 1,000배 위력을 발휘!
+    if(lv === 24 && window.isToothAwakened) {
+        let base23 = Math.floor(20 * Math.pow(1.8, 22));
+        return base23 * 1000;
+    }
+
     let atk = Math.floor(20 * Math.pow(1.8, lv - 1));
     
-    // [티어 7] Lv.19 이상: 지옥의 파괴자 (공격력 10배 증폭 영구 효과)
     if(window.highestToothLevel >= 19) {
         atk *= 10; 
     }
     return atk;
 }
 
-// 🌟 [수정됨] 도감을 위한 이름 생성기 (총 24단계 = 8티어 * 3단계)
 function getToothName(lv) {
     if (lv === 0) return "";
-    let safeLv = Math.min(24, lv); // 최대 24레벨로 고정
-    let tier = Math.floor((safeLv - 1) / 3); // 0 ~ 7 (색상 티어)
-    let step = (safeLv - 1) % 3; // 0: 소, 1: 중, 2: 대
+    let safeLv = Math.min(24, lv); 
+    
+    // 🌟 신규: 24레벨 이름 분기
+    if (safeLv === 24) {
+        return window.isToothAwakened ? "진(眞) 절대자의 치아" : "봉인된 고대 치아";
+    }
+
+    let tier = Math.floor((safeLv - 1) / 3);
+    let step = (safeLv - 1) % 3;
     return TOOTH_DATA.prefix[step] + " " + TOOTH_DATA.baseNames[tier];
 }
 
-// 🌟 [수정됨] CSS 클래스가 적용된 치아 아이콘 반환기 (3단계 로테이션)
 function getToothIcon(lv) {
     if (lv === 0) return "";
-    let safeLv = Math.min(24, lv); // 최대 24레벨로 고정
+    let safeLv = Math.min(24, lv); 
+    
+    // 🌟 신규: 24레벨 아이콘 분기 (봉인/해제)
+    if (safeLv === 24) {
+        if (!window.isToothAwakened) {
+            return `<div style="position:relative; display:inline-block;"><div class="tooth-icon effect-tier-7 effect-size-2" style="filter:grayscale(1);">👑</div><span style="position:absolute; font-size:15px; top:50%; left:50%; transform:translate(-50%, -50%); text-shadow:1px 1px 0 #000;">🔒</span></div>`;
+        } else {
+            return `<div class="tooth-icon effect-tier-7 effect-size-2" style="animation: pulse 0.5s infinite alternate, shakeLava 0.1s infinite; filter: drop-shadow(0 0 20px #ff00ff) hue-rotate(90deg) brightness(2);">👑</div>`;
+        }
+    }
+
     let tier = Math.floor((safeLv - 1) / 3);
-    let step = (safeLv - 1) % 3; // 0, 1, 2
+    let step = (safeLv - 1) % 3; 
     
     let icon = TOOTH_DATA.icons[tier] || "🦷";
-    // effect-tier-X 로 색상을 칠하고, effect-size-X 로 소/중/대 크기를 조절하도록 CSS 연동
     return `<div class="tooth-icon effect-tier-${tier} effect-size-${step}">${icon}</div>`;
 }
