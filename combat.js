@@ -1,4 +1,4 @@
-// Version: 6.9.0 - Combat Engine (Damage Formula & Dungeon Refresh Fixed)
+// Version: 7.0.0 - Combat Engine (Artifact Drop System, Pooling Optimized)
 
 window.dungeonActive = false;
 window.bossDead = false;
@@ -11,6 +11,10 @@ window.spawnTimeouts = [];
 window.relayTimer = 0;
 window.activeSlotIndex = 0;
 window.isBossRush = false;
+
+// 투사체 재사용을 위한 풀(Pool) 배열
+window.missilePool = [];
+window.enemyMissilePool = [];
 
 window.startDungeon = function(idx) {
     window.currentDungeonIdx = idx;
@@ -39,13 +43,12 @@ window.startDungeon = function(idx) {
     const worldDiv = document.getElementById('battle-world');
     battleScreen.style.display = 'block';
     
-    // 🌟 넓은 맵 2000x2000 사이즈 고정
     window.worldWidth = 2000;
     window.worldHeight = 2000;
     worldDiv.style.width = window.worldWidth + 'px';
     worldDiv.style.height = window.worldHeight + 'px';
 
-    // 🌟 배경 타일 복구 (battle-world에 배경을 입혀야 카메라 이동 시 자연스러움)
+    // 배경 타일 복구
     let theme = "bg-stone";
     if (window.isHellMode) {
         theme = (TOOTH_DATA.hellMobs[0] && TOOTH_DATA.hellMobs[0].theme) ? TOOTH_DATA.hellMobs[0].theme : "bg-hell";
@@ -62,22 +65,27 @@ window.startDungeon = function(idx) {
     if (window.isBossRush) dName = `[토벌전] ` + dName;
     document.getElementById('current-dungeon-name').innerText = dName;
     
+    // 던전 진입 시 초기화
     window.dungeonGoldEarned = 0;
     window.dungeonDiaEarned = 0;
+    window.dungeonArtifactDropped = null; // 🌟 유물 드랍 정보 초기화
     window.dungeonActive = true;
     window.bossDead = false;
     window.currentWave = 1;
     window.isBossWave = window.isBossRush ? true : false; 
+    
     window.enemies = [];
     window.missiles = [];
     window.enemyMissiles = [];
+    window.missilePool = []; 
+    window.enemyMissilePool = [];
+    
     window.relayTimer = 0;
     window.activeSlotIndex = 0;
     
     window.playerX = window.worldWidth / 2;
     window.playerY = window.worldHeight / 2;
 
-    // 🌟 주인공 캐릭터를 용병 아이콘으로 완벽 적용
     let curMercIcon = "🦷";
     if (typeof TOOTH_DATA !== 'undefined' && TOOTH_DATA.mercenaries[window.mercenaryIdx]) {
         curMercIcon = TOOTH_DATA.mercenaries[window.mercenaryIdx].icon;
@@ -138,7 +146,6 @@ window.spawnEnemy = function(isBoss = false) {
     let icon = isBoss ? mobData.boss : mobData.mobs[Math.floor(Math.random() * mobData.mobs.length)];
 
     const angle = Math.random() * Math.PI * 2;
-    // 넓어진 맵(2000x2000)에 맞게 적 스폰 거리 확장
     const dist = 600; 
     let sx = window.playerX + Math.cos(angle) * dist; 
     let sy = window.playerY + Math.sin(angle) * dist;
@@ -264,7 +271,11 @@ window.updateCombat = function() {
         m.x += m.vx; m.y += m.vy;
         m.el.style.left = m.x + 'px'; m.el.style.top = m.y + 'px';
         
-        if (Math.hypot(m.x - m.startX, m.y - m.startY) > 2000) { m.el.remove(); window.missiles.splice(i, 1); continue; }
+        if (Math.hypot(m.x - m.startX, m.y - m.startY) > 2000) { 
+            m.el.style.display = 'none'; 
+            window.missiles.splice(i, 1); 
+            continue; 
+        }
 
         for (let j = window.enemies.length - 1; j >= 0; j--) {
             const en = window.enemies[j];
@@ -313,7 +324,8 @@ window.updateCombat = function() {
                     });
                 }
 
-                m.el.remove(); window.missiles.splice(i, 1);
+                m.el.style.display = 'none'; 
+                window.missiles.splice(i, 1);
                 
                 if (en.hp <= 0) {
                     const targetIdx = window.enemies.indexOf(en);
@@ -333,11 +345,16 @@ window.updateCombat = function() {
         em.x += em.vx; em.y += em.vy;
         em.el.style.left = em.x + 'px'; em.el.style.top = em.y + 'px';
 
-        if (Math.hypot(em.x - em.startX, em.y - em.startY) > 1500) { em.el.remove(); window.enemyMissiles.splice(i, 1); continue; }
+        if (Math.hypot(em.x - em.startX, em.y - em.startY) > 1500) { 
+            em.el.style.display = 'none'; 
+            window.enemyMissiles.splice(i, 1); 
+            continue; 
+        }
 
         if (!window.isInvincible && Math.hypot(em.x - window.playerX, em.y - window.playerY) < 30) {
             if(window.takeDamage) window.takeDamage(em.dmg);
-            em.el.remove(); window.enemyMissiles.splice(i, 1);
+            em.el.style.display = 'none'; 
+            window.enemyMissiles.splice(i, 1);
         }
     }
 };
@@ -347,15 +364,19 @@ window.playerShoot = function(slotIdx, target) {
     const worldDiv = document.getElementById('battle-world'); 
     if(!worldDiv) return;
 
-    const mEl = document.createElement('div'); 
-    mEl.className = 'missile'; 
+    let mEl = window.missilePool.find(el => el.style.display === 'none');
+    if (!mEl) {
+        mEl = document.createElement('div'); 
+        mEl.className = 'missile'; 
+        worldDiv.appendChild(mEl);
+        window.missilePool.push(mEl);
+    }
+    mEl.style.display = 'block'; 
     mEl.innerHTML = typeof getToothIcon === 'function' ? getToothIcon(window.inventory[slotIdx]) : "🦷"; 
-    worldDiv.appendChild(mEl); 
     
     const angle = Math.atan2(target.y - window.playerY, target.x - window.playerX); 
     const speed = 18; 
     
-    // 🌟 [핵심 수정] 데미지 계산식 정상화 (용병 배수 및 훈련 보너스 완벽 반영)
     let refineMul = 1 + ((window.slotUpgrades && window.slotUpgrades[slotIdx]) ? window.slotUpgrades[slotIdx].atk * 0.1 : 0); 
     let baseAtk = typeof getAtk === 'function' ? getAtk(window.inventory[slotIdx]) : 10;
     
@@ -365,7 +386,6 @@ window.playerShoot = function(slotIdx, target) {
     let trainingAtkBonus = (window.trainingLevels && window.trainingLevels.atk) ? window.trainingLevels.atk * 0.1 : 0;
     let trainingMul = 1 + trainingAtkBonus;
 
-    // 최종 데미지 = 기본공격력 * 용병배수 * 제련증폭 * 훈련증폭
     let dmg = baseAtk * mercMul * refineMul * trainingMul; 
     
     let isCrit = false;
@@ -389,10 +409,16 @@ window.playerShoot = function(slotIdx, target) {
 window.enemyShoot = function(ex, ey, angle, iconStr) {
     const worldDiv = document.getElementById('battle-world'); 
     if(!worldDiv) return;
-    const mEl = document.createElement('div'); 
-    mEl.className = 'enemy-missile'; 
+    
+    let mEl = window.enemyMissilePool.find(el => el.style.display === 'none');
+    if (!mEl) {
+        mEl = document.createElement('div'); 
+        mEl.className = 'enemy-missile'; 
+        worldDiv.appendChild(mEl);
+        window.enemyMissilePool.push(mEl);
+    }
+    mEl.style.display = 'block';
     mEl.innerText = iconStr;
-    worldDiv.appendChild(mEl); 
 
     const speed = 7; 
     let baseDmg = 15 + (window.currentDungeonIdx * 5);
@@ -464,6 +490,21 @@ window.processEnemyDeath = function(en) {
 
     if (en.isBoss) {
         window.createExplosion(en.x, en.y);
+        
+        // 🌟 [신규] 유물 드랍 로직 (보스 처치 시 30% 확률)
+        // 토벌전(보스러시)에서는 유물이 떨어지지 않고 징표만 얻습니다.
+        if (!window.isBossRush && Math.random() < 0.3) {
+            let artifactIdx = window.isHellMode ? window.currentDungeonIdx + 20 : window.currentDungeonIdx;
+            if (TOOTH_DATA.artifacts[artifactIdx]) {
+                if (!window.artifactCounts) window.artifactCounts = new Array(30).fill(0);
+                window.artifactCounts[artifactIdx]++;
+                window.dungeonArtifactDropped = {
+                    name: TOOTH_DATA.artifacts[artifactIdx].name,
+                    icon: TOOTH_DATA.artifacts[artifactIdx].icon,
+                    count: 1
+                };
+            }
+        }
         
         if (window.isBossRush) {
             if (window.currentWave < 5) {
@@ -545,7 +586,6 @@ window.showDiaText = function(x, y, val) {
     worldDiv.appendChild(txt); setTimeout(() => txt.remove(), 1000); 
 };
 
-// 🌟 [핵심 수정] 던전 퇴장 시 목록 강제 갱신 (새로고침 버그 해결)
 window.exitDungeon = function() {
     try {
         window.dungeonActive = false;
@@ -555,17 +595,20 @@ window.exitDungeon = function() {
         document.getElementById('battle-world').className = ""; 
         
         if (window.enemies) window.enemies.forEach(e => { if(e && e.el) e.el.remove() });
-        if (window.missiles) window.missiles.forEach(m => { if(m && m.el) m.el.remove() });
-        if (window.enemyMissiles) window.enemyMissiles.forEach(em => { if(em && em.el) em.el.remove() });
+        
+        if (window.missiles) window.missiles.forEach(m => { if(m && m.el) m.el.style.display = 'none' });
+        if (window.enemyMissiles) window.enemyMissiles.forEach(em => { if(em && em.el) em.el.style.display = 'none' });
+        
         if (window.spawnTimeouts) window.spawnTimeouts.forEach(t => clearTimeout(t));
         
         window.enemies = [];
         window.missiles = [];
         window.enemyMissiles = [];
+        window.missilePool = []; 
+        window.enemyMissilePool = [];
         
         if(typeof updateUI === 'function') window.updateUI();
         
-        // 추가된 UI 즉시 갱신 로직
         if(typeof renderDungeonList === 'function') window.renderDungeonList();
         if(typeof renderMercenaryCamp === 'function') window.renderMercenaryCamp();
     } catch(e) {
