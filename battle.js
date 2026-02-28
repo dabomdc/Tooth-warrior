@@ -1,4 +1,4 @@
-// Version: 6.9.2 - Dynamic Joystick (Mobile Touch-Action Fixed)
+// Version: 6.9.6 - Dynamic Joystick (Base Speed Nerfed for Upgrade Impact & Safe Spawn)
 
 window.playerMoveX = 0;
 window.playerMoveY = 0;
@@ -26,6 +26,12 @@ window.renderBattleSlots = function() {
 
     setupDynamicJoystick();
     
+    // 전투 화면 렌더링 시 플레이어 위치 중앙으로 강제 초기화 (버그 방지)
+    window.worldWidth = window.worldWidth || 2000;
+    window.worldHeight = window.worldHeight || 2000;
+    window.playerX = window.worldWidth / 2;
+    window.playerY = window.worldHeight / 2;
+    
     let curMerc = typeof TOOTH_DATA !== 'undefined' ? TOOTH_DATA.mercenaries[window.mercenaryIdx] : null;
     let trainingHpBonus = window.trainingLevels && window.trainingLevels.hp ? window.trainingLevels.hp * 0.05 : 0;
     let baseMaxHp = curMerc ? curMerc.baseHp : 100;
@@ -46,7 +52,7 @@ function setupDynamicJoystick() {
     
     if(!screen || !zone || !knob) return;
 
-    // 🌟 [핵심 수정 1] 모바일 브라우저의 스와이프/스크롤 제스처 강제 차단!
+    // 모바일 브라우저의 스와이프/스크롤 제스처 강제 차단!
     screen.style.touchAction = 'none';
 
     let isDragging = false;
@@ -64,7 +70,7 @@ function setupDynamicJoystick() {
         zone.style.display = 'none';
     }
 
-    // 🌟 [핵심 수정 2] iOS 사파리 등에서 터치 이동 시 화면이 들썩거리는 현상 방지
+    // iOS 사파리 등에서 터치 이동 시 화면이 들썩거리는 현상 방지
     screen.addEventListener('touchmove', function(e) {
         if (isDragging) e.preventDefault();
     }, { passive: false });
@@ -128,7 +134,8 @@ function setupDynamicJoystick() {
 function battleLoop() {
     if (!window.dungeonActive || window.bossDead) return;
     
-    let baseSpeed = 6; 
+    // 🌟 [핵심 변경] 기본 이동 속도 대폭 감소 (6 -> 2.5) 업그레이드 체감 극대화!
+    let baseSpeed = 2.5; 
     let curMerc = typeof TOOTH_DATA !== 'undefined' ? TOOTH_DATA.mercenaries[window.mercenaryIdx] : null;
     let mercSpd = curMerc ? curMerc.spd : 1.0;
     
