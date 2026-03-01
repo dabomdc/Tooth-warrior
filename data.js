@@ -1,7 +1,8 @@
-// Version: 8.0.0 - Master Data (Original 100% Restored + Consumables Added)
+// Version: 8.0.1 - Master Data (Icon & Name Mismatch Fixed)
 
 const TOOTH_DATA = {
-    icons: ["🦷", "🦴", "🛡️", "⚜️", "💎", "🌋", "🌌", "👑"],
+    // 🌟 수정됨: 이름 배열에 완벽하게 맞춘 이모지 재배치!
+    icons: ["🦷", "🦴", "🛡️", "⚜️", "🌌", "👑", "💎", "🌋"],
     baseNames: ["유치", "푸른 치아", "초록 치아", "붉은 치아", "보라 치아", "황금 치아", "다이아 치아", "용암 치아"],
     prefix: ["일반", "단단한", "거대한"],
     
@@ -111,14 +112,12 @@ const TOOTH_DATA = {
     
     invExpansion: [2000, 20000, 200000, 2000000],
 
-    // 🌟 신규: 24레벨 전설의 치아 봉인 해제 요구치
     AWAKEN_REQ: {
         gold: 1000000000000000, // 1000조 골드
         dia: 100000,            // 10만 다이아
         bossMarks: 50           // 보스 토벌 징표 50개
     },
 
-    // 🌟 신규: 소모품(버프) 아이템 데이터 완벽 추가
     consumables: [
         { id: 'item_mine_speed', name: "광부의 각성 물약", icon: "🧪", desc: "5분 동안 자동 채굴 속도 300% 증가", effectType: 'mine_speed', duration: 300, multiplier: 3 },
         { id: 'item_merge_speed', name: "시간 가속의 시계", icon: "⏳", desc: "5분 동안 자동 합성 속도 300% 증가", effectType: 'merge_speed', duration: 300, multiplier: 3 },
@@ -126,7 +125,6 @@ const TOOTH_DATA = {
         { id: 'item_gold_boost', name: "황금 고블린의 보따리", icon: "💰", desc: "10분 동안 던전 골드 획득량 2배 증가", effectType: 'gold_boost', duration: 600, multiplier: 2 }
     ],
 
-    // 🌟 신규: 랭킹 생성용 가짜 닉네임 데이터
     REAL_NICKNAMES: [
         "임플란트마스터", "충치파괴자", "빛나는금니", "사랑니발치전문의", 
         "건치미남", "스케일링장인", "치과공포증", "무통마취", 
@@ -206,7 +204,6 @@ function getToothName(lv) {
     if (lv === 0) return "";
     let safeLv = Math.min(24, lv); 
     
-    // 🌟 신규: 24레벨 이름 분기
     if (safeLv === 24) {
         return window.isToothAwakened ? "진(眞) 절대자의 치아" : "봉인된 고대 치아";
     }
@@ -220,7 +217,6 @@ function getToothIcon(lv) {
     if (lv === 0) return "";
     let safeLv = Math.min(24, lv); 
     
-    // 🌟 신규: 24레벨 아이콘 분기 (봉인/해제)
     if (safeLv === 24) {
         if (!window.isToothAwakened) {
             return `<div style="position:relative; display:inline-block;"><div class="tooth-icon effect-tier-7 effect-size-2" style="filter:grayscale(1);">👑</div><span style="position:absolute; font-size:15px; top:50%; left:50%; transform:translate(-50%, -50%); text-shadow:1px 1px 0 #000;">🔒</span></div>`;
