@@ -1,11 +1,12 @@
-// Version: 8.0.1 - Master Data (Icon & Name Mismatch Fixed)
+// Version: 8.0.2 - Master Data (Original 100% Restored + Consumables Added + Emoji Fixed)
 
 const TOOTH_DATA = {
-    // 🌟 수정됨: 이름 배열에 완벽하게 맞춘 이모지 재배치!
+    // 🌟 수정됨: 이름 배열에 완벽하게 맞춘 이모지 재배치! (보라:🌌, 황금:👑, 다이아:💎, 용암:🌋)
     icons: ["🦷", "🦴", "🛡️", "⚜️", "🌌", "👑", "💎", "🌋"],
     baseNames: ["유치", "푸른 치아", "초록 치아", "붉은 치아", "보라 치아", "황금 치아", "다이아 치아", "용암 치아"],
     prefix: ["일반", "단단한", "거대한"],
     
+    // 원장님의 오리지널 곡괭이 9종 완벽 복구
     pickaxes: [
         { name: "허름한 나무 곡괭이", cost: 0, luck: 0, icon: "🪵" },
         { name: "무딘 구리 곡괭이", cost: 300, luck: 0.10, icon: "🪨" }, 
@@ -18,6 +19,7 @@ const TOOTH_DATA = {
         { name: "신화의 오리할콘 곡괭이", cost: 1000000000, luck: 0.80, icon: "👑" }
     ],
     
+    // 원장님의 오리지널 용병 20종 완벽 복구
     mercenaries: [
         { id: 0, name: "농부 듀드", cost: 0, atkMul: 1.0, baseHp: 100, spd: 1.0, icon: "👨‍🌾" },
         { id: 1, name: "마을 경비병", cost: 500, atkMul: 1.2, baseHp: 150, spd: 1.1, icon: "👮‍♂️" },
@@ -41,6 +43,7 @@ const TOOTH_DATA = {
         { id: 19, name: "치아의 신", cost: 100000000000000, atkMul: 300.0, baseHp: 5000, spd: 2.0, icon: "🦷" }
     ],
     
+    // 원장님의 오리지널 던전 이름 완벽 복구
     dungeons: [
         "시작의 이끼 동굴", "낡은 해골 병영", "침묵의 지하 수로", "버려진 광산 심부", 
         "혹한의 얼음 감옥", "작열하는 용암 터널", "맹독의 늪지대", "고대 거인의 무덤", 
@@ -49,12 +52,14 @@ const TOOTH_DATA = {
         "황혼의 그림자 성소", "우주 너머의 공허", "혼돈의 끝자락", "카오스 울트라 최종장"
     ],
     
+    // 원장님의 오리지널 지옥 던전 10구역 완벽 복구
     hellDungeons: [
         "지옥: 피의 강물", "지옥: 절망의 절벽", "지옥: 악몽의 요람", "지옥: 뼈의 산", 
         "지옥: 영혼 파쇄기", "지옥: 타락한 여명", "지옥: 심연의 심장", "지옥: 멸망의 전조", 
         "지옥: 신살자의 투기장", "지옥: 절대 카오스"
     ],
 
+    // 원장님의 오리지널 유물 30종 완벽 복구
     artifacts: [
         { name: "이끼 낀 톱니", icon: "⚙️" }, { name: "부서진 해골바가지", icon: "💀" },
         { name: "하수구 쥐의 꼬리", icon: "🐁" }, { name: "녹슨 곡괭이 날", icon: "🪓" },
@@ -110,14 +115,17 @@ const TOOTH_DATA = {
         { theme: 'bg-hell', mobs: ['👑','🔱','⚜️'], boss: '👁️‍🗨️' }
     ],
     
+    // 원장님의 오리지널 인벤토리 확장 수치
     invExpansion: [2000, 20000, 200000, 2000000],
 
+    // 🌟 신규: 24레벨 전설의 치아 봉인 해제 요구치
     AWAKEN_REQ: {
         gold: 1000000000000000, // 1000조 골드
         dia: 100000,            // 10만 다이아
         bossMarks: 50           // 보스 토벌 징표 50개
     },
 
+    // 🌟 신규: 소모품(버프) 아이템 데이터
     consumables: [
         { id: 'item_mine_speed', name: "광부의 각성 물약", icon: "🧪", desc: "5분 동안 자동 채굴 속도 300% 증가", effectType: 'mine_speed', duration: 300, multiplier: 3 },
         { id: 'item_merge_speed', name: "시간 가속의 시계", icon: "⏳", desc: "5분 동안 자동 합성 속도 300% 증가", effectType: 'merge_speed', duration: 300, multiplier: 3 },
@@ -125,6 +133,7 @@ const TOOTH_DATA = {
         { id: 'item_gold_boost', name: "황금 고블린의 보따리", icon: "💰", desc: "10분 동안 던전 골드 획득량 2배 증가", effectType: 'gold_boost', duration: 600, multiplier: 2 }
     ],
 
+    // 🌟 신규: 랭킹 생성용 가짜 닉네임 데이터
     REAL_NICKNAMES: [
         "임플란트마스터", "충치파괴자", "빛나는금니", "사랑니발치전문의", 
         "건치미남", "스케일링장인", "치과공포증", "무통마취", 
