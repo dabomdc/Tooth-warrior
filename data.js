@@ -1,4 +1,4 @@
-// Version: 7.0.0 - Master Data (Artifacts Added, Retro Fonts, Level 24 Awakening)
+// Version: 8.0.0 - Master Data (Original 100% Restored + Consumables Added)
 
 const TOOTH_DATA = {
     icons: ["🦷", "🦴", "🛡️", "⚜️", "💎", "🌋", "🌌", "👑"],
@@ -54,7 +54,6 @@ const TOOTH_DATA = {
         "지옥: 신살자의 투기장", "지옥: 절대 카오스"
     ],
 
-    // 🌟 신규: 던전 유물 30종 (일반 20종 + 지옥 10종)
     artifacts: [
         { name: "이끼 낀 톱니", icon: "⚙️" }, { name: "부서진 해골바가지", icon: "💀" },
         { name: "하수구 쥐의 꼬리", icon: "🐁" }, { name: "녹슨 곡괭이 날", icon: "🪓" },
@@ -117,7 +116,22 @@ const TOOTH_DATA = {
         gold: 1000000000000000, // 1000조 골드
         dia: 100000,            // 10만 다이아
         bossMarks: 50           // 보스 토벌 징표 50개
-    }
+    },
+
+    // 🌟 신규: 소모품(버프) 아이템 데이터 완벽 추가
+    consumables: [
+        { id: 'item_mine_speed', name: "광부의 각성 물약", icon: "🧪", desc: "5분 동안 자동 채굴 속도 300% 증가", effectType: 'mine_speed', duration: 300, multiplier: 3 },
+        { id: 'item_merge_speed', name: "시간 가속의 시계", icon: "⏳", desc: "5분 동안 자동 합성 속도 300% 증가", effectType: 'merge_speed', duration: 300, multiplier: 3 },
+        { id: 'item_manual_power', name: "거인의 영약", icon: "💪", desc: "3분 동안 수동 채굴 파워 500% 증가", effectType: 'manual_power', duration: 180, multiplier: 5 },
+        { id: 'item_gold_boost', name: "황금 고블린의 보따리", icon: "💰", desc: "10분 동안 던전 골드 획득량 2배 증가", effectType: 'gold_boost', duration: 600, multiplier: 2 }
+    ],
+
+    // 🌟 신규: 랭킹 생성용 가짜 닉네임 데이터
+    REAL_NICKNAMES: [
+        "임플란트마스터", "충치파괴자", "빛나는금니", "사랑니발치전문의", 
+        "건치미남", "스케일링장인", "치과공포증", "무통마취", 
+        "양치질은하루세번", "치석제거기"
+    ]
 };
 
 // --- 사운드 시스템 ---
@@ -153,7 +167,7 @@ function playSfx(name) {
         case 'upgrade': playTone(600, 'square', 0.1, 0.1); setTimeout(() => playTone(900, 'square', 0.1, 0.1), 100); break;
         case 'damage': playTone(80, 'sawtooth', 0.2, 0.2); break;
         case 'unlock': playTone(440, 'sine', 0.2, 0.2); setTimeout(() => playTone(554, 'sine', 0.2, 0.2), 200); setTimeout(() => playTone(659, 'sine', 0.4, 0.2), 400); break;
-        case 'awaken': playTone(300, 'sine', 0.5, 0.2); setTimeout(() => playTone(600, 'sine', 1.0, 0.3), 500); break; // 🌟 신규 각성 사운드
+        case 'awaken': playTone(300, 'sine', 0.5, 0.2); setTimeout(() => playTone(600, 'sine', 1.0, 0.3), 500); break;
     }
 }
 
@@ -166,7 +180,6 @@ function fNum(num) {
     return shortNum.toFixed(2).replace(/\.00$/, "") + units[unitIdx];
 }
 
-// 🌟 [핵심 변경] 24레벨(봉인 해제 시) 공격력 폭증 공식 적용
 function getAtk(lv) { 
     if(lv === 0) return 0;
     
