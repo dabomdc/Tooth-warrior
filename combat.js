@@ -1,10 +1,10 @@
-// Version: 7.5.1 - Combat Engine (Math Optimized, Splash Bug Fixed, Memory Leak Fixed)
+// Version: 7.5.3 - Combat Engine (Math Optimized, Splash Bug Fixed, Memory Leak Fixed)
 
 window.dungeonActive = false;
 window.bossDead = false;
 window.currentWave = 1;
 window.isBossWave = false;
-window.enemies =;
+window.enemies =; // 🌟 빈 배열 선언 복구
 window.missiles =;
 window.enemyMissiles =;
 window.spawnTimeouts =;
@@ -12,7 +12,6 @@ window.relayTimer = 0;
 window.activeSlotIndex = 0;
 window.isBossRush = false;
 
-// 투사체 재사용을 위한 풀(Pool) 배열
 window.missilePool =;
 window.enemyMissilePool =;
 
@@ -23,7 +22,6 @@ window.startDungeon = function(idx) {
     window.isHellMode = (tab === 'hell' || tab === 'hellboss');
     window.isBossRush = (tab === 'boss' || tab === 'hellboss');
 
-    // 입장료 로직
     if (window.isBossRush) {
         let goldFee = Math.floor(5000 * Math.pow(2.0, idx));
         let diaFee = 5 + (idx * 5);
@@ -48,7 +46,6 @@ window.startDungeon = function(idx) {
     worldDiv.style.width = window.worldWidth + 'px';
     worldDiv.style.height = window.worldHeight + 'px';
 
-    // 배경 타일 복구
     let theme = "bg-stone";
     if (window.isHellMode) {
         theme = (window.TOOTH_DATA.hellMobs && window.TOOTH_DATA.hellMobs.theme)? window.TOOTH_DATA.hellMobs.theme : "bg-hell";
@@ -65,7 +62,6 @@ window.startDungeon = function(idx) {
     if (window.isBossRush) dName = `[토벌전] ` + dName;
     document.getElementById('current-dungeon-name').innerText = dName;
     
-    // 던전 진입 시 초기화
     window.dungeonGoldEarned = 0;
     window.dungeonDiaEarned = 0;
     window.dungeonArtifactDropped = null; 
@@ -74,7 +70,7 @@ window.startDungeon = function(idx) {
     window.currentWave = 1;
     window.isBossWave = window.isBossRush? true : false; 
     
-    window.enemies =;
+    window.enemies =; // 🌟 빈 배열 복구
     window.missiles =;
     window.enemyMissiles =;
     window.missilePool =; 
@@ -176,23 +172,23 @@ window.updateCombat = function() {
     if (window.bossDead ||!window.dungeonActive) return;
 
     let nearest = null; 
-    let minDstSq = Infinity; // 🌟 최적화: 거리 제곱 탐색
+    let minDstSq = Infinity; 
 
     window.enemies.forEach(en => {
         let dx = window.playerX - en.x; 
         let dy = window.playerY - en.y;
-        let distSq = dx * dx + dy * dy; // 🌟 최적화: 루트(Math.hypot) 제거
+        let distSq = dx * dx + dy * dy; 
         const angle = Math.atan2(dy, dx);
         
         let moveSpeed = en.speed;
         if(window.isHellMode) moveSpeed *= 1.5;
-        if (en.isBoss && distSq < 90000 && en.phase === 1) moveSpeed = 0; // 300^2 = 90000
+        if (en.isBoss && distSq < 90000 && en.phase === 1) moveSpeed = 0; 
         
         en.x += Math.cos(angle) * moveSpeed; 
         en.y += Math.sin(angle) * moveSpeed;
         en.el.style.left = en.x + 'px'; en.el.style.top = en.y + 'px';
         
-        if (!window.isInvincible && distSq < 1225) { // 35^2 = 1225
+        if (!window.isInvincible && distSq < 1225) { 
             let bodyDmg = 10 + (window.currentDungeonIdx * 5);
             if(window.isHellMode) bodyDmg *= 10;
             if(typeof window.takeDamage === 'function') window.takeDamage(bodyDmg); 
@@ -259,7 +255,7 @@ window.updateCombat = function() {
                 const calcRng = 300 + (window.globalUpgrades.rng * 20);
                 const range = Math.min(maxRngLimit, calcRng);
                 
-                if (minDstSq <= range * range) { // 🌟 최적화: 거리 제곱 비교
+                if (minDstSq <= range * range) { 
                     window.playerShoot(window.activeSlotIndex, nearest);
                     window.relayTimer = 0;
                     window.activeSlotIndex = (window.activeSlotIndex + 1) % 8;
@@ -268,7 +264,6 @@ window.updateCombat = function() {
         }
     }
 
-    // 아군 투사체 업데이트
     for (let i = window.missiles.length - 1; i >= 0; i--) {
         const m = window.missiles[i];
         m.x += m.vx; m.y += m.vy;
@@ -277,14 +272,12 @@ window.updateCombat = function() {
         let distXSq = m.x - m.startX;
         let distYSq = m.y - m.startY;
         
-        // 🌟 최적화: 사거리 이탈 판정 (2000^2 = 4000000)
         if ((distXSq * distXSq + distYSq * distYSq) > 4000000) { 
             m.el.style.display = 'none'; 
             window.missiles.splice(i, 1); 
             continue; 
         }
 
-        // 🌟 버그 수정: 적 충돌 판정 역순 검사
         let hitEnemy = false;
         for (let j = window.enemies.length - 1; j >= 0; j--) {
             const en = window.enemies[j];
@@ -292,7 +285,6 @@ window.updateCombat = function() {
             let ex = m.x - en.x;
             let ey = m.y - en.y;
             
-            // 🌟 최적화: 충돌 범위 (40^2 = 1600)
             if ((ex * ex + ey * ey) < 1600) { 
                 hitEnemy = true;
                 en.hp -= m.dmg;
@@ -303,7 +295,6 @@ window.updateCombat = function() {
                 
                 try { if(typeof window.playSfx === 'function') window.playSfx('hit'); } catch(e){}
                 
-                // 스플래시 데미지 처리
                 if (window.highestToothLevel >= 7 && window.trainingLevels.splashDmg > 0) {
                     let splashDmgLevel = window.trainingLevels.splashDmg || 0;
                     let splashRangeLevel = window.trainingLevels.splashRange || 0;
@@ -323,7 +314,6 @@ window.updateCombat = function() {
                     if(worldDiv) worldDiv.appendChild(splashDiv);
                     setTimeout(() => splashDiv.remove(), 300);
 
-                    // 🌟 치명적 버그 수정: 역순 루프를 통한 안전한 스플래시 데미지 판정
                     for (let k = window.enemies.length - 1; k >= 0; k--) {
                         const otherEn = window.enemies[k];
                         if (otherEn === en) continue;
@@ -340,7 +330,7 @@ window.updateCombat = function() {
                                 otherEn.el.remove();
                                 window.enemies.splice(k, 1);
                                 window.processEnemyDeath(otherEn);
-                                if (k < j) j--; // 타겟 인덱스 보정
+                                if (k < j) j--; 
                             }
                         }
                     }
@@ -359,7 +349,6 @@ window.updateCombat = function() {
         }
     }
 
-    // 적 투사체 업데이트
     for (let i = window.enemyMissiles.length - 1; i >= 0; i--) {
         const em = window.enemyMissiles[i];
         em.x += em.vx; em.y += em.vy;
@@ -368,7 +357,6 @@ window.updateCombat = function() {
         let distXSq = em.x - em.startX;
         let distYSq = em.y - em.startY;
         
-        // 🌟 최적화: 적 투사체 사거리 (1500^2 = 2250000)
         if ((distXSq * distXSq + distYSq * distYSq) > 2250000) { 
             em.el.style.display = 'none'; 
             window.enemyMissiles.splice(i, 1); 
@@ -378,7 +366,6 @@ window.updateCombat = function() {
         let px = em.x - window.playerX;
         let py = em.y - window.playerY;
         
-        // 🌟 최적화: 플레이어 피격 판정 (30^2 = 900)
         if (!window.isInvincible && (px * px + py * py) < 900) {
             if(typeof window.takeDamage === 'function') window.takeDamage(em.dmg);
             em.el.style.display = 'none'; 
@@ -620,11 +607,8 @@ window.exitDungeon = function() {
         document.getElementById('game-container').style.display = 'flex';
         document.getElementById('battle-world').className = ""; 
         
-        // 몬스터 DOM 삭제
         if (window.enemies) window.enemies.forEach(e => { if(e && e.el) e.el.remove() });
         
-        // 🌟 메모리 누수 치명적 버그 해결: 
-        // 배열만 비우는 것이 아니라 DOM 태그 자체를 완전 제거해야 렉이 걸리지 않음
         if (window.missiles) window.missiles.forEach(m => { if(m && m.el) m.el.remove() });
         if (window.enemyMissiles) window.enemyMissiles.forEach(em => { if(em && em.el) em.el.remove() });
         if (window.missilePool) window.missilePool.forEach(el => el.remove());
@@ -632,7 +616,7 @@ window.exitDungeon = function() {
         
         if (window.spawnTimeouts) window.spawnTimeouts.forEach(t => clearTimeout(t));
         
-        window.enemies =;
+        window.enemies =; // 🌟 빈 배열 복구
         window.missiles =;
         window.enemyMissiles =;
         window.missilePool =; 
