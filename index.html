@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>치아 연대기 v8.0.0</title>
+    <title>치아 연대기 v8.1.0</title>
     <link href="https://cdn.jsdelivr.net/gh/neodgm/neodgm-webfont@latest/neodgm/style.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=8.0.0">
+    <link rel="stylesheet" href="style.css?v=8.1.0">
 </head>
 <body>
     <div id="intro-layer">
@@ -35,7 +35,7 @@
     <div id="game-container">
         <nav id="top-nav">
             <button onclick="switchView('mine')" id="tab-mine" class="active">⛏️ 채굴/합성</button>
-            <button onclick="switchView('refine')" id="tab-refine">🔥 Top8 제련</button>
+            <button onclick="switchView('refine')" id="tab-refine">🔥 전력강화</button>
             <button onclick="switchView('war')" id="tab-war">⚔️ 던전원정</button>
         </nav>
 
@@ -53,26 +53,28 @@
                 <div id="mine-rock-area">
                     <div id="giant-tooth">🦷</div>
                     <div id="miner-char">⛏️</div>
+                    <div id="mine-touch-hint">화면을 터치해 채굴</div>
                 </div>
                 
-                <div id="dashboard" style="display:flex; justify-content: space-around; width: 100%; align-items: center; padding: 8px 0; background: rgba(0,0,0,0.4); border-top: 2px solid #222; border-bottom: 2px solid #000;">
-                    <div style="display:flex; flex-direction:column; align-items:center; width:80px;">
-                        <div id="mine-dial" style="width: 45px; height: 45px; border-radius: 50%; background: conic-gradient(#00fbff 0%, #333 0%); display:flex; align-items:center; justify-content:center; transition: background 0.1s linear; box-shadow: 2px 2px 0 #000; border:2px solid #555;">
-                            <div style="width: 35px; height: 35px; background: #16213e; border-radius: 50%; display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff;">⛏️</div>
+                <div id="dashboard">
+                    <div class="auto-panel">
+                        <div id="mine-dial" class="progress-dial mine-dial">
+                            <div class="dial-inner">⛏️</div>
                         </div>
-                        <button id="auto-mine-btn" onclick="toggleAutoMine()" class="btn-toggle" style="margin-top:8px; background:#2ecc71; color:white; font-size:11px; padding:4px 10px; width:100%; font-weight:bold;">자동 ON</button>
+                        <button id="auto-mine-btn" onclick="toggleAutoMine()" class="btn-toggle mine-toggle">자동채굴 ON</button>
                     </div>
 
-                    <div style="text-align:center; flex:1;">
-                        <div style="font-size:10px; color:#aaa; margin-bottom:3px;">현재 장비</div>
-                        <div id="pickaxe-name" style="font-size:12px; font-weight:bold; color:var(--gold); text-shadow: 1px 1px 0 #000; word-break:keep-all;">허름한 나무 곡괭이</div>
+                    <div id="mine-center-touch-area">
+                        <div class="equip-label">현재 장비</div>
+                        <div id="pickaxe-name">허름한 나무 곡괭이</div>
+                        <div class="tap-label">이 영역도 터치하면 채굴됩니다</div>
                     </div>
 
-                    <div style="display:flex; flex-direction:column; align-items:center; width:80px;">
-                        <div id="merge-dial" style="width: 45px; height: 45px; border-radius: 50%; background: conic-gradient(#9b59b6 0%, #333 0%); display:flex; align-items:center; justify-content:center; transition: background 0.1s linear; box-shadow: 2px 2px 0 #000; border:2px solid #555;">
-                            <div style="width: 35px; height: 35px; background: #16213e; border-radius: 50%; display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff;">⚡</div>
+                    <div class="auto-panel">
+                        <div id="merge-dial" class="progress-dial merge-dial">
+                            <div class="dial-inner">⚡</div>
                         </div>
-                        <button id="auto-merge-btn" onclick="toggleAutoMerge()" class="btn-toggle" style="margin-top:8px; background:#9b59b6; color:white; font-size:11px; padding:4px 10px; width:100%; font-weight:bold;">자동 ON</button>
+                        <button id="auto-merge-btn" onclick="toggleAutoMerge()" class="btn-toggle merge-toggle">자동합성 ON</button>
                     </div>
                 </div>
             </div>
@@ -80,7 +82,6 @@
             <div id="inventory-section">
                 <div id="action-bar">
                     <button onclick="sortInventory()" class="btn-red">🔄 자동 정렬</button>
-                    <button onclick="openShop()" class="btn-gold">💰 Upgrade Lab</button>
                 </div>
                 <div id="inventory-scroll-area">
                     <div id="inventory-grid"></div>
@@ -93,14 +94,11 @@
 
             <div id="war-view" style="display:none;">
                 <div id="mercenary-camp">
-                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #444; padding-bottom:10px; margin-bottom:10px;">
-                        <h4 style="color:var(--gold); margin:0;">🛡️ 현재 용병</h4>
-                        <div style="display:flex; gap:5px;">
-                            <button onclick="openMercenaryModal()" class="btn-sm" style="background:#3498db; font-weight:bold;">👥 모집/교체</button>
-                            <button onclick="openTrainingCamp()" class="btn-sm" style="background:#ff4757; font-weight:bold;">💪 훈련장 (♦️)</button>
-                        </div>
+                    <div class="war-merc-header">
+                        <h4>🛡️ 현재 용병</h4>
+                        <span class="war-merc-sub">전력강화 탭에서 모집/훈련 가능</span>
                     </div>
-                    <div id="current-mercenary-display" style="min-height: 80px; display:flex; align-items:center; gap:15px; padding: 5px;"></div>
+                    <div id="current-mercenary-display"></div>
                 </div>
                 
                 <div id="dungeon-list-container">
@@ -113,7 +111,7 @@
                     
                     <div id="boss-rush-info" style="display:none; background:rgba(231,76,60,0.1); border:1px solid #e74c3c; padding:10px; margin-bottom:10px; font-size:11px; color:#ffcccc; line-height:1.4;">
                         <strong style="color:#e74c3c; font-size:12px;">⚔️ 토벌전 안내</strong><br>
-                        이곳은 강력한 보스들만 연속으로 출현하는 토벌전입니다. 살아남는다면 엄청난 보상과 함께 24레벨 봉인 해제 재료인 '보스 징표'를 획득할 수 있습니다.
+                        강력한 보스들만 연속으로 출현합니다. 살아남는다면 엄청난 보상과 함께 24레벨 봉인 해제 재료인 보스 징표를 획득할 수 있습니다.
                     </div>
 
                     <div id="dungeon-list"></div>
@@ -124,7 +122,7 @@
         <nav id="bottom-nav">
             <button onclick="openSettings()" class="bottom-btn">⚙️ 설정</button>
             <button onclick="openCodex()" class="bottom-btn">📖 치아도감</button>
-            <button onclick="openArtifacts()" class="bottom-btn" style="color:var(--gold);">🏺 유물도감</button>
+            <button onclick="openArtifacts()" class="bottom-btn">🏺 유물도감</button>
             <button onclick="openRanking()" class="bottom-btn">🏆 랭킹</button>
         </nav>
     </div>
@@ -138,7 +136,7 @@
                 <span id="current-dungeon-name">던전 이름</span><br>
                 <span id="wave-info">WAVE 1/5</span>
             </div>
-            <button onclick="exitDungeon()" class="btn-exit">후퇴</button>
+            <button onclick="requestRetreat()" class="btn-exit">후퇴</button>
             <div id="war-weapon-slots"></div>
             <div id="joystick-zone">
                 <div id="joystick-knob"></div>
@@ -175,8 +173,8 @@
                 <div class="settings-group">
                     <h4>데이터 관리</h4>
                     <div style="display:flex; gap:5px; margin-bottom:10px;">
-                        <button onclick="exportSaveCode()" class="btn-sm" style="background:#27ae60; flex:1;">💾 저장 코드 발급 (자동 복사)</button>
-                        <button onclick="importSave()" class="btn-sm" style="background:#f39c12; flex:1;">📂 로드 (불러오기)</button>
+                        <button onclick="exportSaveCode()" class="btn-sm" style="background:#27ae60; flex:1;">💾 저장 코드 발급</button>
+                        <button onclick="importSave()" class="btn-sm" style="background:#f39c12; flex:1;">📂 불러오기</button>
                     </div>
                     <button onclick="checkReset()" class="btn-sm" style="background:#c0392b; width:100%;">⚠️ 데이터 완전 초기화</button>
                 </div>
@@ -195,11 +193,11 @@
     <div id="mercenary-modal" class="modal-layer">
         <div id="mercenary-content" class="modal-box">
             <div class="sticky-header">
-                <h2 style="color:var(--gold); margin:0;">👥 용병 주점</h2>
+                <h2 style="color:var(--gold); margin:0;">👥 용병 모집/교체</h2>
                 <button onclick="closeMercenaryModal()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
             </div>
             <div class="modal-content-area">
-                <p style="font-size:11px; color:#ccc; text-align:center; margin-top:0;">더 강력한 용병을 고용하여 던전을 정복하세요!</p>
+                <p style="font-size:11px; color:#ccc; text-align:center; margin-top:0;">더 강력한 용병을 고용하여 던전을 정복하세요.</p>
                 <div id="mercenary-list-modal" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;"></div>
             </div>
         </div>
@@ -230,7 +228,7 @@
                 <button onclick="closeArtifacts()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
             </div>
             <div class="modal-content-area">
-                <p style="font-size:11px; color:#ccc; text-align:center; margin-top:0; line-height:1.4;">던전 보스가 드랍하는 유물을 <span style="color:#2ecc71;">1개</span> 획득 시 완성되며,<br>완성된 유물을 <span style="color:#3498db;">3종류</span> 모을 때마다 <strong style="color:var(--gold);">기본 채굴 레벨이 +1</strong> 상승합니다!</p>
+                <p style="font-size:11px; color:#ccc; text-align:center; margin-top:0; line-height:1.4;">던전 보스가 드랍하는 유물을 수집하세요.<br>완성된 유물 3종류마다 <strong style="color:var(--gold);">기본 채굴 레벨 +1</strong></p>
                 <div id="artifact-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px;"></div>
             </div>
         </div>
@@ -257,7 +255,7 @@
     <div id="training-modal" class="modal-layer">
         <div id="training-content" class="modal-box">
             <div class="sticky-header">
-                <h2 style="color:var(--gold); margin:0;">💪 용병 훈련장</h2>
+                <h2 style="color:var(--gold); margin:0;">💪 용병 훈련</h2>
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span style="font-size:12px; color:#fff;">보유 ♦️ <span id="training-dia-display" style="color:#ff4757; font-weight:bold;">0</span></span>
                     <button onclick="closeTrainingCamp()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
@@ -296,7 +294,7 @@
             <div id="tier-unlock-icon" style="font-size:80px; margin:20px 0;"></div>
             <h3 id="tier-unlock-name" style="color:white;">-</h3>
             <div id="tier-unlock-desc" style="background:rgba(0,0,0,0.5); padding:15px; border-radius:0; color:#2ecc71; font-weight:bold; margin:15px 0;">-</div>
-            <button onclick="closeTierUnlock()" class="btn-gold" style="width:100%; font-size:16px;">멋지다! (보상 수령)</button>
+            <button onclick="closeTierUnlock()" class="btn-gold" style="width:100%; font-size:16px;">확인</button>
         </div>
     </div>
     
@@ -309,6 +307,20 @@
                 <button onclick="closeResultModal()" class="btn-sm" style="flex:1; background:#7f8c8d; padding:12px 0;">나가기</button>
                 <button onclick="retryDungeon()" class="btn-sm" style="flex:1; background:#e67e22; padding:12px 0;">다시하기</button>
                 <button onclick="nextDungeon()" id="btn-next-dungeon" class="btn-gold" style="flex:1; padding:12px 0;">다음단계</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="retreat-confirm-modal" class="modal-layer" style="z-index: 17000;">
+        <div class="modal-box retreat-box">
+            <h2>⚠️ 후퇴 확인</h2>
+            <p>
+                던전에서 후퇴하시겠습니까?<br>
+                현재 전투는 종료됩니다.
+            </p>
+            <div class="retreat-actions">
+                <button onclick="cancelRetreat()" class="btn-sm retreat-cancel">계속 싸우기</button>
+                <button onclick="confirmRetreat()" class="btn-sm retreat-confirm">후퇴하기</button>
             </div>
         </div>
     </div>
@@ -334,13 +346,13 @@
 
     <div id="drag-proxy"></div>
 
-    <script src="data.js?v=8.0.0"></script>
-    <script src="engine.js?v=8.0.0"></script>
-    <script src="action.js?v=8.0.0"></script>
-    <script src="ui_core.js?v=8.0.0"></script>
-    <script src="ui_modal.js?v=8.0.0"></script>
-    <script src="upgrade.js?v=8.0.0"></script>
-    <script src="combat.js?v=8.0.0"></script>
-    <script src="battle.js?v=8.0.0"></script>
+    <script src="data.js?v=8.1.0"></script>
+    <script src="engine.js?v=8.1.0"></script>
+    <script src="action.js?v=8.1.0"></script>
+    <script src="ui_core.js?v=8.1.0"></script>
+    <script src="ui_modal.js?v=8.1.0"></script>
+    <script src="upgrade.js?v=8.1.0"></script>
+    <script src="combat.js?v=8.1.0"></script>
+    <script src="battle.js?v=8.1.0"></script>
 </body>
 </html>
