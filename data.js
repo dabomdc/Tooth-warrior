@@ -1,4 +1,4 @@
-// Version: 7.5.2 - Master Data (Syntax Error Fixed)
+// Version: 7.5.3 - Master Data (Syntax Error Fixed)
 
 window.TOOTH_DATA = {
     icons: ["🦷", "🦴", "🛡️", "⚜️", "💎", "👑", "🌌", "🌋"],
