@@ -1,4 +1,4 @@
-// Version: 7.5.3 - Master Data (Syntax Error Fixed)
+// Version: 8.0.1 - Master Data & Utility Functions
 
 window.TOOTH_DATA = {
     icons: ["🦷", "🦴", "🛡️", "⚜️", "💎", "👑", "🌌", "🌋"],
@@ -108,7 +108,7 @@ window.TOOTH_DATA = {
         { theme: 'bg-hell', mobs: ['👑','🔱','⚜️'], boss: '👁️‍🗨️' }
     ],
     
-    invExpansion: ,
+    invExpansion: [2000, 20000, 200000, 2000000],
 
     AWAKEN_REQ: {
         gold: 1000000000000000, 
@@ -116,77 +116,128 @@ window.TOOTH_DATA = {
         bossMarks: 50           
     },
 
-    REAL_NICKNAMES:
+    REAL_NICKNAMES: [
+        "빛나는금니", "DarkKnight", "임플란트마스터", "치아파괴자", "스케일링장인", 
+        "치석브레이커", "충치사냥꾼", "ProGamer", "양치질만렙", "건치미남", 
+        "사랑니발치러", "지옥의치과의사", "황금임플란트", "무과금전사", "서버1위"
+    ]
 };
 
-window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const TOOTH_DATA = window.TOOTH_DATA;
 
-window.playTone = function(freq, type, duration, vol = 0.1) {
-    if (!window.isMuted) {
-        if (window.audioCtx.state === 'suspended') window.audioCtx.resume();
-        const osc = window.audioCtx.createOscillator();
-        const gain = window.audioCtx.createGain();
-        
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, window.audioCtx.currentTime);
-        
-        const finalVol = vol * (window.masterVolume || 2) * 0.5;
-        
-        gain.gain.setValueAtTime(0, window.audioCtx.currentTime); 
-        gain.gain.linearRampToValueAtTime(finalVol, window.audioCtx.currentTime + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, window.audioCtx.currentTime + duration); 
-        
-        osc.connect(gain);
-        gain.connect(window.audioCtx.destination);
-        
-        osc.start();
-        osc.stop(window.audioCtx.currentTime + duration + 0.1); 
+// --- 사운드 시스템 ---
+window.audioCtx = null;
+
+function getAudioCtx() {
+    if (!window.audioCtx) {
+        try {
+            window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch(e) {
+            window.audioCtx = null;
+        }
     }
-};
+    return window.audioCtx;
+}
+window.getAudioCtx = getAudioCtx;
 
-window.playSfx = function(name) {
+function playTone(freq, type, duration, vol = 0.1) {
+    if (window.isMuted) return;
+
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+
+    try {
+        if (ctx.state === 'suspended') ctx.resume();
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = (type === 'noise') ? 'square' : type;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+        const finalVol = vol * (window.masterVolume || 2) * 0.5;
+        gain.gain.setValueAtTime(finalVol, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+    } catch(e) {}
+}
+window.playTone = playTone;
+
+function playSfx(name) {
     if (window.isMuted) return;
     if (document.hidden) return;
-    if (window.audioCtx.state === 'suspended') window.audioCtx.resume();
-    switch (name) {
-        case 'mine': window.playTone(150, 'square', 0.1, 0.1); break;
-        case 'merge': window.playTone(400, 'sine', 0.1, 0.1); setTimeout(() => window.playTone(600, 'sine', 0.1, 0.1), 100); break;
-        case 'great': window.playTone(500, 'triangle', 0.1, 0.1); setTimeout(() => window.playTone(1000, 'triangle', 0.3, 0.1), 150); break;
-        case 'attack': window.playTone(800, 'sawtooth', 0.05, 0.05); break;
-        case 'hit': window.playTone(100, 'noise', 0.05, 0.1); break;
-        case 'upgrade': window.playTone(600, 'square', 0.1, 0.1); setTimeout(() => window.playTone(900, 'square', 0.1, 0.1), 100); break;
-        case 'damage': window.playTone(80, 'sawtooth', 0.2, 0.2); break;
-        case 'unlock': window.playTone(440, 'sine', 0.2, 0.2); setTimeout(() => window.playTone(554, 'sine', 0.2, 0.2), 200); setTimeout(() => window.playTone(659, 'sine', 0.4, 0.2), 400); break;
-        case 'awaken': window.playTone(300, 'sine', 0.5, 0.2); setTimeout(() => window.playTone(600, 'sine', 1.0, 0.3), 500); break; 
-    }
-};
 
-window.fNum = function(num) {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+
+    try {
+        if (ctx.state === 'suspended') ctx.resume();
+
+        switch (name) {
+            case 'mine':
+                playTone(150, 'square', 0.1, 0.1);
+                break;
+            case 'merge':
+                playTone(400, 'sine', 0.1, 0.1);
+                setTimeout(() => playTone(600, 'sine', 0.1, 0.1), 100);
+                break;
+            case 'great':
+                playTone(500, 'triangle', 0.1, 0.1);
+                setTimeout(() => playTone(1000, 'triangle', 0.3, 0.1), 150);
+                break;
+            case 'attack':
+                playTone(800, 'sawtooth', 0.05, 0.05);
+                break;
+            case 'hit':
+                playTone(100, 'noise', 0.05, 0.1);
+                break;
+            case 'upgrade':
+                playTone(600, 'square', 0.1, 0.1);
+                setTimeout(() => playTone(900, 'square', 0.1, 0.1), 100);
+                break;
+            case 'damage':
+                playTone(80, 'sawtooth', 0.2, 0.2);
+                break;
+            case 'unlock':
+                playTone(440, 'sine', 0.2, 0.2);
+                setTimeout(() => playTone(554, 'sine', 0.2, 0.2), 200);
+                setTimeout(() => playTone(659, 'sine', 0.4, 0.2), 400);
+                break;
+            case 'awaken':
+                playTone(300, 'sine', 0.5, 0.2);
+                setTimeout(() => playTone(600, 'sine', 1.0, 0.3), 500);
+                break;
+        }
+    } catch(e) {}
+}
+window.playSfx = playSfx;
+
+// --- 유틸리티 및 데이터 계산 ---
+function fNum(num) {
+    if (num === undefined || num === null || isNaN(num)) return 0;
     if (num < 1000) return Math.floor(num);
-    const units = ["", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"];
-    
-    const unitIdx = Math.floor(Math.log10(num) / 3);
-    const shortNum = num / Math.pow(10, unitIdx * 3);
-    
-    let suffix = "";
-    if (unitIdx < units.length) {
-        suffix = units[unitIdx];
-    } else {
-        const overIdx = unitIdx - units.length;
-        const firstChar = String.fromCharCode(97 + Math.floor(overIdx / 26));
-        const secondChar = String.fromCharCode(97 + (overIdx % 26));
-        suffix = firstChar + secondChar;
-    }
-    
-    return shortNum.toFixed(2).replace(/\.00$/, "") + suffix;
-};
 
-window.getAtk = function(lv) { 
+    const units = ["", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"];
+    const unitIdx = Math.floor(Math.log10(num) / 3);
+    const safeIdx = Math.min(unitIdx, units.length - 1);
+    const shortNum = num / Math.pow(10, safeIdx * 3);
+
+    return shortNum.toFixed(2).replace(/\.00$/, "") + units[safeIdx];
+}
+window.fNum = fNum;
+
+function getAtk(lv) { 
     if(lv === 0) return 0;
     
-    if(lv === 24 &&!window.isToothAwakened) {
+    if(lv === 24 && !window.isToothAwakened) {
         return Math.floor(20 * Math.pow(1.8, 22) * 1.2); 
     }
+    
     if(lv === 24 && window.isToothAwakened) {
         let base23 = Math.floor(20 * Math.pow(1.8, 22));
         return base23 * 1000;
@@ -197,28 +248,30 @@ window.getAtk = function(lv) {
     if(window.highestToothLevel >= 19) {
         atk *= 10; 
     }
-    return atk;
-};
 
-window.getToothName = function(lv) {
+    return atk;
+}
+window.getAtk = getAtk;
+
+function getToothName(lv) {
     if (lv === 0) return "";
+
     let safeLv = Math.min(24, lv); 
     
     if (safeLv === 24) {
-        return window.isToothAwakened? "진(眞) 절대자의 치아" : "봉인된 고대 치아";
+        return window.isToothAwakened ? "진(眞) 절대자의 치아" : "봉인된 고대 치아";
     }
 
     let tier = Math.floor((safeLv - 1) / 3);
     let step = (safeLv - 1) % 3;
-    
-    let pName = window.TOOTH_DATA.prefix[step];
-    let bName = window.TOOTH_DATA.baseNames[tier] || "미지의 치아";
-    
-    return pName + " " + bName;
-};
 
-window.getToothIcon = function(lv) {
+    return TOOTH_DATA.prefix[step] + " " + TOOTH_DATA.baseNames[tier];
+}
+window.getToothName = getToothName;
+
+function getToothIcon(lv) {
     if (lv === 0) return "";
+
     let safeLv = Math.min(24, lv); 
     
     if (safeLv === 24) {
@@ -232,6 +285,8 @@ window.getToothIcon = function(lv) {
     let tier = Math.floor((safeLv - 1) / 3);
     let step = (safeLv - 1) % 3; 
     
-    let icon = window.TOOTH_DATA.icons[tier] || "❓";
-    return `<div class="tooth-icon effect-tier-${Math.min(tier, 7)} effect-size-${Math.min(step, 2)}">${icon}</div>`;
-};
+    let icon = TOOTH_DATA.icons[tier] || "🦷";
+
+    return `<div class="tooth-icon effect-tier-${tier} effect-size-${step}">${icon}</div>`;
+}
+window.getToothIcon = getToothIcon;
