@@ -1,660 +1,579 @@
-// Version: 8.0.0 - Modal UI, Codex, Artifacts, Ranking, Settings, Unlocks
+/* ui_modal.js v8.2.0
+   치아 연대기 - 도감 / 설정 / 공용 모달 UI
+   핵심:
+   - 치아도감 25단계 카드형 복구
+   - 기본 공격력 표시
+   - 유물도감 카드형 복구
+   - 설정 탭에서 영상 다시보기
+*/
 
-// --- [ 1. 신규 티어 달성 알림 ] ---
-window.showTierUnlock = function(level) {
-    const m = document.getElementById('tier-unlock-modal');
-    const iconDiv = document.getElementById('tier-unlock-icon');
-    const nameDiv = document.getElementById('tier-unlock-name');
-    const descDiv = document.getElementById('tier-unlock-desc');
-    
-    if (m && iconDiv && nameDiv && descDiv) {
-        iconDiv.innerHTML = typeof window.getToothIcon === 'function' ? window.getToothIcon(level) : "🦷";
-        nameDiv.innerText = typeof window.getToothName === 'function' ? window.getToothName(level) : `Lv.${level}`;
-        
-        let desc = "";
+"use strict";
 
-        if (level === 4) desc = "채굴력 1.2배 상승! (더 빠르게 채굴합니다)";
-        else if (level === 7) desc = "💥 광역 공격 훈련이 개방되었습니다!";
-        else if (level === 10) desc = "⚡ 치명타 훈련이 개방되었습니다!";
-        else if (level === 13) desc = "♦️ 던전 다이아 획득량이 2배로 증가합니다!";
-        else if (level === 16) desc = "⚔️ 용병 공격력이 2배로 증폭됩니다!";
-        else if (level === 19) desc = "🔥 치아 기본 공격력이 10배로 폭증합니다!";
-        else if (level === 22) desc = "👑 모든 던전 보상이 5배로 폭증합니다!";
-        
-        descDiv.innerText = desc;
-        m.style.display = 'flex';
+/* =========================
+   공통 유틸
+========================= */
 
-        try { 
-            if (typeof window.playSfx === 'function') window.playSfx('unlock'); 
-        } catch(e) {}
-    }
-};
-
-window.closeTierUnlock = function() {
-    const m = document.getElementById('tier-unlock-modal');
-    if (m) m.style.display = 'none';
-};
-
-
-// --- [ 2. 치아 도감 ] ---
-window.openCodex = function() {
-    const m = document.getElementById('codex-modal');
-
-    if (m) { 
-        m.style.display = 'flex'; 
-
-        if (typeof window.renderCodex === 'function') {
-            window.renderCodex(); 
-        }
-    }
-};
-
-window.closeCodex = function() {
-    const m = document.getElementById('codex-modal');
-    if (m) m.style.display = 'none';
-};
-
-function renderCodex() {
-    const grid = document.getElementById('codex-grid');
-
-    if (!grid || typeof window.TOOTH_DATA === 'undefined') return;
-
-    grid.innerHTML = '';
-    
-    let unlockedCount = 0;
-
-    for (let i = 1; i <= 24; i++) {
-        const item = document.createElement('div');
-
-        item.className = 'codex-item';
-        
-        const isUnlocked = i <= window.highestToothLevel;
-
-        if (isUnlocked) {
-            unlockedCount++;
-        } else {
-            item.classList.add('locked');
-        }
-        
-        const badge = `<div class="codex-badge">${i}</div>`;
-        const iconHtml = isUnlocked ? 
-            (typeof window.getToothIcon === 'function' ? window.getToothIcon(i) : "🦷") : 
-            `<div class="codex-icon" style="color:#555;">?</div>`;
-
-        const nameText = isUnlocked ? 
-            (typeof window.getToothName === 'function' ? window.getToothName(i) : `Lv.${i}`) : 
-            "미발견";
-        
-        let abilityText = "";
-
-        if (isUnlocked) {
-            if (i === 4) abilityText = "채굴력 1.2배 상승";
-            else if (i === 7) abilityText = "💥 광역 훈련 개방";
-            else if (i === 10) abilityText = "⚡ 치명타 훈련 개방";
-            else if (i === 13) abilityText = "♦️ 다이아 획득 2배";
-            else if (i === 16) abilityText = "⚔️ 용병 공격력 2배";
-            else if (i === 19) abilityText = "🔥 치아 공격력 10배";
-            else if (i === 22) abilityText = "👑 보상 5배 증폭";
-        }
-
-        item.innerHTML = `
-            ${badge}
-            ${iconHtml}
-            <div class="codex-name">${nameText}</div>
-            ${abilityText ? `<div class="codex-ability">${abilityText}</div>` : ""}
-        `;
-
-        grid.appendChild(item);
-    }
-    
-    const progress = document.getElementById('codex-progress');
-
-    if (progress) {
-        progress.innerText = `수집률: ${unlockedCount}/24`;
-    }
+function modalFmt(value) {
+  if (typeof window.formatNumber === "function") return window.formatNumber(value);
+  if (typeof window.fmt === "function") return window.fmt(value);
+  return String(Math.floor(Number(value) || 0));
 }
-window.renderCodex = renderCodex;
 
-
-// --- [ 3. 유물 도감 ] ---
-window.openArtifacts = function() {
-    const m = document.getElementById('artifact-modal');
-
-    if (m) { 
-        m.style.display = 'flex'; 
-
-        if (typeof window.renderArtifacts === 'function') {
-            window.renderArtifacts(); 
-        }
-    }
-};
-
-window.closeArtifacts = function() {
-    const m = document.getElementById('artifact-modal');
-    if (m) m.style.display = 'none';
-};
-
-function renderArtifacts() {
-    const grid = document.getElementById('artifact-grid');
-
-    if (!grid || typeof window.TOOTH_DATA === 'undefined') return;
-
-    grid.innerHTML = '';
-    
-    if (window.artifactCounts === undefined) {
-        window.artifactCounts = new Array(30).fill(0);
-    }
-    
-    let completedSets = 0;
-    
-    for (let i = 0; i < 30; i++) {
-        const art = window.TOOTH_DATA.artifacts[i];
-
-        if (!art) continue;
-        
-        const count = window.artifactCounts[i] || 0;
-        const isCompleted = count >= 1; 
-
-        if (isCompleted) completedSets++;
-        
-        const item = document.createElement('div');
-
-        item.className = 'artifact-item';
-
-        if (count === 0) {
-            item.classList.add('locked');
-        }
-        
-        item.innerHTML = `
-            <div class="artifact-count" style="background:${isCompleted ? '#2ecc71' : '#e74c3c'}">${count}/1</div>
-            <div class="artifact-icon">${art.icon}</div>
-            <div class="artifact-name">${art.name}</div>
-            ${isCompleted ? `<div style="font-size:8px; color:var(--gold); margin-top:3px;">완성</div>` : `<div style="font-size:8px; color:#555; margin-top:3px;">미완성</div>`}
-        `;
-
-        grid.appendChild(item);
-    }
-    
-    let extraMiningLv = Math.floor(completedSets / 3); 
-    const progress = document.getElementById('artifact-progress');
-
-    if (progress) {
-        progress.innerText = `완성: ${completedSets}/30 (채굴 Lv +${extraMiningLv})`;
-    }
+function modalToast(message, type = "info", duration = 1700) {
+  if (typeof window.showToast === "function") {
+    window.showToast(message, type, duration);
+  } else {
+    console.log(message);
+  }
 }
-window.renderArtifacts = renderArtifacts;
 
+function getModalRoot() {
+  let modal = document.getElementById("generic-modal");
 
-// --- [ 4. 24레벨 전설의 치아 봉인 해제 ] ---
-window.openLockedToothModal = function(slotIdx) {
-    window.lockedToothSlotIdx = slotIdx;
-
-    const m = document.getElementById('locked-tooth-modal');
-
-    if (m) {
-        m.style.display = 'flex';
-
-        if (typeof renderUnlockRequirements === 'function') {
-            renderUnlockRequirements();
-        }
-    }
-};
-
-window.closeLockedToothModal = function() {
-    const m = document.getElementById('locked-tooth-modal');
-    if (m) m.style.display = 'none';
-};
-
-function renderUnlockRequirements() {
-    const reqDiv = document.getElementById('unlock-requirements');
-    const btn = document.getElementById('btn-unlock-tooth');
-
-    if (!reqDiv || !btn || typeof window.TOOTH_DATA === 'undefined') return;
-
-    const req = window.TOOTH_DATA.AWAKEN_REQ;
-
-    if (window.bossMarks === undefined) {
-        window.bossMarks = 0;
-    }
-    
-    const goldOk = window.gold >= req.gold;
-    const diaOk = window.dia >= req.dia;
-    const marksOk = window.bossMarks >= req.bossMarks;
-    
-    reqDiv.innerHTML = `
-        <div style="margin-bottom:5px; color:${goldOk ? '#2ecc71' : '#e74c3c'};">
-            💰 골드: ${window.safeFNum ? window.safeFNum(window.gold) : window.gold} / ${window.safeFNum ? window.safeFNum(req.gold) : req.gold}
-        </div>
-        <div style="margin-bottom:5px; color:${diaOk ? '#2ecc71' : '#e74c3c'};">
-            ♦️ 다이아: ${window.safeFNum ? window.safeFNum(window.dia) : window.dia} / ${window.safeFNum ? window.safeFNum(req.dia) : req.dia}
-        </div>
-        <div style="color:${marksOk ? '#2ecc71' : '#e74c3c'};">
-            🏅 토벌 징표: ${window.bossMarks} / ${req.bossMarks}
-        </div>
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "generic-modal";
+    modal.className = "modal-overlay";
+    modal.innerHTML = `
+      <div class="modal-box generic-modal-box">
+        <div id="generic-modal-content"></div>
+      </div>
     `;
+    document.body.appendChild(modal);
+  }
 
-    if (goldOk && diaOk && marksOk) {
-        btn.disabled = false;
-        btn.style.filter = "none";
-        btn.innerText = "봉인 해제 시도!";
-    } else {
-        btn.disabled = true;
-        btn.style.filter = "grayscale(1)";
-        btn.innerText = "재화 부족";
-    }
+  return modal;
 }
 
-window.attemptUnlockTooth = function() {
-    if (typeof window.TOOTH_DATA === 'undefined') return;
-
-    const req = window.TOOTH_DATA.AWAKEN_REQ;
-
-    if (window.gold >= req.gold && window.dia >= req.dia && window.bossMarks >= req.bossMarks) {
-        if (confirm("모든 재화를 소모하여 진정한 전설의 치아를 해방하시겠습니까?")) {
-            window.gold -= req.gold;
-            window.dia -= req.dia;
-            window.bossMarks -= req.bossMarks;
-            
-            window.isToothAwakened = true;
-
-            window.closeLockedToothModal();
-            
-            if (typeof window.playAwakenVideo === 'function') {
-                window.playAwakenVideo();
-            } else {
-                window.skipAwakenIntro();
-            }
-            
-            if (typeof window.renderInventory === 'function') {
-                window.renderInventory();
-            }
-
-            if (typeof window.updateUI === 'function') {
-                window.updateUI();
-            }
-
-            if (typeof window.saveGame === 'function') {
-                window.saveGame();
-            }
-        }
-    }
-};
-
-window.playAwakenVideo = function() {
-    const layer = document.getElementById('awaken-video-layer');
-    const vid = document.getElementById('awaken-video');
-    const skipBtn = document.getElementById('skip-awaken-btn');
-
-    if (layer && vid) {
-        layer.style.display = 'flex';
-        vid.style.display = 'block';
-
-        if (skipBtn) {
-            skipBtn.style.display = 'block';
-        }
-
-        vid.volume = window.masterVolume ? window.masterVolume * 0.3 : 0.6;
-        vid.muted = window.isMuted;
-
-        vid.play().catch(() => {
-            window.skipAwakenIntro();
-        });
-
-        vid.onended = function() {
-            setTimeout(window.skipAwakenIntro, 500);
-        };
-    } else {
-        window.skipAwakenIntro();
-    }
-};
-
-window.skipAwakenIntro = function() {
-    const vid = document.getElementById('awaken-video');
-
-    if (vid) {
-        vid.pause();
-        vid.style.display = 'none';
-    }
-
-    const layer = document.getElementById('awaken-video-layer');
-
-    if (layer) {
-        layer.style.display = 'none';
-    }
-
-    const skipBtn = document.getElementById('skip-awaken-btn');
-
-    if (skipBtn) {
-        skipBtn.style.display = 'none';
-    }
-    
-    try { 
-        if (typeof window.playSfx === 'function') window.playSfx('awaken'); 
-    } catch(e) {}
-
-    const flash = document.createElement('div');
-
-    flash.style.position = 'fixed';
-    flash.style.top = '0';
-    flash.style.left = '0';
-    flash.style.width = '100%';
-    flash.style.height = '100%';
-    flash.style.background = 'white';
-    flash.style.zIndex = '40000';
-    flash.style.animation = 'splashFade 2s ease-out forwards';
-
-    document.body.appendChild(flash);
-
-    setTimeout(() => {
-        if (flash && flash.parentNode) flash.remove();
-    }, 2000);
-    
-    alert("👑 세계관 최강의 무기, [진(眞) 절대자의 치아]가 봉인을 깨고 강림했습니다! 👑\n공격력이 상상을 초월합니다!");
-
-    if (typeof window.renderInventory === 'function') {
-        window.renderInventory();
-    }
-};
-
-
-// --- [ 5. 랭킹 ] ---
-window.generateRankings = function() {
-    const list = document.getElementById('ranking-list');
-
-    if (!list || typeof window.TOOTH_DATA === 'undefined') return;
-    
-    if (!window.fakeUsers || window.fakeUsers.length === 0) {
-        window.fakeUsers = [];
-
-        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-        
-        for (let i = 0; i < 500; i++) {
-            let fakePower = Math.floor(Math.pow(Math.random(), 3) * 8000000) + 1000;
-            let fakeD = Math.floor(Math.random() * 20) + 1;
-
-            window.fakeUsers.push({ p: fakePower, d: fakeD, isMe: false });
-        }
-        
-        window.fakeUsers.sort((a, b) => b.p - a.p);
-        
-        let top10Indices = [0,1,2,3,4,5,6,7,8,9];
-
-        top10Indices.sort(() => Math.random() - 0.5);
-
-        let realNameIndices = top10Indices.slice(0, 5);
-        let realNames = [...window.TOOTH_DATA.REAL_NICKNAMES].sort(() => Math.random() - 0.5);
-
-        for (let i = 0; i < 500; i++) {
-            if (i < 10 && realNameIndices.includes(i)) {
-                window.fakeUsers[i].name = realNames.pop();
-            } else {
-                let hash = '';
-
-                for (let j = 0; j < 4; j++) {
-                    hash += chars.charAt(Math.floor(Math.random() * chars.length));
-                }
-
-                window.fakeUsers[i].name = `User-${hash}`;
-            }
-        }
-    }
-
-    let myPower = window.safeGetAtk ? window.safeGetAtk(window.highestToothLevel) : 1;
-
-    if (window.TOOTH_DATA.mercenaries[window.mercenaryIdx]) {
-        myPower *= window.TOOTH_DATA.mercenaries[window.mercenaryIdx].atkMul;
-    }
-    
-    let ranks = [...window.fakeUsers]; 
-    let myData = { 
-        name: window.nickname || "나", 
-        d: window.unlockedDungeon, 
-        p: myPower, 
-        isMe: true 
-    };
-
-    ranks.push(myData);
-    ranks.sort((a, b) => b.p - a.p);
-    
-    let html = ''; 
-    let myRankIdx = ranks.findIndex(r => r.isMe);
-    let myRank = myRankIdx + 1;
-
-    ranks.forEach((r, idx) => {
-        let isTop10 = idx < 10;
-        let isNearMe = Math.abs(idx - myRankIdx) <= 5;
-
-        if (idx === 10 && myRankIdx > 15) {
-            html += `<div style="text-align:center; color:#555; font-size:14px; padding:5px 0;">. . . . . .</div>`;
-        }
-
-        if (isTop10 || isNearMe) {
-            let rankColor = r.isMe ? 
-                'color:var(--gold); font-weight:bold; background:rgba(241, 196, 15, 0.1);' : 
-                'color:#ccc;';
-
-            if (idx === 0) {
-                rankColor += 'color:#ff4757; text-shadow:0 0 5px red; font-size:14px;';
-            }
-            
-            html += `
-                <div style="display:flex; justify-content:space-between; padding:8px 5px; border-bottom:1px solid #333; ${rankColor}">
-                    <span style="width:15%; text-align:center;">${idx + 1}</span>
-                    <span style="flex:1; text-align:center;">${r.name}</span>
-                    <span style="width:20%; text-align:center;">Lv.${r.d}</span>
-                    <span style="width:25%; text-align:right;">${window.safeFNum ? window.safeFNum(r.p) : r.p}</span>
-                </div>
-            `;
-        }
-    });
-    
-    list.innerHTML = html;
-
-    const rankDisp = document.getElementById('my-rank-display');
-
-    if (rankDisp) {
-        rankDisp.innerText = `내 순위: ${myRank}위 / ${ranks.length}명 (전투력: ${window.safeFNum ? window.safeFNum(myPower) : myPower})`;
-    }
-};
-
-window.openRanking = function() {
-    const m = document.getElementById('ranking-modal');
-
-    if (m) { 
-        m.style.display = 'flex'; 
-
-        if (typeof window.generateRankings === 'function') {
-            window.generateRankings(); 
-        }
-    }
-};
-
-window.closeRanking = function() {
-    const m = document.getElementById('ranking-modal');
-    if (m) m.style.display = 'none';
-};
-
-
-// --- [ 6. 설정창 ] ---
-window.openSettings = function() {
-    const m = document.getElementById('settings-modal');
-
-    if (m) { 
-        m.style.display = 'flex'; 
-
-        const nickDisp = document.getElementById('current-nickname-display');
-
-        if (nickDisp) {
-            nickDisp.innerText = window.nickname || "설정안됨";
-        }
-
-        if (typeof window.updateSoundBtn === 'function') {
-            window.updateSoundBtn();
-        }
-
-        const slider = document.getElementById('volume-slider');
-
-        if (slider) {
-            slider.value = window.masterVolume || 2;
-        }
-    }
-};
-
-window.closeSettings = function() {
-    const m = document.getElementById('settings-modal');
-    if (m) m.style.display = 'none';
-};
-
-window.openNicknameChange = function() {
-    const m = document.getElementById('nickname-modal');
-
-    if (m) {
-        m.style.display = 'flex';
-
-        const input = document.getElementById('nickname-input');
-
-        if (input) {
-            input.value = window.nickname || "";
-        }
-    }
-};
-
-
-// --- [ 7. 저장 코드 / 쿠폰 / 사운드 / 초기화 ] ---
-window.exportSaveCode = function() {
-    const saveData = 
-        localStorage.getItem('toothSaveV700') || 
-        localStorage.getItem('toothSaveV695') ||
-        localStorage.getItem('toothSaveV680');
-
-    if (saveData) {
-        try {
-            const encoded = btoa(encodeURIComponent(saveData));
-
-            if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(encoded).then(() => {
-                    alert("✅ 저장 코드가 클립보드에 자동 복사되었습니다! 메모장에 붙여넣기 하여 보관하세요.");
-                }).catch(() => {
-                    prompt("클립보드 복사 실패. 아래 코드를 전체 선택하여 복사하세요:", encoded);
-                });
-            } else {
-                prompt("클립보드 권한이 없습니다. 아래 코드를 전체 선택하여 복사하세요:", encoded);
-            }
-        } catch (e) { 
-            alert("코드 생성 중 오류가 발생했습니다."); 
-        }
-    } else {
-        alert("저장된 데이터가 없습니다. 먼저 게임을 플레이해주세요.");
-    }
-};
-
-window.promptCoupon = function() {
-    setTimeout(() => {
-        const code = prompt("쿠폰 코드를 입력하세요:");
-
-        if (code && typeof window.checkCoupon === 'function') {
-            window.checkCoupon(code);
-        }
-    }, 10);
-};
-
-window.toggleSound = function() {
-    window.isMuted = !window.isMuted;
-
-    if (typeof window.saveGame === 'function') {
-        window.saveGame();
-    }
-
-    window.updateSoundBtn();
-};
-
-function updateSoundBtn() {
-    const btn = document.getElementById('sound-toggle-btn');
-
-    if (btn) {
-        btn.innerText = window.isMuted ? "🔇 BGM/SFX OFF" : "🔊 BGM/SFX ON";
-    }
+function setModalContent(html) {
+  const modal = getModalRoot();
+  let content = document.getElementById("generic-modal-content");
+
+  if (!content) {
+    content = document.createElement("div");
+    content.id = "generic-modal-content";
+    modal.innerHTML = `
+      <div class="modal-box generic-modal-box">
+        <div id="generic-modal-content"></div>
+      </div>
+    `;
+    content = document.getElementById("generic-modal-content");
+  }
+
+  content.innerHTML = html;
+
+  modal.style.display = "flex";
+  modal.classList.add("active");
 }
-window.updateSoundBtn = updateSoundBtn;
 
-window.changeVolume = function() {
-    const slider = document.getElementById('volume-slider');
+function closeModal() {
+  const modal = document.getElementById("generic-modal");
+  if (!modal) return;
 
-    if (!slider) return;
+  modal.classList.remove("active");
+  modal.style.display = "none";
+}
 
-    window.masterVolume = parseInt(slider.value);
+function openModal(html) {
+  if (typeof window.openGenericModal === "function") {
+    window.openGenericModal(html);
+  } else {
+    setModalContent(html);
+  }
+}
 
-    if (typeof window.saveGame === 'function') {
-        window.saveGame();
+function closeAnyModal() {
+  if (typeof window.closeGenericModal === "function") {
+    window.closeGenericModal();
+  } else {
+    closeModal();
+  }
+
+  const ids = [
+    "shop-modal",
+    "result-modal",
+    "mercenary-modal",
+    "training-modal",
+    "retreat-confirm-modal"
+  ];
+
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.style.display = "none";
+      el.classList.remove("active");
     }
+  });
+}
 
-    try { 
-        if (typeof window.playSfx === 'function') window.playSfx('hit'); 
-    } catch(e) {}
-};
+/* =========================
+   치아도감
+========================= */
 
-window.checkReset = function() {
-    if (confirm("정말로 모든 데이터를 삭제하시겠습니까? 복구할 수 없습니다!")) {
-        window.isResetting = true;
+function isToothDiscovered(level) {
+  const lv = Number(level) || 0;
 
-        localStorage.clear(); 
-        location.reload();
-    }
-};
+  if (lv <= 0) return false;
 
+  if (Array.isArray(window.discoveredTeeth) && window.discoveredTeeth[lv]) {
+    return true;
+  }
 
-// --- [ 8. 가이드 ] ---
-window.openGuide = function() {
-    const m = document.getElementById('guide-modal');
+  if (Array.isArray(window.inventory) && window.inventory.includes(lv)) {
+    return true;
+  }
 
-    if (m) {
-        m.style.display = 'flex';
+  return false;
+}
 
-        const content = document.getElementById('guide-scroll-content');
+function getToothAttackText(level) {
+  const lv = Number(level) || 1;
 
-        if (content) {
-            content.innerHTML = `
-                <div style="padding-top:10px;">
-                    <h3 style="color:var(--gold);">🦷 치아 연대기 레트로 가이드</h3>
-                    <p><strong>1. 채굴과 합성 (24단계)</strong><br>치아를 캐고 합쳐서 다음 단계로 나아가세요. 23레벨 2개를 합치면 전설의 치아가 탄생합니다!</p>
-                    <p><strong>2. 유물 파밍 시스템</strong><br>던전 보스를 잡고 '유물'을 1개씩 수집하세요. 완성된 유물이 <strong>3종류가 될 때마다 기본 채굴 레벨이 +1 영구 상승</strong>합니다!</p>
-                    <p><strong>3. 보스 토벌전 & 봉인 해제</strong><br>토벌전에서 살아남아 '보스 징표'를 획득하세요. 24레벨 전설 무기의 봉인을 풀 수 있는 핵심 재료입니다.</p>
-                    <p><strong>4. Top8 제련</strong><br>인벤토리의 상위 8칸은 전투 슬롯입니다. 이 슬롯에 들어간 치아가 자동으로 공격합니다.</p>
-                    <p><strong>5. 후퇴</strong><br>던전 중 위험하면 좌측 상단의 후퇴 버튼으로 나올 수 있습니다.</p>
-                </div>
-            `;
+  const atk =
+    typeof window.getBaseAttackByLevel === "function"
+      ? window.getBaseAttackByLevel(lv)
+      : typeof window.getBaseAtk === "function"
+      ? window.getBaseAtk(lv)
+      : typeof window.getAtk === "function"
+      ? window.getAtk(lv)
+      : lv * 10;
+
+  return modalFmt(atk);
+}
+
+function buildToothCard(level) {
+  const lv = Number(level) || 1;
+  const discovered = isToothDiscovered(lv);
+
+  const emoji =
+    typeof window.getToothEmoji === "function"
+      ? window.getToothEmoji(lv)
+      : lv >= 25
+      ? "✨👑✨"
+      : "🦷";
+
+  const name =
+    typeof window.getToothName === "function"
+      ? window.getToothName(lv)
+      : lv >= 25
+      ? "초월 왕관 치아"
+      : `Lv.${lv} 치아`;
+
+  const levelText =
+    typeof window.getToothDisplayLevel === "function"
+      ? window.getToothDisplayLevel(lv)
+      : lv >= 25
+      ? "Lv.MAX"
+      : `Lv.${lv}`;
+
+  const sizeClass =
+    typeof window.getToothSizeClass === "function"
+      ? window.getToothSizeClass(lv)
+      : "";
+
+  const themeClass =
+    typeof window.getToothThemeClass === "function"
+      ? window.getToothThemeClass(lv)
+      : "";
+
+  const atkText = getToothAttackText(lv);
+
+  const isSealed = lv === (window.BALANCE?.MERGE_MAX_LEVEL || 24);
+  const isMax = lv >= (window.BALANCE?.TRANSCEND_LEVEL || 25);
+
+  return `
+    <div class="dex-card tooth-dex-card ${themeClass} ${discovered ? "discovered" : "locked"} ${
+    isSealed ? "sealed-card" : ""
+  } ${isMax ? "max-card" : ""}">
+      <div class="dex-level">${levelText}</div>
+      ${isSealed ? `<div class="dex-seal">🔒</div>` : ""}
+      <div class="dex-icon ${sizeClass}">
+        ${discovered ? emoji : "❔"}
+      </div>
+      <div class="dex-name">${discovered ? name : "미발견 치아"}</div>
+      <div class="dex-stat">
+        <span>기본 공격력</span>
+        <b>${atkText}</b>
+      </div>
+      <div class="dex-desc">
+        ${
+          isMax
+            ? "봉인해제를 통해 제작되는 최종 MAX 치아입니다."
+            : isSealed
+            ? "합성으로 도달하는 봉인된 왕관 치아입니다."
+            : discovered
+            ? "수집 완료"
+            : "아직 수집하지 못했습니다."
         }
+      </div>
+    </div>
+  `;
+}
+
+function openToothDex() {
+  const max = window.BALANCE?.TRANSCEND_LEVEL || 25;
+
+  const discoveredCount = Array.from({ length: max }, (_, i) => i + 1).filter((lv) =>
+    isToothDiscovered(lv)
+  ).length;
+
+  const cards = Array.from({ length: max }, (_, i) => buildToothCard(i + 1)).join("");
+
+  const html = `
+    <div class="dex-modal-inner">
+      <div class="modal-header-row">
+        <div>
+          <h2>🦷 치아도감</h2>
+          <p>수집한 치아와 기본 공격력을 확인합니다.</p>
+        </div>
+        <button class="modal-close-btn" onclick="closeAnyModal()">×</button>
+      </div>
+
+      <div class="dex-summary">
+        <div>
+          <span>수집률</span>
+          <b>${discoveredCount} / ${max}</b>
+        </div>
+        <div>
+          <span>채굴 최대</span>
+          <b>Lv.${window.BALANCE?.MINING_MAX_LEVEL || 12}</b>
+        </div>
+        <div>
+          <span>합성 최대</span>
+          <b>Lv.${window.BALANCE?.MERGE_MAX_LEVEL || 24}</b>
+        </div>
+        <div>
+          <span>최종 단계</span>
+          <b>Lv.MAX</b>
+        </div>
+      </div>
+
+      <div class="dex-note">
+        도감의 공격력은 치아 자체의 <b>기본 공격력</b>입니다.
+        슬롯 제련, 용병, 훈련, 유물 효과는 실제 전투에서 추가로 반영됩니다.
+      </div>
+
+      <div class="dex-grid tooth-dex-grid">
+        ${cards}
+      </div>
+
+      <button class="btn-sub full" onclick="closeAnyModal()">닫기</button>
+    </div>
+  `;
+
+  openModal(html);
+}
+
+/* =========================
+   유물도감
+========================= */
+
+function isArtifactDiscovered(artifact) {
+  if (!artifact) return false;
+
+  const id = artifact.id || artifact.name;
+
+  if (window.discoveredArtifacts && window.discoveredArtifacts[id]) return true;
+  if (window.artifactCounts && Number(window.artifactCounts[id]) > 0) return true;
+
+  return false;
+}
+
+function getArtifactCount(artifact) {
+  if (!artifact) return 0;
+
+  const id = artifact.id || artifact.name;
+
+  if (window.artifactCounts && Number(window.artifactCounts[id]) > 0) {
+    return Number(window.artifactCounts[id]);
+  }
+
+  return isArtifactDiscovered(artifact) ? 1 : 0;
+}
+
+function buildArtifactCard(artifact, index) {
+  const discovered = isArtifactDiscovered(artifact);
+  const count = getArtifactCount(artifact);
+
+  const icon = artifact?.icon || "🏺";
+  const name = artifact?.name || `유물 ${index + 1}`;
+  const desc = artifact?.desc || "던전에서 발견되는 유물입니다.";
+  const effectText = artifact?.effectText || artifact?.effect || "특수 효과";
+
+  return `
+    <div class="dex-card artifact-dex-card ${discovered ? "discovered" : "locked"}">
+      <div class="artifact-index">No.${index + 1}</div>
+      <div class="dex-icon artifact-icon">${discovered ? icon : "❔"}</div>
+      <div class="dex-name">${discovered ? name : "미발견 유물"}</div>
+      <div class="artifact-count">보유 ${count}개</div>
+      <div class="dex-desc">${discovered ? desc : "아직 발견하지 못했습니다."}</div>
+      <div class="artifact-effect">
+        <span>효과</span>
+        <b>${discovered ? effectText : "???"}</b>
+      </div>
+    </div>
+  `;
+}
+
+function openArtifactDex() {
+  const artifacts = window.TOOTH_DATA?.artifacts || window.artifacts || [];
+
+  const discoveredCount = artifacts.filter((artifact) => isArtifactDiscovered(artifact)).length;
+
+  const cards =
+    artifacts.length > 0
+      ? artifacts.map((artifact, index) => buildArtifactCard(artifact, index)).join("")
+      : `
+        <div class="empty-dex-message">
+          등록된 유물 데이터가 없습니다.
+        </div>
+      `;
+
+  const html = `
+    <div class="dex-modal-inner">
+      <div class="modal-header-row">
+        <div>
+          <h2>🏺 유물도감</h2>
+          <p>던전에서 획득한 유물을 확인합니다.</p>
+        </div>
+        <button class="modal-close-btn" onclick="closeAnyModal()">×</button>
+      </div>
+
+      <div class="dex-summary">
+        <div>
+          <span>발견</span>
+          <b>${discoveredCount} / ${artifacts.length}</b>
+        </div>
+        <div>
+          <span>획득처</span>
+          <b>던전</b>
+        </div>
+      </div>
+
+      <div class="dex-grid artifact-dex-grid">
+        ${cards}
+      </div>
+
+      <button class="btn-sub full" onclick="closeAnyModal()">닫기</button>
+    </div>
+  `;
+
+  openModal(html);
+}
+
+/* =========================
+   영상 다시보기 / 설정
+========================= */
+
+function isVideoUnlockedForSettings(video) {
+  if (!video) return false;
+
+  if (typeof window.isReplayVideoUnlocked === "function") {
+    return window.isReplayVideoUnlocked(video.key);
+  }
+
+  if (video.key === "intro") return true;
+  if (video.key === "hell") return !!window.hellUnlocked || !!window.hasSeenHellIntro;
+  if (video.key === "awaken") return !!window.hasPlayedAwakenVideo;
+
+  return false;
+}
+
+function buildReplayVideoButton(video) {
+  const unlocked = isVideoUnlockedForSettings(video);
+
+  return `
+    <button
+      class="setting-video-btn ${unlocked ? "" : "locked"}"
+      onclick="${unlocked ? `replayVideo('${video.key}')` : `modalToast('아직 해금되지 않은 영상입니다.', 'info')`}"
+    >
+      <span class="video-icon">${unlocked ? video.icon : "🔒"}</span>
+      <b>${video.title}</b>
+      <em>${unlocked ? "다시보기" : "잠김"}</em>
+    </button>
+  `;
+}
+
+function openSettingsModal() {
+  const videos = window.REPLAY_VIDEOS || [
+    {
+      key: "intro",
+      title: "인트로 영상",
+      icon: "🎬",
+      playFunction: "playIntroVideo"
+    },
+    {
+      key: "hell",
+      title: "지옥문 개방 영상",
+      icon: "🔥",
+      playFunction: "playHellVideo"
+    },
+    {
+      key: "awaken",
+      title: "초월 왕관 치아 각성 영상",
+      icon: "👑",
+      playFunction: "playAwakenVideo"
     }
-};
+  ];
 
-window.closeGuide = function() {
-    const m = document.getElementById('guide-modal');
-    if (m) m.style.display = 'none';
-};
+  const videoHtml = videos.map((video) => buildReplayVideoButton(video)).join("");
 
+  const html = `
+    <div class="settings-modal-inner">
+      <div class="modal-header-row">
+        <div>
+          <h2>⚙️ 설정</h2>
+          <p>저장 관리와 영상 다시보기를 사용할 수 있습니다.</p>
+        </div>
+        <button class="modal-close-btn" onclick="closeAnyModal()">×</button>
+      </div>
 
-// --- [ 9. 지옥문 영상 스킵 ] ---
-window.skipHellIntro = function() {
-    const vid = document.getElementById('hell-video');
+      <div class="settings-section">
+        <h3>🎞️ 영상 다시보기</h3>
+        <p>한 번 재생된 주요 영상은 이곳에서 다시 볼 수 있습니다.</p>
+        <div class="setting-video-list">
+          ${videoHtml}
+        </div>
+      </div>
 
-    if (vid) {
-        vid.pause();
-        vid.style.display = 'none';
-    }
+      <div class="settings-section">
+        <h3>💾 저장 관리</h3>
+        <div class="settings-grid">
+          <button class="btn-sub" onclick="saveGame(true); modalToast('저장되었습니다.', 'success')">수동 저장</button>
+          <button class="btn-sub" onclick="exportSave()">저장코드 복사</button>
+          <button class="btn-sub" onclick="importSave()">저장코드 불러오기</button>
+          <button class="btn-danger" onclick="resetGame()">초기화</button>
+        </div>
+      </div>
 
-    const layer = document.getElementById('hell-video-layer');
+      <div class="settings-section">
+        <h3>ℹ️ 게임 정보</h3>
+        <div class="settings-info-box">
+          <div><span>버전</span><b>${window.GAME_VERSION || "8.2.0"}</b></div>
+          <div><span>채굴 최대</span><b>Lv.${window.BALANCE?.MINING_MAX_LEVEL || 12}</b></div>
+          <div><span>합성 최대</span><b>Lv.${window.BALANCE?.MERGE_MAX_LEVEL || 24}</b></div>
+          <div><span>최종 단계</span><b>Lv.MAX</b></div>
+        </div>
+      </div>
 
-    if (layer) {
-        layer.style.display = 'none';
-    }
+      <button class="btn-main full" onclick="closeAnyModal()">닫기</button>
+    </div>
+  `;
 
-    const skipBtn = document.getElementById('skip-hell-btn');
+  openModal(html);
+}
 
-    if (skipBtn) {
-        skipBtn.style.display = 'none';
-    }
+function replayVideo(key) {
+  const videos = window.REPLAY_VIDEOS || [];
+  const video = videos.find((item) => item.key === key);
 
-    if (window.currentView === 'war' && typeof window.switchView === 'function') {
-        window.switchView('war');
-    }
-};
+  if (!video) {
+    modalToast("영상을 찾을 수 없습니다.", "danger");
+    return;
+  }
+
+  if (!isVideoUnlockedForSettings(video)) {
+    modalToast("아직 해금되지 않은 영상입니다.", "info");
+    return;
+  }
+
+  const fn = window[video.playFunction];
+
+  if (typeof fn === "function") {
+    fn(true);
+  } else {
+    modalToast("영상 재생 함수를 찾을 수 없습니다.", "danger");
+  }
+}
+
+/* =========================
+   기존 버튼명 호환용 별칭
+========================= */
+
+function openToothBook() {
+  openToothDex();
+}
+
+function openToothCodex() {
+  openToothDex();
+}
+
+function openToothCollection() {
+  openToothDex();
+}
+
+function showToothDex() {
+  openToothDex();
+}
+
+function openArtifactBook() {
+  openArtifactDex();
+}
+
+function openArtifactCodex() {
+  openArtifactDex();
+}
+
+function openArtifactCollection() {
+  openArtifactDex();
+}
+
+function showArtifactDex() {
+  openArtifactDex();
+}
+
+function openSettings() {
+  openSettingsModal();
+}
+
+function openSettingModal() {
+  openSettingsModal();
+}
+
+function showSettings() {
+  openSettingsModal();
+}
+
+function openCollectionModal(type) {
+  if (type === "artifact" || type === "artifacts" || type === "유물") {
+    openArtifactDex();
+    return;
+  }
+
+  openToothDex();
+}
+
+function openCodex(type) {
+  openCollectionModal(type);
+}
+
+/* =========================
+   전역 노출
+========================= */
+
+window.closeAnyModal = closeAnyModal;
+window.closeModal = closeModal;
+
+window.openToothDex = openToothDex;
+window.openToothBook = openToothBook;
+window.openToothCodex = openToothCodex;
+window.openToothCollection = openToothCollection;
+window.showToothDex = showToothDex;
+
+window.openArtifactDex = openArtifactDex;
+window.openArtifactBook = openArtifactBook;
+window.openArtifactCodex = openArtifactCodex;
+window.openArtifactCollection = openArtifactCollection;
+window.showArtifactDex = showArtifactDex;
+
+window.openSettingsModal = openSettingsModal;
+window.openSettings = openSettings;
+window.openSettingModal = openSettingModal;
+window.showSettings = showSettings;
+
+window.replayVideo = replayVideo;
+
+window.openCollectionModal = openCollectionModal;
+window.openCodex = openCodex;
+
+console.log("치아 연대기 ui_modal.js loaded v8.2.0");
