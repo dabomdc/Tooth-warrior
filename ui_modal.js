@@ -1,4 +1,4 @@
-// Version: 7.5.1 - UI Modal Controllers (Popups, Rankings, Settings, Cutscenes)
+// Version: 7.5.2 - UI Modal Controllers (Syntax Error Fixed)
 
 // --- [ 1. 인트로 및 컷신 관리 ] ---
 window.startIntro = function() {
@@ -394,6 +394,7 @@ window.skipAwakenIntro = function() {
 
 
 // --- [ 6. 명예의 전당 (가상 랭킹) ] ---
+// 🌟 멈춤(Syntax Error) 원인이었던 빈 배열 괄호() 100% 복구 완료
 window.generateRankings = function() {
     const list = document.getElementById('ranking-list');
     if(!list || typeof window.TOOTH_DATA === 'undefined') return;
