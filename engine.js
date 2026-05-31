@@ -1,6 +1,5 @@
-// Version: 7.5.1 - Game Engine (Core Loop, Save/Load, Progression Logic)
+// Version: 7.5.2 - Game Engine (Syntax Error Fixed)
 
-// --- ---
 window.gold = 0; 
 window.dia = 0; 
 window.unlockedDungeon = 1; 
@@ -38,7 +37,6 @@ window.isResetting = false;
 
 let gameLoopInterval = null; 
 
-// --- [ 2. 코어 계산 로직 ] ---
 window.getBaseMiningLevel = function() {
     let completedSets = 0;
     if (window.artifactCounts) {
@@ -50,7 +48,6 @@ window.getBaseMiningLevel = function() {
     return Math.min(24, 1 + extraLevel); 
 };
 
-// --- [ 3. 부트스트랩 & 게임 루프 ] ---
 window.onload = () => { 
     window.loadGame(); 
     
@@ -73,14 +70,12 @@ window.startGameLoop = function() {
 };
 
 window.gameLoop = function() { 
-    // 방치형 자동 채굴 연산
     if(window.isAutoMineOn) { 
         const miningSpeedSec = Math.max(2.0, 10.0 - ((window.autoMineLevel - 1) * 0.2)); 
         const tickAmt = 100 / (miningSpeedSec * 20); 
         window.processMining(tickAmt); 
     } 
     
-    // 방치형 자동 합성 연산
     if(window.isAutoMergeOn) {
         const currentMaxTimeMs = Math.max(20000, 60000 - ((window.autoMergeSpeedLevel - 1) * 1000)); 
         const increment = (50 / currentMaxTimeMs) * 100; 
@@ -94,7 +89,6 @@ window.gameLoop = function() {
     if (typeof window.updateUI === 'function') window.updateUI(); 
 };
 
-// --- [ 4. 채굴 및 합성 처리 코어 ] ---
 window.processMining = function(amt) { 
     window.mineProgress += amt; 
     if (window.mineProgress >= 100) { 
@@ -193,7 +187,6 @@ window.cleanupInventory = function() {
     if(cleared && window.currentView === 'mine' && typeof window.renderInventory === 'function') window.renderInventory();
 };
 
-// --- ---
 window.saveGame = function() {
     if (window.isResetting) return; 
     const data = { 
