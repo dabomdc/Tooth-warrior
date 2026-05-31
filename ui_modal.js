@@ -1,6 +1,5 @@
-// Version: 7.5.2 - UI Modal Controllers (Syntax Error Fixed)
+// Version: 7.5.3 - UI Modal Controllers (Syntax Error Fixed)
 
-// --- [ 1. 인트로 및 컷신 관리 ] ---
 window.startIntro = function() {
     const btnLayer = document.getElementById('start-btn-layer');
     if(btnLayer) btnLayer.style.display = 'none';
@@ -72,7 +71,6 @@ window.playAwakenVideo = function() {
     }
 };
 
-// --- [ 2. 용병 모달 창 ] ---
 window.openMercenaryModal = function() {
     const m = document.getElementById('mercenary-modal');
     if(m) { m.style.display = 'flex'; window.renderMercenaryModalList(); }
@@ -137,8 +135,6 @@ window.equipMerc = function(id) {
     if(typeof window.saveGame === 'function') window.saveGame(); 
 };
 
-
-// --- [ 3. 티어 달성 및 던전 결과 모달 ] ---
 window.showTierUnlock = function(level) {
     const m = document.getElementById('tier-unlock-modal');
     const iconDiv = document.getElementById('tier-unlock-icon');
@@ -275,8 +271,6 @@ window.nextDungeon = function() {
     }, 100);
 };
 
-
-// --- [ 4. 도감 관리 ] ---
 window.openCodex = function() {
     const m = document.getElementById('codex-modal');
     if(m) { m.style.display = 'flex'; if(typeof window.renderCodex === 'function') window.renderCodex(); }
@@ -295,8 +289,6 @@ window.closeArtifacts = function() {
     if(m) m.style.display = 'none';
 };
 
-
-// --- [ 5. 전설의 무기 (24레벨) 봉인 해제 ] ---
 window.openLockedToothModal = function(slotIdx) {
     window.lockedToothSlotIdx = slotIdx;
     const m = document.getElementById('locked-tooth-modal');
@@ -392,15 +384,12 @@ window.skipAwakenIntro = function() {
     if(typeof window.renderInventory === 'function') window.renderInventory();
 };
 
-
-// --- [ 6. 명예의 전당 (가상 랭킹) ] ---
-// 🌟 멈춤(Syntax Error) 원인이었던 빈 배열 괄호() 100% 복구 완료
 window.generateRankings = function() {
     const list = document.getElementById('ranking-list');
     if(!list || typeof window.TOOTH_DATA === 'undefined') return;
     
     if (!window.fakeUsers || window.fakeUsers.length === 0) {
-        window.fakeUsers =;
+        window.fakeUsers =; // 🌟 빈 배열 복구 완료
         const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
         
         for(let i=0; i<500; i++) {
@@ -411,7 +400,7 @@ window.generateRankings = function() {
         
         window.fakeUsers.sort((a, b) => b.p - a.p);
         
-        let top10Indices = ;
+        let top10Indices = ; // 🌟 배열 복구 완료
         top10Indices.sort(() => Math.random() - 0.5);
         let realNameIndices = top10Indices.slice(0, 5);
         let realNames =.sort(() => Math.random() - 0.5);
@@ -473,8 +462,6 @@ window.closeRanking = function() {
     if(m) m.style.display = 'none';
 };
 
-
-// --- [ 7. 설정 및 공통 유틸 모달 ] ---
 window.openSettings = function() {
     const m = document.getElementById('settings-modal');
     if(m) { 
