@@ -1,8 +1,10 @@
-// Version: 8.0.0 - Combat Engine, Dungeon, Enemy, Missile, Rewards, Exit
+// Version: 8.1.0 - Combat Engine, Dungeon, Enemy, Missile, Rewards, Exit, Retreat Confirm
 
 // --- [ 1. 전투 전역 상태 ] ---
 window.dungeonActive = false;
+window.dungeonPaused = false;
 window.bossDead = true;
+
 window.currentDungeonIdx = 0;
 window.currentWave = 0;
 window.isBossWave = false;
@@ -75,7 +77,9 @@ function setBattleText() {
     }
 
     if (waveEl) {
-        if (window.isBossRush) {
+        if (window.dungeonPaused) {
+            waveEl.innerText = "PAUSED";
+        } else if (window.isBossRush) {
             waveEl.innerText = `BOSS RUSH ${window.bossRushKills + 1}/5`;
         } else if (window.isBossWave) {
             waveEl.innerText = `BOSS WAVE`;
@@ -194,6 +198,7 @@ window.startDungeon = function(idx) {
     window.dungeonArtifactDropped = null;
 
     window.dungeonActive = true;
+    window.dungeonPaused = false;
     window.bossDead = false;
 
     window.enemies = [];
@@ -209,6 +214,13 @@ window.startDungeon = function(idx) {
     window.playerY = 1000;
     window.moveX = 0;
     window.moveY = 0;
+
+    const retreatModal = document.getElementById('retreat-confirm-modal');
+    if (retreatModal) retreatModal.style.display = 'none';
+
+    if (typeof window.resetJoystick === 'function') {
+        window.resetJoystick();
+    }
 
     const gameContainer = document.getElementById('game-container');
     const battleScreen = document.getElementById('battle-screen');
@@ -251,7 +263,7 @@ window.startDungeon = function(idx) {
 
 // --- [ 4. 웨이브 생성 ] ---
 window.spawnWave = function() {
-    if (!window.dungeonActive || window.bossDead) return;
+    if (!window.dungeonActive || window.dungeonPaused || window.bossDead) return;
 
     if (window.isBossRush) {
         window.isBossWave = true;
@@ -273,7 +285,7 @@ window.spawnWave = function() {
 
         for (let i = 0; i < count; i++) {
             const t = setTimeout(() => {
-                if (window.dungeonActive && !window.bossDead) {
+                if (window.dungeonActive && !window.dungeonPaused && !window.bossDead) {
                     window.spawnEnemy(false, window.currentDungeonIdx);
                 }
             }, i * 250);
@@ -285,7 +297,7 @@ window.spawnWave = function() {
         setBattleText();
 
         const t = setTimeout(() => {
-            if (window.dungeonActive && !window.bossDead) {
+            if (window.dungeonActive && !window.dungeonPaused && !window.bossDead) {
                 window.spawnEnemy(true, window.currentDungeonIdx);
             }
         }, 800);
@@ -376,7 +388,7 @@ window.spawnEnemy = function(isBoss, sourceIdx) {
 
 // --- [ 6. 전투 업데이트 ] ---
 window.updateCombat = function() {
-    if (!window.dungeonActive || window.bossDead) return;
+    if (!window.dungeonActive || window.dungeonPaused || window.bossDead) return;
 
     const now = performance.now();
     let dt = now - (window.lastCombatTime || now);
@@ -490,7 +502,7 @@ function updatePlayerAutoShoot(now) {
             continue;
         }
 
-        const target = findNearestEnemy(slotIdx);
+        const target = findNearestEnemy();
 
         if (target) {
             playerShoot(slotIdx, target);
@@ -499,7 +511,7 @@ function updatePlayerAutoShoot(now) {
     }
 }
 
-function findNearestEnemy(slotIdx) {
+function findNearestEnemy() {
     const px = window.playerX || 1000;
     const py = window.playerY || 1000;
 
@@ -574,11 +586,16 @@ function playerShoot(slotIdx, target) {
     const el = document.createElement('div');
 
     el.className = isCrit ? 'missile crit-missile' : 'missile';
-    el.innerHTML = typeof window.getToothIcon === 'function' ? window.getToothIcon(lv) : '🦷';
+
+    const emoji = typeof window.getSimpleToothEmoji === 'function'
+        ? window.getSimpleToothEmoji(lv)
+        : "🦷";
+
+    el.innerText = emoji;
     el.style.position = 'absolute';
     el.style.left = `${px}px`;
     el.style.top = `${py}px`;
-    el.style.transform = 'translate(-50%, -50%) scale(0.45)';
+    el.style.transform = 'translate(-50%, -50%)';
     el.style.fontSize = '20px';
     el.style.zIndex = '45';
     el.style.pointerEvents = 'none';
@@ -827,6 +844,7 @@ function processEnemyDeath(en) {
             if (window.bossRushKills >= 5) {
                 window.dungeonActive = false;
                 window.bossDead = true;
+                window.dungeonPaused = false;
 
                 setTimeout(() => {
                     if (typeof window.showResultModal === 'function') {
@@ -837,7 +855,7 @@ function processEnemyDeath(en) {
                 setBattleText();
 
                 const t = setTimeout(() => {
-                    if (window.dungeonActive && !window.bossDead) {
+                    if (window.dungeonActive && !window.dungeonPaused && !window.bossDead) {
                         window.spawnWave();
                     }
                 }, 900);
@@ -847,6 +865,7 @@ function processEnemyDeath(en) {
         } else {
             window.dungeonActive = false;
             window.bossDead = true;
+            window.dungeonPaused = false;
 
             setTimeout(() => {
                 if (typeof window.showResultModal === 'function') {
@@ -894,11 +913,11 @@ function tryDropArtifact(dungeonIdx) {
 }
 
 function checkWaveClear() {
-    if (!window.dungeonActive || window.bossDead) return;
+    if (!window.dungeonActive || window.dungeonPaused || window.bossDead) return;
 
     if (window.enemies.length === 0 && !window.isBossWave) {
         const t = setTimeout(() => {
-            if (window.dungeonActive && !window.bossDead) {
+            if (window.dungeonActive && !window.dungeonPaused && !window.bossDead) {
                 window.spawnWave();
             }
         }, 800);
@@ -969,12 +988,72 @@ function showFloatingText(x, y, text, color) {
 window.showFloatingText = showFloatingText;
 
 
-// --- [ 14. 던전 종료 / 후퇴 ] ---
+// --- [ 14. 후퇴 확인 ] ---
+window.requestRetreat = function() {
+    if (!window.dungeonActive || window.bossDead) {
+        if (typeof window.exitDungeon === 'function') {
+            window.exitDungeon();
+        }
+        return;
+    }
+
+    window.dungeonPaused = true;
+    window.moveX = 0;
+    window.moveY = 0;
+
+    if (typeof window.resetJoystick === 'function') {
+        window.resetJoystick();
+    }
+
+    setBattleText();
+
+    const modal = document.getElementById('retreat-confirm-modal');
+
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+};
+
+window.cancelRetreat = function() {
+    const modal = document.getElementById('retreat-confirm-modal');
+
+    if (modal) {
+        modal.style.display = 'none';
+    }
+
+    if (window.dungeonActive && !window.bossDead) {
+        window.dungeonPaused = false;
+        window.lastCombatTime = performance.now();
+    }
+
+    setBattleText();
+};
+
+window.confirmRetreat = function() {
+    const modal = document.getElementById('retreat-confirm-modal');
+
+    if (modal) {
+        modal.style.display = 'none';
+    }
+
+    window.dungeonPaused = false;
+
+    if (typeof window.exitDungeon === 'function') {
+        window.exitDungeon();
+    }
+};
+
+
+// --- [ 15. 던전 종료 / 후퇴 ] ---
 window.exitDungeon = function() {
     window.dungeonActive = false;
+    window.dungeonPaused = false;
     window.bossDead = true;
 
     clearSpawnTimers();
+
+    const retreatModal = document.getElementById('retreat-confirm-modal');
+    if (retreatModal) retreatModal.style.display = 'none';
 
     const battleScreen = document.getElementById('battle-screen');
     const gameContainer = document.getElementById('game-container');
@@ -1012,6 +1091,10 @@ window.exitDungeon = function() {
 
     window.moveX = 0;
     window.moveY = 0;
+
+    if (typeof window.resetJoystick === 'function') {
+        window.resetJoystick();
+    }
 
     if (typeof window.switchView === 'function') {
         window.switchView(window.currentView || 'war');
