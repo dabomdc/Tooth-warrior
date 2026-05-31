@@ -1,4 +1,4 @@
-// Version: 7.5.2 - Game Engine (Syntax Error Fixed)
+// Version: 7.5.3 - Game Engine (Syntax Error Fixed)
 
 window.gold = 0; 
 window.dia = 0; 
