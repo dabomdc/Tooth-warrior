@@ -4,7 +4,7 @@ window.dungeonActive = false;
 window.bossDead = false;
 window.currentWave = 1;
 window.isBossWave = false;
-window.enemies =; // 🌟 빈 배열 선언 복구
+window.enemies =;
 window.missiles =;
 window.enemyMissiles =;
 window.spawnTimeouts =;
@@ -70,7 +70,7 @@ window.startDungeon = function(idx) {
     window.currentWave = 1;
     window.isBossWave = window.isBossRush? true : false; 
     
-    window.enemies =; // 🌟 빈 배열 복구
+    window.enemies =;
     window.missiles =;
     window.enemyMissiles =;
     window.missilePool =; 
@@ -246,7 +246,7 @@ window.updateCombat = function() {
     }
 
     if (window.relayTimer >= maxCD) {
-        if (!window.inventory || window.inventory === 0) {
+        if (!window.inventory || window.inventory.length === 0 || window.inventory === 0) {
             window.relayTimer = 0;
             window.activeSlotIndex = (window.activeSlotIndex + 1) % 8;
         } else {
