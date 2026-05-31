@@ -34,7 +34,7 @@
 
     <div id="toast-container" style="position:fixed; bottom: 80px; left:50%; transform:translateX(-50%); z-index:40000; pointer-events:none; display:flex; flex-direction:column; gap:5px; align-items:center;"></div>
 
-    <div id="game-container">
+    <div id="game-container" style="touch-action: none;">
         <nav id="top-nav">
             <button onclick="switchView('mine')" id="tab-mine" class="active">⛏️ 채굴/합성</button>
             <button onclick="switchView('refine')" id="tab-refine">🔥 Top8 제련</button>
@@ -51,25 +51,27 @@
         </header>
 
         <main id="main-content">
-            <div id="mine-view" style="position: relative;">
-                <div id="mine-rock-area" style="position: absolute; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;">
-                    <div style="position: absolute; top: 10px; display: flex; flex-direction: column; align-items: center;">
+            <div id="mine-view" style="position: relative; height: 185px; border-bottom: 3px solid #000; z-index: 10;">
+                
+                <div id="mine-rock-area" style="position: absolute; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; touch-action: manipulation; cursor: pointer;">
+                    
+                    <div style="position: absolute; top: 10px; display: flex; flex-direction: column; align-items: center; pointer-events: none;">
                         <div style="font-size:10px; color:#aaa; margin-bottom:3px; text-shadow: 1px 1px 0 #000;">현재 장비</div>
                         <div id="pickaxe-name" style="font-size:12px; font-weight:bold; color:var(--gold); text-shadow: 1px 1px 0 #000;">허름한 나무 곡괭이</div>
                     </div>
                     
-                    <div id="giant-tooth">🦷</div>
-                    <div id="miner-char">⛏️</div>
+                    <div id="giant-tooth" style="font-size: 60px; pointer-events: none;">🦷</div>
+                    <div id="miner-char" style="font-size: 50px; position: absolute; right: 25%; top: 10px; transform-origin: bottom center; pointer-events: none;">⛏️</div>
                 </div>
                 
-                <div style="position: absolute; left: 15px; bottom: 10px; display:flex; flex-direction:column; align-items:center; width:60px; z-index:10; pointer-events: auto;">
+                <div style="position: absolute; left: 15px; bottom: 10px; display:flex; flex-direction:column; align-items:center; width:60px; z-index:20; pointer-events: auto;">
                     <div id="mine-dial" style="width: 45px; height: 45px; border-radius: 50%; background: conic-gradient(#00fbff 0%, #333 0%); display:flex; align-items:center; justify-content:center; transition: background 0.1s linear; box-shadow: 2px 2px 0 #000; border:2px solid #555;">
                         <div style="width: 35px; height: 35px; background: #16213e; border-radius: 50%; display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff;">⛏️</div>
                     </div>
                     <button id="auto-mine-btn" onclick="toggleAutoMine()" class="btn-toggle" style="margin-top:8px; background:#2ecc71; color:white; font-size:11px; padding:4px 0; width:100%; font-weight:bold;">자동 ON</button>
                 </div>
 
-                <div style="position: absolute; right: 15px; bottom: 10px; display:flex; flex-direction:column; align-items:center; width:60px; z-index:10; pointer-events: auto;">
+                <div style="position: absolute; right: 15px; bottom: 10px; display:flex; flex-direction:column; align-items:center; width:60px; z-index:20; pointer-events: auto;">
                     <div id="merge-dial" style="width: 45px; height: 45px; border-radius: 50%; background: conic-gradient(#9b59b6 0%, #333 0%); display:flex; align-items:center; justify-content:center; transition: background 0.1s linear; box-shadow: 2px 2px 0 #000; border:2px solid #555;">
                         <div style="width: 35px; height: 35px; background: #16213e; border-radius: 50%; display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff;">⚡</div>
                     </div>
@@ -134,14 +136,15 @@
         <div id="battle-camera">
             <div id="battle-world"></div>
         </div>
-        <div id="battle-ui-layer">
+        <div id="battle-ui-layer" style="pointer-events: none;">
             <div id="battle-header">
                 <span id="current-dungeon-name">던전 이름</span><br>
                 <span id="wave-info">WAVE 1/5</span>
             </div>
             <button onclick="exitDungeon()" class="btn-exit" style="pointer-events: auto;">후퇴</button>
-            <div id="war-weapon-slots"></div>
-            <div id="joystick-zone">
+            
+            <div id="war-weapon-slots" style="pointer-events: auto;"></div>
+            <div id="joystick-zone" style="pointer-events: auto;">
                 <div id="joystick-knob"></div>
             </div>
         </div>
