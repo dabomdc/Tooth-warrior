@@ -1,4 +1,4 @@
-/* Version: 8.0.0 - Retro Pixel Art Style, Floating Joystick, Consumables, Expanded Mining Area */
+/* Version: 7.5.1 - Retro Pixel Art Style, Dual Dial Dashboard (Floating), Bug Fixes */
 :root { --bg: #16213e; --red: #e94560; --blue: #0f3460; --gold: #f1c40f; --gray: #95a5a6; }
 
 /* 🌟 레트로 감성의 핵심: 폰트를 둥근모꼴로 통일하고 드래그 방지 */
@@ -14,7 +14,7 @@ html, body { width: 100%; height: 100dvh; overflow: hidden; position: fixed; mar
 #skip-btn, #skip-hell-btn, #skip-awaken-btn { position: absolute; bottom: 50px; right: 20px; background: rgba(0,0,0,0.5); color: white; border: 2px solid white; padding: 8px 20px; font-size: 14px; z-index: 35002; display: none; box-shadow: 2px 2px 0 #000; }
 
 /* 기본 레이아웃 */
-#game-container { width: 100%; max-width: 450px; height: 100dvh; background: var(--bg); color: white; margin: auto; display: flex; flex-direction: column; z-index: 1; position: relative; transition: all 0.5s; }
+#game-container { width: 100%; max-width: 450px; height: 100dvh; background: var(--bg); color: white; margin: auto; display: flex; flex-direction: column; z-index: 1; position: relative; transition: all 0.5s; touch-action: none; /* 브라우저 기본 제스처 차단 */ }
 #top-nav { display: grid; grid-template-columns: 1fr 1fr 1fr; background: var(--blue); flex-shrink: 0; min-height: 45px; z-index: 100; transition: all 0.5s; border-bottom: 2px solid #000; }
 #top-nav button { border: none; background: none; color: #888; font-size: 14px; cursor: pointer; padding: 0; }
 #top-nav button.active { color: #fff; border-bottom: 3px solid var(--red); background: rgba(255,255,255,0.05); }
@@ -26,27 +26,20 @@ html, body { width: 100%; height: 100dvh; overflow: hidden; position: fixed; mar
 .ui-dia-text { color: #ff4757; text-shadow: 0 0 5px rgba(255,71,87,0.5); }
 .control-group { display: flex; gap: 5px; }
 
-/* 메인 영역 및 하단 네비 (🌟 5개 탭으로 유연하게 자동 조절) */
+/* 메인 영역 및 하단 네비 */
 #main-content { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; padding-bottom: 55px; }
 #bottom-nav { position: absolute; bottom: 0; left: 0; width: 100%; height: 55px; background: #111; display: flex; border-top: 3px solid #333; z-index: 200; }
-.bottom-btn { flex: 1; background: none; border: none; border-right: 2px solid #333; color: #ccc; font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; word-break: keep-all; }
+.bottom-btn { flex: 1; background: none; border: none; border-right: 2px solid #333; color: #ccc; font-size: 13px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .bottom-btn:last-child { border-right: none; }
 .bottom-btn:active { background: #222; color: white; box-shadow: inset 3px 3px 0 rgba(0,0,0,0.5); }
 
-/* 채굴 뷰 (🌟 터치 영역 80% 확대 적용) */
-#mine-view { height: auto; flex-grow: 0.8; display: flex; flex-direction: column; align-items: center; justify-content: space-between; flex-shrink: 0; width: 100%; border-bottom: 3px solid #000; z-index: 10; }
-#mine-rock-area { position: relative; width: 100%; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; touch-action: manipulation; cursor: pointer; }
-#giant-tooth { font-size: 60px; pointer-events: none; }
-#miner-char { font-size: 50px; position: absolute; right: 25%; top: 10px; transform-origin: bottom center; pointer-events: none; }
+/* 채굴 뷰 애니메이션 */
 .swing { animation: hammer 0.08s ease-in-out; }
 @keyframes hammer { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-45deg); } }
 
-/* 구버전 진행도 바 (코드 길이 보존용) */
-#pickaxe-info { width: 90%; display: flex; align-items: center; margin-top: 2px; }
-.progress-wrapper { width: 100%; margin-bottom: 3px; display: flex; align-items: center; }
-.progress-label { font-size: 12px; color: #ccc; width: 40px; flex-shrink: 0; text-align: right; padding-right: 5px; }
-.progress-container { flex-grow: 1; height: 12px; background: #222; border: 2px solid #555; overflow: hidden; position: relative; }
-#mine-bar { width: 0%; height: 100%; background-color: #00fbff; transition: width 0.1s linear; border-right: 2px solid #fff; }
+/* 🌟 신규: 토스트 팝업 애니메이션 */
+.toast-msg { background: rgba(0, 0, 0, 0.85); border: 2px solid var(--gold); color: white; padding: 10px 20px; font-size: 13px; border-radius: 4px; box-shadow: 4px 4px 0 #000; animation: toastFade 2s ease-in-out forwards; pointer-events: none; text-align: center; white-space: nowrap; }
+@keyframes toastFade { 0% { opacity: 0; transform: translateY(20px); } 15% { opacity: 1; transform: translateY(0); } 85% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-20px); } }
 
 /* 합성 대성공 팝콘 텍스트 연출 */
 .great-success-text { position: absolute; color: #f1c40f; font-size: 18px; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000; pointer-events: none; z-index: 150; animation: floatUpGreat 0.8s forwards; font-weight: bold; }
@@ -59,7 +52,7 @@ html, body { width: 100%; height: 100dvh; overflow: hidden; position: fixed; mar
 #inventory-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; padding: 5px; padding-bottom: 20px; }
 .slot { aspect-ratio: 1; background: #1a1a2e; border: 2px solid #4e4e4e; display: flex; align-items: center; justify-content: center; position: relative; touch-action: none; overflow: hidden; cursor: pointer; }
 .slot.picked { opacity: 0.4; border: 2px solid #fff; }
-.slot.drag-target { background: rgba(255,255,255,0.2); border: 2px solid #fff !important; }
+.slot.drag-target { background: rgba(255,255,255,0.2); border: 2px solid #fff!important; }
 .attack-slot { border-color: var(--red); box-shadow: inset 0 0 5px rgba(233, 69, 96, 0.3); background: #251a25; }
 .locked-slot { background: #0a0a1a; opacity: 0.4; }
 .lv-text { position: absolute; bottom: 0px; font-size: 9px; color: #ccc; pointer-events: none; width: 100%; text-align: center; background: rgba(0,0,0,0.7); z-index: 2; border-top: 1px solid #555; }
@@ -116,13 +109,11 @@ html, body { width: 100%; height: 100dvh; overflow: hidden; position: fixed; mar
 .btn-max { background: var(--gray); color: #333; padding: 10px; border: 2px solid #000; box-shadow: 2px 2px 0 #000; cursor: not-allowed; opacity: 0.8; } 
 .btn-sm { padding: 6px 10px; border: 2px solid #000; color: #fff; background: #4e4e4e; font-size: 12px; cursor: pointer; box-shadow: 2px 2px 0 #000; }
 .btn-sm:active { transform: translate(2px, 2px); box-shadow: none; }
-.btn-exit { background: #e74c3c; color: #fff; border: 2px solid #000; padding: 5px 15px; position: absolute; top: 20px; right: 20px; font-weight: bold; box-shadow: 2px 2px 0 #000; cursor: pointer; z-index: 2000; }
-.btn-exit:active { transform: translate(2px, 2px); box-shadow: none; }
 
-/* 🌟 자동 채굴/합성 토글 버튼 및 다이얼 OFF 상태용 클래스 */
+/* 자동 채굴/합성 토글 버튼 및 다이얼 OFF 상태용 클래스 */
 .btn-toggle { padding: 6px 10px; border: 2px solid #000; font-size: 12px; cursor: pointer; box-shadow: 2px 2px 0 rgba(0,0,0,0.5); transition: all 0.2s;}
 .btn-toggle:active { transform: translate(2px, 2px); box-shadow: none; }
-.btn-toggle.off { background: #555 !important; color: #aaa !important; text-decoration: none; filter: grayscale(1); }
+.btn-toggle.off { background: #555!important; color: #aaa!important; text-decoration: none; filter: grayscale(1); }
 .dial-off { filter: grayscale(1) brightness(0.6); transition: filter 0.3s ease; }
 
 /* 모달창 (레트로 두꺼운 테두리) */
@@ -136,42 +127,39 @@ html, body { width: 100%; height: 100dvh; overflow: hidden; position: fixed; mar
 
 /* 도감 및 유물 도감 그리드 */
 #codex-grid, #artifact-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding-top: 10px; }
-.codex-item, .artifact-item { background: #111; border: 2px solid #555; padding: 10px 5px; text-align: center; display: flex; flex-direction: column; align-items: center; position: relative; box-shadow: 2px 2px 0 #000; }
-.codex-item.locked, .artifact-item.locked { filter: grayscale(1) brightness(0.3); }
-.codex-icon, .artifact-icon { font-size: 24px; margin-bottom: 5px; height: 30px; display:flex; align-items:center; justify-content:center; }
-.codex-name, .artifact-name { font-size: 9px; color: #ccc; word-break: keep-all; line-height: 1.2; margin-top: 5px;}
+.codex-item,.artifact-item { background: #111; border: 2px solid #555; padding: 10px 5px; text-align: center; display: flex; flex-direction: column; align-items: center; position: relative; box-shadow: 2px 2px 0 #000; }
+.codex-item.locked,.artifact-item.locked { filter: grayscale(1) brightness(0.3); }
+.codex-icon,.artifact-icon { font-size: 24px; margin-bottom: 5px; height: 30px; display:flex; align-items:center; justify-content:center; }
+.codex-name,.artifact-name { font-size: 9px; color: #ccc; word-break: keep-all; line-height: 1.2; margin-top: 5px;}
 .codex-badge { position: absolute; top: -5px; right: -5px; font-size: 10px; background: var(--red); border: 1px solid #000; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
 .codex-ability { font-size: 8px; color: #2ecc71; margin-top: 4px; background: rgba(0,255,0,0.1); padding: 2px; border: 1px solid #2ecc71; }
 .artifact-count { position: absolute; top: -5px; left: -5px; background: #3498db; color: white; padding: 2px 5px; font-size: 10px; border: 1px solid #000; box-shadow: 1px 1px 0 #000; }
 
-/* 🌟 신규: 소모품 아이템 카드 및 버프 디자인 */
-.item-card { background: #1a1a2e; border: 2px solid #2ecc71; padding: 10px; display: flex; align-items: center; justify-content: space-between; box-shadow: 2px 2px 0 #000; margin-bottom: 8px; color: white; transition: all 0.2s; }
-.item-info { display: flex; align-items: center; gap: 10px; flex: 1; }
-.item-icon { font-size: 28px; background: #222; border: 2px solid #555; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; box-shadow: inset 2px 2px 0 rgba(0,0,0,0.5); flex-shrink: 0; }
-.item-desc { font-size: 11px; color: #ccc; margin-top: 3px; line-height: 1.3; }
-.buff-active-text { color: #2ecc71; font-weight: bold; font-size: 12px; text-shadow: 0 0 5px rgba(46,204,113,0.5); animation: blink 1s infinite; margin-top: 4px; display: inline-block; }
-
-/* 전투 화면 및 조이스틱 갱신 */
+/* 전투 화면 */
 #battle-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; background: #000; z-index: 15000; display: none; overflow: hidden; }
 #battle-camera { width: 100%; height: 100%; position: relative; overflow: hidden; }
 #battle-world { width: 200vw; height: 200vh; position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 #player { position: absolute; font-size: 40px; transform: translate(-50%, -50%); z-index: 500; display: flex; flex-direction: column; align-items: center; filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.8)); }
 .invincible { animation: blink 0.2s infinite; opacity: 0.5; }
-#player-hp-bar-bg, .hp-bar-bg { width: 40px; height: 6px; background: #000; border: 1px solid #fff; margin-bottom: 2px; }
+#player-hp-bar-bg,.hp-bar-bg { width: 40px; height: 6px; background: #000; border: 1px solid #fff; margin-bottom: 2px; }
 #player-hp-bar-fill { height: 100%; background: #2ecc71; width: 100%; transition: width 0.1s; }
 .hp-bar-fill { height: 100%; background: #ff4d4d; transition: width 0.1s; }
 .battle-enemy { position: absolute; font-size: 35px; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; z-index: 400; filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.8)); }
 .battle-enemy.boss { font-size: 100px; z-index: 450; filter: drop-shadow(0 0 10px red); }
-.missile, .enemy-missile { position: absolute; font-size: 20px; transform: translate(-50%, -50%); z-index: 600; text-shadow: 2px 2px 0px rgba(0,0,0,0.8); }
+.missile,.enemy-missile { position: absolute; font-size: 20px; transform: translate(-50%, -50%); z-index: 600; text-shadow: 2px 2px 0px rgba(0,0,0,0.8); }
 
 /* 전투 UI */
 #battle-ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000; }
-#battle-header { position: absolute; top: 20px; width: 100%; text-align: center; color: white; text-shadow: 2px 2px 0 black, -2px -2px 0 black, 2px -2px 0 black, -2px 2px 0 black; }
-#current-dungeon-name { font-size: 22px; }
-#wave-info { font-size: 18px; color: var(--red); }
-#war-weapon-slots { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 220px; height: 45px; background: rgba(0,0,0,0.7); display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; padding: 5px; border: 2px solid #444; pointer-events: auto; box-shadow: 4px 4px 0 rgba(0,0,0,0.8); z-index: 2000; }
-.war-slot { background: #1a1a2e; border: 1px solid #555; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
-.cd-overlay { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: rgba(0,0,0,0.7); z-index: 3; transition: height 0.1s linear; }
+#battle-header { position: absolute; top: 20px; width: 100%; text-align: center; color: white; text-shadow: 2px 2px 0 black, -2px -2px 0 black, 2px -2px 0 black, -2px 2px 0 black; pointer-events: none; }
+
+/* 🌟 신규: 전투 조작 버튼 터치 이벤트 복구 */
+.btn-exit { position: absolute; top: 20px; right: 20px; background: var(--red); color: white; border: 2px solid #fff; padding: 5px 10px; font-weight: bold; pointer-events: auto; }
+#war-weapon-slots { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 220px; height: 45px; background: rgba(0,0,0,0.7); display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; padding: 5px; border: 2px solid #444; box-shadow: 4px 4px 0 rgba(0,0,0,0.8); pointer-events: auto; }
+.war-slot { background: #1a1a2e; border: 1px solid #555; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; pointer-events: none; }
+.cd-overlay { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: rgba(0,0,0,0.7); z-index: 3; transition: height 0.1s linear; pointer-events: none; }
+
+#joystick-zone { position: absolute; bottom: 30px; right: 30px; width: 120px; height: 120px; background: rgba(255, 255, 255, 0.1); border: 4px dashed rgba(255, 255, 255, 0.3); pointer-events: auto; touch-action: none; }
+#joystick-knob { position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; background: var(--gold); border: 2px solid #000; transform: translate(-50%, -50%); box-shadow: 4px 4px 0 rgba(0,0,0,0.5); z-index: 10; pointer-events: none; }
 
 /* 스플래시 폭발 & 텍스트 효과 (레트로 텍스트 섀도우) */
 .splash-effect { position: absolute; border-radius: 50%; background: radial-gradient(circle, rgba(255,100,0,0.4) 0%, rgba(255,0,0,0) 70%); transform: translate(-50%, -50%); pointer-events: none; z-index: 450; animation: splashFade 0.3s ease-out forwards; }
