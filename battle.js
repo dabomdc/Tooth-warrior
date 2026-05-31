@@ -1,4 +1,4 @@
-// Version: 8.0.0 - Battle Loop, Player Movement, Joystick, Damage, Battle Slots
+// Version: 8.1.0 - Battle Loop, Player Movement, Joystick, Damage, Battle Slots
 
 // --- [ 1. 플레이어 전투 상태 ] ---
 window.playerX = 1000;
@@ -42,13 +42,16 @@ window.renderBattleSlots = function() {
         const lv = window.inventory && window.inventory[i] ? window.inventory[i] : 0;
 
         if (lv > 0) {
-            const icon = typeof window.getToothIcon === 'function' ? window.getToothIcon(lv) : "🦷";
+            const emoji = typeof window.getSimpleToothEmoji === 'function'
+                ? window.getSimpleToothEmoji(lv)
+                : "🦷";
+
             const atk = typeof window.getAtk === 'function' ? window.getAtk(lv) : 0;
 
             slot.innerHTML = `
-                <div class="battle-slot-icon">${icon}</div>
+                <div class="battle-slot-emoji">${emoji}</div>
                 <div class="battle-slot-lv">Lv.${lv}</div>
-                <div class="battle-slot-atk">⚔️${window.safeFNum ? window.safeFNum(atk) : atk}</div>
+                <div class="battle-slot-atk">⚔${window.safeFNum ? window.safeFNum(atk) : atk}</div>
             `;
         } else {
             slot.innerHTML = `
@@ -102,7 +105,7 @@ function applyPlayerStats() {
 function battleLoop(timestamp) {
     requestAnimationFrame(battleLoop);
 
-    if (!window.dungeonActive || window.bossDead) {
+    if (!window.dungeonActive || window.dungeonPaused || window.bossDead) {
         lastBattleFrame = timestamp;
         return;
     }
@@ -127,6 +130,8 @@ function battleLoop(timestamp) {
 
 // --- [ 5. 플레이어 위치 업데이트 ] ---
 window.updatePlayerPosition = function() {
+    if (window.dungeonPaused) return;
+
     const player = document.getElementById('player');
     const world = document.getElementById('battle-world');
 
@@ -180,7 +185,7 @@ function moveBattleCamera() {
 
 // --- [ 7. 피격 처리 ] ---
 window.takeDamage = function(amount) {
-    if (!window.dungeonActive || window.bossDead) return;
+    if (!window.dungeonActive || window.dungeonPaused || window.bossDead) return;
     if (window.isInvincible) return;
 
     window.playerHp -= amount;
@@ -196,6 +201,7 @@ window.takeDamage = function(amount) {
 
     if (player) {
         player.classList.add('player-hit');
+
         setTimeout(() => {
             player.classList.remove('player-hit');
         }, 180);
@@ -232,6 +238,7 @@ function updatePlayerHpBar() {
 
 function handlePlayerDeath() {
     window.dungeonActive = false;
+    window.dungeonPaused = false;
     window.bossDead = true;
 
     setTimeout(() => {
@@ -251,7 +258,12 @@ function setupJoystick() {
 
     if (!zone || !knob) return;
 
+    if (zone.dataset.ready === 'true') return;
+    zone.dataset.ready = 'true';
+
     zone.addEventListener('pointerdown', function(e) {
+        if (window.dungeonPaused) return;
+
         e.preventDefault();
 
         joystickActive = true;
@@ -262,30 +274,35 @@ function setupJoystick() {
         } catch(err) {}
 
         updateJoystick(e);
-    });
+    }, { passive: false });
 
     zone.addEventListener('pointermove', function(e) {
         if (!joystickActive || e.pointerId !== joystickPointerId) return;
+        if (window.dungeonPaused) return;
 
         e.preventDefault();
         updateJoystick(e);
-    });
+    }, { passive: false });
 
     zone.addEventListener('pointerup', function(e) {
         if (e.pointerId !== joystickPointerId) return;
 
         e.preventDefault();
-        resetJoystick();
+        window.resetJoystick();
 
         try {
             zone.releasePointerCapture(e.pointerId);
         } catch(err) {}
-    });
+    }, { passive: false });
 
     zone.addEventListener('pointercancel', function(e) {
         if (e.pointerId !== joystickPointerId) return;
 
-        resetJoystick();
+        window.resetJoystick();
+    });
+
+    zone.addEventListener('lostpointercapture', function() {
+        window.resetJoystick();
     });
 }
 
@@ -303,7 +320,7 @@ function updateJoystick(e) {
     let dx = e.clientX - centerX;
     let dy = e.clientY - centerY;
 
-    const maxRadius = rect.width / 2 - 18;
+    const maxRadius = rect.width / 2 - 22;
     const len = Math.sqrt(dx * dx + dy * dy);
 
     if (len > maxRadius) {
@@ -324,7 +341,7 @@ function updateJoystick(e) {
     }
 }
 
-function resetJoystick() {
+window.resetJoystick = function() {
     joystickActive = false;
     joystickPointerId = null;
 
@@ -336,11 +353,14 @@ function resetJoystick() {
 
     window.moveX = 0;
     window.moveY = 0;
-}
+};
 
 
 // --- [ 9. 키보드 이동 ] ---
 function setupKeyboardControls() {
+    if (window.keyboardControlReady) return;
+    window.keyboardControlReady = true;
+
     window.addEventListener('keydown', function(e) {
         const key = e.key.toLowerCase();
 
@@ -361,6 +381,12 @@ function setupKeyboardControls() {
 }
 
 function updateKeyboardMoveVector() {
+    if (window.dungeonPaused) {
+        window.moveX = 0;
+        window.moveY = 0;
+        return;
+    }
+
     if (joystickActive) return;
 
     let x = 0;
@@ -389,7 +415,7 @@ window.resetBattlePlayerState = function() {
     window.moveY = 0;
     window.isInvincible = false;
 
-    resetJoystick();
+    window.resetJoystick();
 
     keyboardState.up = false;
     keyboardState.down = false;
