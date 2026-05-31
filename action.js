@@ -1,11 +1,28 @@
-// Version: 8.0.0 - Player Actions, Mining, Merge, Inventory, Coupon
+// Version: 8.1.0 - Player Actions, Mining, Merge, Inventory, Coupon
 
 // --- [ 1. 내부 상태 ] ---
 let lastTapTime = 0; 
 let lastTapIdx = -1;
 
 
-// --- [ 2. 채굴 처리 ] ---
+// --- [ 2. 작은 슬롯용 치아 아이콘 ] ---
+window.getSimpleToothEmoji = function(lv) {
+    if (!lv || lv <= 0) return "";
+
+    let safeLv = Math.min(24, lv);
+
+    if (safeLv === 24) {
+        return window.isToothAwakened ? "👑" : "🔒";
+    }
+
+    if (!window.TOOTH_DATA || !window.TOOTH_DATA.icons) return "🦷";
+
+    const tier = Math.floor((safeLv - 1) / 3);
+    return window.TOOTH_DATA.icons[tier] || "🦷";
+};
+
+
+// --- [ 3. 채굴 처리 ] ---
 window.processMining = function(amt) { 
     window.mineProgress += amt; 
 
@@ -61,7 +78,7 @@ window.addMinedItem = function() {
 };
 
 
-// --- [ 3. 합성 대성공 시각 효과 ] ---
+// --- [ 4. 합성 대성공 시각 효과 ] ---
 window.showGreatSuccessEffect = function(slotIdx) {
     setTimeout(() => {
         const slot = document.getElementById(`slot-${slotIdx}`);
@@ -82,7 +99,7 @@ window.showGreatSuccessEffect = function(slotIdx) {
 };
 
 
-// --- [ 4. 자동 합성 ] ---
+// --- [ 5. 자동 합성 ] ---
 window.autoMergeLowest = function() { 
     let levelCounts = {}; 
 
@@ -110,7 +127,7 @@ window.autoMergeLowest = function() {
 };
 
 
-// --- [ 5. 대량 합성 ] ---
+// --- [ 6. 대량 합성 ] ---
 window.massMerge = function(lv, once = false) { 
     let indices = []; 
 
@@ -170,7 +187,7 @@ window.massMerge = function(lv, once = false) {
 };
 
 
-// --- [ 6. 최고 티어 체크 ] ---
+// --- [ 7. 최고 티어 체크 ] ---
 window.checkHighestTier = function(level) {
     if (level > window.highestToothLevel && level <= 24) {
         window.highestToothLevel = level;
@@ -188,7 +205,7 @@ window.checkHighestTier = function(level) {
 };
 
 
-// --- [ 7. 인벤토리 렌더링 ] ---
+// --- [ 8. 인벤토리 렌더링 ] ---
 window.renderInventory = function() { 
     const grid = document.getElementById('inventory-grid'); 
     if (!grid) return;
@@ -233,7 +250,7 @@ window.renderInventory = function() {
                     const dragProxy = document.getElementById('drag-proxy');
 
                     if (dragProxy) {
-                        dragProxy.innerHTML = window.safeGetIcon ? window.safeGetIcon(window.inventory[i]) : "🦷"; 
+                        dragProxy.innerHTML = `<span class="drag-tooth-emoji">${window.getSimpleToothEmoji(window.inventory[i])}</span>`; 
                         dragProxy.style.display = 'block'; 
                         window.moveProxy(e); 
                     }
@@ -290,11 +307,22 @@ window.renderInventory = function() {
         
         if (i < window.maxSlots && window.inventory[i] > 0) { 
             const lv = window.inventory[i];
-            const dmg = window.safeFNum ? window.safeFNum(window.safeGetAtk ? window.safeGetAtk(lv) : 0) : lv; 
+            const emoji = window.getSimpleToothEmoji(lv);
 
-            slot.innerHTML = `<span class="dmg-label">⚔️${dmg}</span>${window.safeGetIcon ? window.safeGetIcon(lv) : "🦷"}<span class="lv-text">Lv.${lv}</span>`; 
+            if (lv === 24 && !window.isToothAwakened) {
+                slot.innerHTML = `
+                    <span class="inv-tooth-emoji locked-tooth-small">👑</span>
+                    <span class="slot-lock-mark">🔒</span>
+                    <span class="lv-text">Lv.${lv}</span>
+                `;
+            } else {
+                slot.innerHTML = `
+                    <span class="inv-tooth-emoji">${emoji}</span>
+                    <span class="lv-text">Lv.${lv}</span>
+                `;
+            }
         } else if (i >= window.maxSlots) { 
-            slot.innerHTML = "🔒"; 
+            slot.innerHTML = `<span class="slot-lock-only">🔒</span>`; 
         } else {
             slot.innerHTML = "";
         }
@@ -302,7 +330,7 @@ window.renderInventory = function() {
 };
 
 
-// --- [ 8. 수동 이동 / 합성 ] ---
+// --- [ 9. 수동 이동 / 합성 ] ---
 window.handleMoveOrMerge = function(from, to) { 
     if (from === to) return; 
 
@@ -370,7 +398,7 @@ window.handleMoveOrMerge = function(from, to) {
 };
 
 
-// --- [ 9. 드래그 프록시 이동 ] ---
+// --- [ 10. 드래그 프록시 이동 ] ---
 window.moveProxy = function(e) { 
     const dragProxy = document.getElementById('drag-proxy');
     if (!dragProxy) return;
@@ -389,7 +417,7 @@ window.moveProxy = function(e) {
 };
 
 
-// --- [ 10. 인벤토리 정리 ] ---
+// --- [ 11. 인벤토리 정리 ] ---
 window.cleanupInventory = function() {
     const minMiningLv = window.getBaseMiningLevel ? window.getBaseMiningLevel() : 1;
     let cleared = false;
@@ -426,7 +454,7 @@ window.sortInventory = function() {
 };
 
 
-// --- [ 11. 곡괭이 시각화 ] ---
+// --- [ 12. 곡괭이 시각화 ] ---
 window.updatePickaxeVisual = function() { 
     const miner = document.getElementById('miner-char');
 
@@ -436,101 +464,105 @@ window.updatePickaxeVisual = function() {
 };
 
 
-// --- [ 12. 수동 채굴 터치 ] ---
-window.setupMiningTouch = function() { 
-    const mineArea = document.getElementById('mine-rock-area'); 
-    if (!mineArea) return;
+// --- [ 13. 채굴 터치 실제 동작 ] ---
+function handleMiningPointer(e) {
+    if (e.target.closest('button')) return;
 
-    mineArea.addEventListener('pointerdown', function(e) { 
-        e.preventDefault(); 
+    e.preventDefault(); 
 
-        const miner = document.getElementById('miner-char'); 
+    const miner = document.getElementById('miner-char'); 
 
-        if (miner) {
-            miner.style.animation = 'none'; 
-            miner.offsetHeight; 
-            miner.style.animation = 'hammer 0.08s ease-in-out'; 
-        }
+    if (miner) {
+        miner.style.animation = 'none'; 
+        miner.offsetHeight; 
+        miner.style.animation = 'hammer 0.08s ease-in-out'; 
+    }
 
-        try { 
-            if (typeof window.playSfx === 'function') window.playSfx('mine'); 
-        } catch(e) {}
-        
-        let miningPower = 15;
+    try { 
+        if (typeof window.playSfx === 'function') window.playSfx('mine'); 
+    } catch(err) {}
+    
+    let miningPower = 15;
 
-        if (typeof window.TOOTH_DATA !== 'undefined' && window.TOOTH_DATA.pickaxes[window.pickaxeIdx]) {
-            miningPower = window.TOOTH_DATA.pickaxes[window.pickaxeIdx].power || 15;
-        }
+    if (typeof window.TOOTH_DATA !== 'undefined' && window.TOOTH_DATA.pickaxes[window.pickaxeIdx]) {
+        miningPower = window.TOOTH_DATA.pickaxes[window.pickaxeIdx].power || 15;
+    }
 
-        if (window.highestToothLevel >= 4 && Math.random() < 0.2) { 
-            let tapGold = (window.getBaseMiningLevel ? window.getBaseMiningLevel() : 1) * 50;
+    if (window.highestToothLevel >= 4 && Math.random() < 0.2) { 
+        let tapGold = (window.getBaseMiningLevel ? window.getBaseMiningLevel() : 1) * 50;
 
-            window.gold += tapGold;
+        window.gold += tapGold;
 
-            const battleWorld = document.getElementById('battle-world');
-            const battleScreen = document.getElementById('battle-screen');
+        const txt = document.createElement('div');
 
-            if (!battleWorld || !battleScreen || !battleScreen.offsetParent) {
-                const txt = document.createElement('div');
+        txt.className = 'gold-text';
+        txt.innerText = `💰+${window.safeFNum ? window.safeFNum(tapGold) : tapGold}`;
+        txt.style.left = e.clientX + 'px'; 
+        txt.style.top = (e.clientY - 30) + 'px';
+        txt.style.pointerEvents = 'none';
 
-                txt.className = 'gold-text';
-                txt.innerText = `💰+${window.safeFNum ? window.safeFNum(tapGold) : tapGold}`;
-                txt.style.left = e.clientX + 'px'; 
-                txt.style.top = (e.clientY - 30) + 'px';
-                txt.style.pointerEvents = 'none';
-
-                document.body.appendChild(txt);
-
-                setTimeout(() => {
-                    if (txt && txt.parentNode) txt.remove();
-                }, 800);
-            }
-        }
-
-        if (window.highestToothLevel >= 4) miningPower *= 1.2;
-
-        if (typeof window.processMining === 'function') {
-            window.processMining(miningPower); 
-        }
-        
-        const effect = document.createElement('div'); 
-
-        effect.className = 'hit-effect'; 
-        effect.innerText = "💥"; 
-        effect.style.left = e.clientX + 'px'; 
-        effect.style.top = e.clientY + 'px'; 
-        effect.style.pointerEvents = 'none';
-
-        document.body.appendChild(effect); 
+        document.body.appendChild(txt);
 
         setTimeout(() => {
-            if (effect && effect.parentNode) effect.remove();
-        }, 400); 
+            if (txt && txt.parentNode) txt.remove();
+        }, 800);
+    }
 
-        if (!window.isAutoMineOn) {
-            const mDial = document.getElementById('mine-dial');
+    if (window.highestToothLevel >= 4) miningPower *= 1.2;
 
-            if (mDial) {
-                mDial.style.filter = "brightness(2) drop-shadow(0 0 10px #00fbff)";
+    if (typeof window.processMining === 'function') {
+        window.processMining(miningPower); 
+    }
+    
+    const effect = document.createElement('div'); 
 
-                setTimeout(() => { 
-                    mDial.style.filter = "grayscale(1) brightness(0.6)"; 
-                }, 100);
-            }
+    effect.className = 'hit-effect'; 
+    effect.innerText = "💥"; 
+    effect.style.left = e.clientX + 'px'; 
+    effect.style.top = e.clientY + 'px'; 
+    effect.style.pointerEvents = 'none';
+
+    document.body.appendChild(effect); 
+
+    setTimeout(() => {
+        if (effect && effect.parentNode) effect.remove();
+    }, 400); 
+
+    if (!window.isAutoMineOn) {
+        const mDial = document.getElementById('mine-dial');
+
+        if (mDial) {
+            mDial.style.filter = "brightness(2) drop-shadow(0 0 10px #00fbff)";
+
+            setTimeout(() => { 
+                mDial.style.filter = "grayscale(1) brightness(0.6)"; 
+            }, 100);
         }
-        
-        if (typeof window.updateUI === 'function') {
-            window.updateUI(); 
-        }
+    }
+    
+    if (typeof window.updateUI === 'function') {
+        window.updateUI(); 
+    }
 
-        if (typeof window.saveGame === 'function') {
-            window.saveGame();
-        }
-    }); 
+    if (typeof window.saveGame === 'function') {
+        window.saveGame();
+    }
+}
+
+
+// --- [ 14. 채굴 터치 영역 등록 ] ---
+window.setupMiningTouch = function() { 
+    const mineView = document.getElementById('mine-view'); 
+    if (!mineView) return;
+
+    if (mineView.dataset.miningTouchReady === 'true') return;
+    mineView.dataset.miningTouchReady = 'true';
+
+    mineView.addEventListener('pointerdown', handleMiningPointer, { passive: false });
 };
 
 
-// --- [ 13. 자동 채굴 / 자동 합성 토글 ] ---
+// --- [ 15. 자동 채굴 / 자동 합성 토글 ] ---
 window.toggleAutoMine = function() { 
     window.isAutoMineOn = !window.isAutoMineOn; 
 
@@ -556,7 +588,7 @@ window.toggleAutoMerge = function() {
 };
 
 
-// --- [ 14. 쿠폰 ] ---
+// --- [ 16. 쿠폰 ] ---
 window.checkCoupon = function(code) { 
     if (code === "100b" || code === "RICH100B") { 
         window.gold += 100000000000; 
@@ -605,7 +637,7 @@ window.checkCoupon = function(code) {
 };
 
 
-// --- [ 15. 저장 코드 불러오기 ] ---
+// --- [ 17. 저장 코드 불러오기 ] ---
 window.importSave = function() { 
     const str = prompt("코드 붙여넣기:"); 
 
