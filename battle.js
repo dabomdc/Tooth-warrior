@@ -1,356 +1,258 @@
-// Version: 8.0.0 - Battle Engine (Rendering, Floating Joystick, Projectiles, Movement)
+// Version: 7.5.1 - Battle Physics & Joystick (60FPS Fixed, Optimized, Diagonal Fixed)
 
-window.playerEntity = { x: 0, y: 0, hp: 100, maxHp: 100, speed: 150 };
-window.enemyEntities = [];
-window.projectiles = [];
-window.battleAnimationFrame = null;
+window.playerX = 1000;
+window.playerY = 1000;
+window.moveX = 0;
+window.moveY = 0;
+window.baseSpeed = 2.5; 
+window.isInvincible = false;
+window.playerHp = 100;
+window.playerMaxHp = 100;
 
-// --- [ 1. 플로팅 원형 조이스틱 (모바일 & PC 완벽 대응) ] ---
-let joyActive = false;
-let joyOrigin = { x: 0, y: 0 };
-let joyDelta = { x: 0, y: 0 };
-const JOY_MAX_RADIUS = 40;
+let joystickActive = false;
+let activePointerId = null; // 🌟 멀티터치 간섭 방지 식별자
+let originX = 0;
+let originY = 0;
+let battleLoopId = null;
 
-window.initBattleUI = function() {
-    const zone = document.getElementById('joystick-zone');
-    const pad = document.getElementById('joystick-pad');
-    const knob = document.getElementById('joystick-knob');
-    if (!zone || !pad || !knob) return;
+let lastBattleTime = performance.now();
+const fpsInterval = 1000 / 60; // 60 FPS 고정
 
-    // 초기화
-    joyActive = false;
-    joyDelta = { x: 0, y: 0 };
-    pad.style.display = 'none';
+// 🌟 DOM 탐색 캐싱 변수 (매 프레임 무거운 DOM 탐색 방지)
+let domPlayer = null;
+let domCamera = null;
+let domWorld = null;
 
-    function startJoy(x, y) {
-        joyActive = true;
-        joyOrigin = { x, y };
-        pad.style.display = 'block';
-        pad.style.left = x + 'px';
-        pad.style.top = y + 'px';
-        knob.style.transform = `translate(-50%, -50%) translate(0px, 0px)`;
-        joyDelta = { x: 0, y: 0 };
-    }
-
-    function moveJoy(x, y) {
-        if (!joyActive) return;
-        let dx = x - joyOrigin.x;
-        let dy = y - joyOrigin.y;
-        let dist = Math.sqrt(dx * dx + dy * dy);
-        
-        if (dist > JOY_MAX_RADIUS) {
-            dx = (dx / dist) * JOY_MAX_RADIUS;
-            dy = (dy / dist) * JOY_MAX_RADIUS;
-        }
-        
-        joyDelta = { x: dx, y: dy };
-        knob.style.transform = `translate(-50%, -50%) translate(${dx}px, ${dy}px)`;
-    }
-
-    function endJoy() {
-        joyActive = false;
-        pad.style.display = 'none';
-        joyDelta = { x: 0, y: 0 };
-    }
-
-    // 모바일 터치 이벤트
-    zone.addEventListener('touchstart', e => {
-        e.preventDefault();
-        startJoy(e.touches[0].clientX, e.touches[0].clientY);
-    }, { passive: false });
+window.renderBattleSlots = function() {
+    const slots = document.getElementById('war-weapon-slots');
+    if(!slots) return;
+    slots.innerHTML = '';
     
-    zone.addEventListener('touchmove', e => {
-        e.preventDefault();
-        moveJoy(e.touches[0].clientX, e.touches[0].clientY);
-    }, { passive: false });
-    
-    zone.addEventListener('touchend', e => {
-        e.preventDefault();
-        endJoy();
-    }, { passive: false });
-
-    // PC 마우스 이벤트 (테스트용)
-    zone.addEventListener('mousedown', e => startJoy(e.clientX, e.clientY));
-    zone.addEventListener('mousemove', e => moveJoy(e.clientX, e.clientY));
-    window.addEventListener('mouseup', endJoy);
-};
-
-// --- [ 2. 전투 웨이브 및 스폰 시스템 ] ---
-window.spawnWave = function() {
-    if (!window.inBattle) return;
-    
-    document.getElementById('wave-info').innerText = `WAVE ${window.currentWave} / ${window.maxWaves}`;
-    const world = document.getElementById('battle-world');
-    world.innerHTML = '';
-    window.enemyEntities = [];
-    window.projectiles = [];
-
-    // 플레이어 스폰
-    let trainingBonus = window.trainingLevel ? (window.trainingLevel * 0.05) : 0;
-    let baseHp = window.activeMercenary ? window.activeMercenary.baseHp : 100;
-    let speedMult = window.activeMercenary ? window.activeMercenary.spd : 1.0;
-    
-    window.playerEntity = {
-        x: window.innerWidth, 
-        y: window.innerHeight, 
-        hp: baseHp * (1 + trainingBonus),
-        maxHp: baseHp * (1 + trainingBonus),
-        speed: 150 * speedMult,
-        element: document.createElement('div')
-    };
-    
-    window.playerEntity.element.id = 'player';
-    window.playerEntity.element.innerHTML = `${window.activeMercenary.icon}<div id="player-hp-bar-bg"><div id="player-hp-bar-fill"></div></div>`;
-    world.appendChild(window.playerEntity.element);
-
-    // 몬스터 정보 로드
-    let isHell = (window.dungeonType === 'hell' || window.dungeonType === 'hellboss');
-    let isBossRush = (window.dungeonType === 'boss' || window.dungeonType === 'hellboss');
-    let mDataList = isHell ? TOOTH_DATA.hellMobs : TOOTH_DATA.dungeonMobs;
-    let mobData = mDataList[Math.min(window.dungeonTarget - 1, mDataList.length - 1)];
-    
-    let isBossWave = (window.currentWave === window.maxWaves) || isBossRush;
-    let mobCount = isBossWave ? 1 : 4 + Math.floor(Math.random() * 3);
-    
-    // 적 스폰
-    for (let i = 0; i < mobCount; i++) {
-        let isBoss = isBossWave && i === 0;
-        let icon = isBoss ? mobData.boss : mobData.mobs[Math.floor(Math.random() * mobData.mobs.length)];
-        
-        let hpBase = 50 * Math.pow(2.0, window.dungeonTarget);
-        if (isHell) hpBase *= 10;
-        let enemyHp = isBoss ? hpBase * 10 : hpBase;
-
-        let ex = window.playerEntity.x + (Math.random() * 600 - 300);
-        let ey = window.playerEntity.y + (Math.random() * 600 - 300);
-        
-        let enemy = {
-            id: Date.now() + i,
-            x: ex, y: ey,
-            hp: enemyHp, maxHp: enemyHp,
-            isBoss: isBoss,
-            speed: isBoss ? 40 : 60 + Math.random() * 30,
-            icon: icon,
-            element: document.createElement('div')
-        };
-        
-        enemy.element.className = 'battle-enemy' + (isBoss ? ' boss' : '');
-        enemy.element.innerHTML = `${icon}<div class="hp-bar-bg"><div class="hp-bar-fill" id="hp-${enemy.id}"></div></div>`;
-        world.appendChild(enemy.element);
-        window.enemyEntities.push(enemy);
-    }
-
-    // 전투 루프 및 인터벌 시작
-    window.lastBattleTime = Date.now();
-    cancelAnimationFrame(window.battleAnimationFrame);
-    window.battleLoop();
-
-    // 자동 공격 (0.5초마다 발사)
-    let attackTimer = setInterval(() => {
-        if (!window.inBattle) return;
-        fireProjectile();
-    }, 500);
-    window.combatIntervals.push(attackTimer);
-
-    // 몬스터 공격 (보스는 1.5초, 일반은 2초)
-    let enemyAttackTimer = setInterval(() => {
-        if (!window.inBattle) return;
-        window.enemyEntities.forEach(enemy => {
-            let dist = Math.hypot(window.playerEntity.x - enemy.x, window.playerEntity.y - enemy.y);
-            if (dist < 150) {
-                let dmg = enemy.isBoss ? (window.playerEntity.maxHp * 0.15) : (window.playerEntity.maxHp * 0.05);
-                takePlayerDamage(dmg);
-            }
-        });
-    }, 1500);
-    window.combatIntervals.push(enemyAttackTimer);
-};
-
-// --- [ 3. 메인 배틀 렌더링 루프 (rAF) ] ---
-window.battleLoop = function() {
-    if (!window.inBattle) return;
-    
-    let now = Date.now();
-    let dt = (now - window.lastBattleTime) / 1000;
-    window.lastBattleTime = now;
-
-    // 1. 플레이어 이동 (조이스틱 입력 적용)
-    if (joyActive) {
-        let moveX = (joyDelta.x / JOY_MAX_RADIUS) * window.playerEntity.speed * dt;
-        let moveY = (joyDelta.y / JOY_MAX_RADIUS) * window.playerEntity.speed * dt;
-        window.playerEntity.x += moveX;
-        window.playerEntity.y += moveY;
-        
-        // 맵 경계 제한 (200vw x 200vh 기준)
-        window.playerEntity.x = Math.max(0, Math.min(window.innerWidth * 2, window.playerEntity.x));
-        window.playerEntity.y = Math.max(0, Math.min(window.innerHeight * 2, window.playerEntity.y));
-    }
-
-    // 2. 적 이동 (플레이어를 향해)
-    window.enemyEntities.forEach(enemy => {
-        let dx = window.playerEntity.x - enemy.x;
-        let dy = window.playerEntity.y - enemy.y;
-        let dist = Math.sqrt(dx*dx + dy*dy);
-        
-        if (dist > 50) { // 너무 가까우면 정지
-            enemy.x += (dx / dist) * enemy.speed * dt;
-            enemy.y += (dy / dist) * enemy.speed * dt;
-        }
-        enemy.element.style.left = enemy.x + 'px';
-        enemy.element.style.top = enemy.y + 'px';
-    });
-
-    // 3. 투사체 이동 및 충돌 판정
-    for (let i = window.projectiles.length - 1; i >= 0; i--) {
-        let p = window.projectiles[i];
-        let target = window.enemyEntities.find(e => e.id === p.targetId);
-        
-        if (!target) {
-            p.element.remove();
-            window.projectiles.splice(i, 1);
-            continue;
-        }
-
-        let dx = target.x - p.x;
-        let dy = target.y - p.y;
-        let dist = Math.sqrt(dx*dx + dy*dy);
-
-        if (dist < 30) {
-            // 명중! (combat.js의 데미지 렌더링 호출)
-            hitEnemy(target, p.damageObj);
-            p.element.remove();
-            window.projectiles.splice(i, 1);
+    for(let i=0; i<8; i++) {
+        const lv = window.inventory[i];
+        const div = document.createElement('div');
+        div.className = 'war-slot';
+        div.id = `war-slot-${i}`;
+        if(lv > 0) {
+            div.innerHTML = `<span style="font-size:20px;">${typeof window.getToothIcon === 'function'? window.getToothIcon(lv) : "🦷"}</span><div class="cd-overlay"></div>`;
         } else {
-            p.x += (dx / dist) * p.speed * dt;
-            p.y += (dy / dist) * p.speed * dt;
-            p.element.style.left = p.x + 'px';
-            p.element.style.top = p.y + 'px';
+            div.innerHTML = `<div class="cd-overlay"></div>`;
         }
+        slots.appendChild(div);
     }
+    
+    let hpBonus = (window.trainingLevels && window.trainingLevels.hp)? window.trainingLevels.hp * 0.05 : 0;
+    let base = (typeof window.TOOTH_DATA!== 'undefined' && window.TOOTH_DATA.mercenaries[window.mercenaryIdx])? window.TOOTH_DATA.mercenaries[window.mercenaryIdx].baseHp : 100;
+    window.playerMaxHp = base * (1 + hpBonus);
+    window.playerHp = window.playerMaxHp;
+    
+    let pSpd = (typeof window.TOOTH_DATA!== 'undefined' && window.TOOTH_DATA.mercenaries[window.mercenaryIdx])? window.TOOTH_DATA.mercenaries[window.mercenaryIdx].spd : 1.0;
+    let spdBonus = (window.trainingLevels && window.trainingLevels.spd)? window.trainingLevels.spd * 0.1 : 0;
+    window.currentPlayerSpeed = window.baseSpeed * pSpd * (1 + spdBonus);
 
-    // 4. 화면 및 카메라 렌더링
-    window.playerEntity.element.style.left = window.playerEntity.x + 'px';
-    window.playerEntity.element.style.top = window.playerEntity.y + 'px';
+    // 🌟 전투 진입 시점에 DOM 요소를 1회만 캐싱
+    domPlayer = document.getElementById('player');
+    domCamera = document.getElementById('battle-camera');
+    domWorld = document.getElementById('battle-world');
 
-    const camX = window.innerWidth / 2 - window.playerEntity.x;
-    const camY = window.innerHeight / 2 - window.playerEntity.y;
-    document.getElementById('battle-world').style.transform = `translate(${camX}px, ${camY}px)`;
-
-    window.battleAnimationFrame = requestAnimationFrame(window.battleLoop);
+    if (!battleLoopId) {
+        lastBattleTime = performance.now(); 
+        battleLoop();
+    }
 };
 
-// --- [ 4. 투사체 발사 및 타격 시스템 ] ---
-function fireProjectile() {
-    if (window.enemyEntities.length === 0) return;
-    
-    // 가장 가까운 적 찾기
-    let nearest = null;
-    let minDist = Infinity;
-    window.enemyEntities.forEach(e => {
-        let dist = Math.hypot(window.playerEntity.x - e.x, window.playerEntity.y - e.y);
-        if (dist < minDist) { minDist = dist; nearest = e; }
-    });
+function battleLoop(timestamp) {
+    battleLoopId = requestAnimationFrame(battleLoop);
 
-    if (!nearest) return;
+    if (!timestamp) timestamp = performance.now();
+    let elapsed = timestamp - lastBattleTime;
 
-    // combat.js의 데미지 수학 로직 호출
-    let dmgObj = window.calculateDamage();
-    
-    let proj = document.createElement('div');
-    proj.className = 'missile';
-    let iconLvl = window.highestToothLevel;
-    proj.innerHTML = getToothIcon(iconLvl);
-    document.getElementById('battle-world').appendChild(proj);
+    if (elapsed >= fpsInterval) {
+        lastBattleTime = timestamp - (elapsed % fpsInterval);
 
-    window.projectiles.push({
-        x: window.playerEntity.x,
-        y: window.playerEntity.y,
-        targetId: nearest.id,
-        speed: 600,
-        damageObj: dmgObj,
-        element: proj
-    });
-    
-    try { if(typeof playSfx === 'function') playSfx('attack'); } catch(e){}
-}
-
-function hitEnemy(enemy, dmgObj) {
-    let finalDmg = dmgObj.damage;
-    enemy.hp -= finalDmg;
-    
-    // 체력바 갱신
-    let hpBar = document.getElementById(`hp-${enemy.id}`);
-    if (hpBar) hpBar.style.width = Math.max(0, (enemy.hp / enemy.maxHp) * 100) + '%';
-    
-    // 텍스트 이펙트
-    showDamageText(enemy.x, enemy.y, finalDmg, dmgObj.isCrit);
-    try { if(typeof playSfx === 'function') playSfx('damage'); } catch(e){}
-
-    // 훈련장 스플래시 데미지 처리
-    if (dmgObj.splashRange > 0) {
-        let splashCircle = document.createElement('div');
-        splashCircle.className = 'splash-effect';
-        splashCircle.style.width = (dmgObj.splashRange * 2) + 'px';
-        splashCircle.style.height = (dmgObj.splashRange * 2) + 'px';
-        splashCircle.style.left = enemy.x + 'px';
-        splashCircle.style.top = enemy.y + 'px';
-        document.getElementById('battle-world').appendChild(splashCircle);
-        setTimeout(() => splashCircle.remove(), 300);
-
-        window.enemyEntities.forEach(other => {
-            if (other.id !== enemy.id) {
-                let dist = Math.hypot(enemy.x - other.x, enemy.y - other.y);
-                if (dist <= dmgObj.splashRange) {
-                    other.hp -= finalDmg * 0.5; // 스플래시는 50% 데미지
-                    let oBar = document.getElementById(`hp-${other.id}`);
-                    if (oBar) oBar.style.width = Math.max(0, (other.hp / other.maxHp) * 100) + '%';
-                    if (other.hp <= 0) handleEnemyDeath(other);
-                }
-            }
-        });
-    }
-
-    if (enemy.hp <= 0) {
-        handleEnemyDeath(enemy);
-    }
-}
-
-function takePlayerDamage(dmg) {
-    window.playerEntity.hp -= dmg;
-    let hpFill = document.getElementById('player-hp-bar-fill');
-    if (hpFill) hpFill.style.width = Math.max(0, (window.playerEntity.hp / window.playerEntity.maxHp) * 100) + '%';
-    
-    window.playerEntity.element.classList.add('invincible');
-    setTimeout(() => window.playerEntity.element.classList.remove('invincible'), 200);
-
-    if (window.playerEntity.hp <= 0 && window.inBattle) {
-        if(typeof window.loseDungeon === 'function') window.loseDungeon();
-    }
-}
-
-function handleEnemyDeath(enemy) {
-    enemy.element.remove();
-    window.enemyEntities = window.enemyEntities.filter(e => e.id !== enemy.id);
-    
-    // 웨이브 클리어 판정
-    if (window.enemyEntities.length === 0) {
-        if (window.currentWave >= window.maxWaves) {
-            if(typeof window.winDungeon === 'function') window.winDungeon();
-        } else {
-            window.currentWave++;
-            setTimeout(() => {
-                if (window.inBattle) window.spawnWave();
-            }, 1000);
+        if (window.dungeonActive &&!window.bossDead) {
+            updatePlayerPosition();
+            if(typeof window.updateCombat === 'function') window.updateCombat();
         }
     }
 }
 
-function showDamageText(x, y, dmg, isCrit) {
-    const text = document.createElement('div');
-    text.className = isCrit ? 'crit-text' : 'dmg-text';
-    text.innerText = isCrit ? `💥 ${fNum(dmg)}!` : fNum(dmg);
-    text.style.left = (x + (Math.random()*40 - 20)) + 'px';
-    text.style.top = (y - 30) + 'px';
-    document.getElementById('battle-world').appendChild(text);
-    setTimeout(() => text.remove(), 600);
+function updatePlayerPosition() {
+    if (!window.dungeonActive || window.bossDead) return;
+    
+    // 🌟 최적화 및 버그 수정: 대각선 이동 과속 방지를 위한 벡터 정규화 로직
+    let moveLen = Math.sqrt(window.moveX * window.moveX + window.moveY * window.moveY);
+    let normX = window.moveX;
+    let normY = window.moveY;
+
+    if (moveLen > 0) {
+        normX = window.moveX / moveLen;
+        normY = window.moveY / moveLen;
+    }
+    
+    window.playerX += normX * window.currentPlayerSpeed;
+    window.playerY += normY * window.currentPlayerSpeed;
+
+    // 맵 경계 제한
+    window.playerX = Math.max(20, Math.min(window.worldWidth - 20, window.playerX));
+    window.playerY = Math.max(20, Math.min(window.worldHeight - 20, window.playerY));
+
+    // 🌟 매 프레임 탐색 대신, 캐싱된 DOM 사용하여 성능 대폭 개선
+    if(domPlayer) {
+        domPlayer.style.left = window.playerX + 'px';
+        domPlayer.style.top = window.playerY + 'px';
+        
+        if (domCamera && domWorld) {
+            const cw = domCamera.clientWidth;
+            const ch = domCamera.clientHeight;
+            let cx = window.playerX - cw/2;
+            let cy = window.playerY - ch/2;
+            
+            cx = Math.max(0, Math.min(window.worldWidth - cw, cx));
+            cy = Math.max(0, Math.min(window.worldHeight - ch, cy));
+            domWorld.style.transform = `translate(${-cx}px, ${-cy}px)`;
+        }
+    }
+}
+
+window.takeDamage = function(amount) {
+    if(window.isInvincible || window.bossDead ||!window.dungeonActive) return;
+    
+    window.playerHp -= amount;
+    try { if(typeof window.playSfx === 'function') window.playSfx('damage'); } catch(e){}
+    
+    const fill = document.getElementById('player-hp-bar-fill');
+    if(fill) fill.style.width = Math.max(0, (window.playerHp / window.playerMaxHp * 100)) + '%';
+    
+    if(typeof window.showDmgText === 'function') window.showDmgText(window.playerX, window.playerY, amount);
+    
+    if(domPlayer) {
+        domPlayer.classList.add('invincible');
+        window.isInvincible = true;
+        setTimeout(() => {
+            if(domPlayer) domPlayer.classList.remove('invincible');
+            window.isInvincible = false;
+        }, 1000);
+    }
+    
+    const scr = document.getElementById('battle-screen');
+    if(scr) {
+        let oldBg = scr.style.background;
+        scr.style.background = 'rgba(255,0,0,0.3)';
+        setTimeout(() => scr.style.background = oldBg, 150);
+    }
+
+    if(window.playerHp <= 0) {
+        window.dungeonActive = false;
+        window.bossDead = true;
+        setTimeout(() => {
+            if(typeof window.showToast === 'function') window.showToast("☠️ 전멸했습니다... 던전에서 후퇴합니다.");
+            else alert("☠️ 전멸했습니다... 던전에서 후퇴합니다.");
+            
+            if(typeof window.exitDungeon === 'function') window.exitDungeon();
+        }, 500);
+    }
+};
+
+// --- [ 모바일 터치 조이스틱 로직 (멀티터치 보완) ] ---
+const zone = document.getElementById('joystick-zone');
+const knob = document.getElementById('joystick-knob');
+
+if(zone && knob) {
+    zone.addEventListener('pointerdown', (e) => {
+        // 이미 조이스틱이 잡혀있다면 다른 손가락의 터치는 무시
+        if(joystickActive) return;
+        
+        joystickActive = true;
+        activePointerId = e.pointerId; // 🌟 현재 조작 중인 고유 손가락 식별자 저장
+        
+        const rect = zone.getBoundingClientRect();
+        originX = rect.left + rect.width / 2;
+        originY = rect.top + rect.height / 2;
+        updateJoystick(e.clientX, e.clientY);
+        zone.setPointerCapture(e.pointerId);
+    });
+
+    zone.addEventListener('pointermove', (e) => {
+        // 🌟 저장된 손가락 ID와 일치할 때만 반응하여 조작 꼬임 방지
+        if(!joystickActive || e.pointerId!== activePointerId) return; 
+        updateJoystick(e.clientX, e.clientY);
+    });
+
+    zone.addEventListener('pointerup', (e) => {
+        if(e.pointerId!== activePointerId) return;
+        
+        joystickActive = false;
+        activePointerId = null;
+        knob.style.transform = `translate(-50%, -50%)`;
+        window.moveX = 0;
+        window.moveY = 0;
+        zone.releasePointerCapture(e.pointerId);
+    });
+    
+    zone.addEventListener('pointercancel', (e) => {
+        if(e.pointerId!== activePointerId) return;
+        
+        joystickActive = false;
+        activePointerId = null;
+        knob.style.transform = `translate(-50%, -50%)`;
+        window.moveX = 0;
+        window.moveY = 0;
+        zone.releasePointerCapture(e.pointerId);
+    });
+
+    function updateJoystick(cx, cy) {
+        let dx = cx - originX;
+        let dy = cy - originY;
+        const dist = Math.sqrt(dx * dx + dy * dy); // 최적화: 무거운 Math.hypot 대체
+        const maxDist = 40; 
+        
+        if(dist > maxDist) {
+            dx = (dx / dist) * maxDist;
+            dy = (dy / dist) * maxDist;
+        }
+        
+        knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+        
+        if(dist > 0) {
+            window.moveX = dx / maxDist;
+            window.moveY = dy / maxDist;
+        } else {
+            window.moveX = 0;
+            window.moveY = 0;
+        }
+    }
+}
+
+// --- ---
+const keys = { w: false, a: false, s: false, d: false };
+
+window.addEventListener('keydown', (e) => {
+    if (!window.dungeonActive) return;
+    const key = e.key.toLowerCase();
+    
+    if(key === 'arrowup' || key === 'w') keys.w = true;
+    if(key === 'arrowdown' || key === 's') keys.s = true;
+    if(key === 'arrowleft' || key === 'a') keys.a = true;
+    if(key === 'arrowright' || key === 'd') keys.d = true;
+
+    updateMoveVector();
+});
+
+window.addEventListener('keyup', (e) => {
+    if (!window.dungeonActive) return;
+    const key = e.key.toLowerCase();
+    
+    if(key === 'arrowup' || key === 'w') keys.w = false;
+    if(key === 'arrowdown' || key === 's') keys.s = false;
+    if(key === 'arrowleft' || key === 'a') keys.a = false;
+    if(key === 'arrowright' || key === 'd') keys.d = false;
+
+    updateMoveVector();
+});
+
+function updateMoveVector() {
+    if(joystickActive) return; // 모바일 조이스틱 사용 중일 땐 키보드 무시
+    window.moveX = (keys.d? 1 : 0) - (keys.a? 1 : 0);
+    window.moveY = (keys.s? 1 : 0) - (keys.w? 1 : 0);
 }
