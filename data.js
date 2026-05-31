@@ -1,292 +1,703 @@
-// Version: 8.0.1 - Master Data & Utility Functions
+/* data.js v8.2.0
+   치아 연대기 - 데이터 / 밸런스 / 이름 / 아이콘 정의
+   이번 버전 핵심:
+   - 치아 Lv.25 / Lv.MAX 초월 왕관 치아 추가
+   - 채굴 직접 획득 최대 Lv.12 고정
+   - 합성 최대 Lv.24 고정
+   - Lv.25는 봉인해제로만 제작
+   - 16~18 용암, 19~21 오로라, 22~24 왕관, 25 초월 왕관
+   - 곡괭이 도구 + 재료 배지 방식 정리
+*/
 
-window.TOOTH_DATA = {
-    icons: ["🦷", "🦴", "🛡️", "⚜️", "💎", "👑", "🌌", "🌋"],
-    baseNames: ["유치", "푸른 치아", "초록 치아", "붉은 치아", "보라 치아", "황금 치아", "다이아 치아", "용암 치아"],
-    prefix: ["일반", "단단한", "거대한"],
-    
-    pickaxes: [
-        { name: "허름한 나무 곡괭이", cost: 0, luck: 0, power: 15, icon: "🪵" },
-        { name: "무딘 구리 곡괭이", cost: 300, luck: 0.10, power: 25, icon: "🪨" }, 
-        { name: "튼튼한 철 곡괭이", cost: 2000, luck: 0.20, power: 45, icon: "⛏️" }, 
-        { name: "연마된 강철 곡괭이", cost: 15000, luck: 0.30, power: 80, icon: "⚔️" },
-        { name: "빛나는 황금 곡괭이", cost: 100000, luck: 0.40, power: 150, icon: "⚜️" },
-        { name: "고강도 티타늄 곡괭이", cost: 800000, luck: 0.50, power: 300, icon: "💠" },
-        { name: "영롱한 다이아 곡괭이", cost: 5000000, luck: 0.60, power: 600, icon: "💎" },
-        { name: "카본 초합금 곡괭이", cost: 50000000, luck: 0.70, power: 1200, icon: "🔮" },
-        { name: "신화의 오리할콘 곡괭이", cost: 1000000000, luck: 0.80, power: 3000, icon: "👑" }
-    ],
-    
-    mercenaries: [
-        { id: 0, name: "농부 듀드", cost: 0, atkMul: 1.0, baseHp: 100, spd: 1.0, icon: "👨‍🌾" },
-        { id: 1, name: "마을 경비병", cost: 500, atkMul: 1.2, baseHp: 150, spd: 1.1, icon: "👮‍♂️" },
-        { id: 2, name: "견습 검사", cost: 3000, atkMul: 1.5, baseHp: 200, spd: 1.2, icon: "🤺" },
-        { id: 3, name: "숙련된 사냥꾼", cost: 12000, atkMul: 1.8, baseHp: 180, spd: 1.3, icon: "🏹" },
-        { id: 4, name: "왕국 기사", cost: 50000, atkMul: 2.2, baseHp: 300, spd: 1.1, icon: "💂‍♂️" },
-        { id: 5, name: "전투 사제", cost: 200000, atkMul: 2.6, baseHp: 250, spd: 1.2, icon: "🧙‍♂️" },
-        { id: 6, name: "그림자 암살자", cost: 800000, atkMul: 3.2, baseHp: 200, spd: 1.5, icon: "🥷" },
-        { id: 7, name: "엘프 명사수", cost: 3000000, atkMul: 4.0, baseHp: 280, spd: 1.4, icon: "🧝‍♀️" },
-        { id: 8, name: "오크 전사", cost: 10000000, atkMul: 5.0, baseHp: 500, spd: 1.0, icon: "👹" },
-        { id: 9, name: "드워프 공학자", cost: 40000000, atkMul: 6.5, baseHp: 400, spd: 1.2, icon: "👷" },
-        { id: 10, name: "화염 마법사", cost: 150000000, atkMul: 8.5, baseHp: 350, spd: 1.3, icon: "🔥" },
-        { id: 11, name: "냉기 마녀", cost: 600000000, atkMul: 11.0, baseHp: 400, spd: 1.3, icon: "❄️" },
-        { id: 12, name: "강철의 골렘", cost: 2500000000, atkMul: 15.0, baseHp: 1000, spd: 0.8, icon: "🤖" },
-        { id: 13, name: "뱀파이어 로드", cost: 10000000000, atkMul: 20.0, baseHp: 600, spd: 1.4, icon: "🧛" },
-        { id: 14, name: "드래곤 슬레이어", cost: 50000000000, atkMul: 30.0, baseHp: 800, spd: 1.3, icon: "🐲" },
-        { id: 15, name: "성기사 단장", cost: 200000000000, atkMul: 45.0, baseHp: 1200, spd: 1.2, icon: "⚜️" },
-        { id: 16, name: "차원 방랑자", cost: 1000000000000, atkMul: 70.0, baseHp: 900, spd: 1.6, icon: "🌌" },
-        { id: 17, name: "데몬 헌터", cost: 5000000000000, atkMul: 100.0, baseHp: 1500, spd: 1.5, icon: "😈" },
-        { id: 18, name: "천상의 수호자", cost: 25000000000000, atkMul: 150.0, baseHp: 2000, spd: 1.4, icon: "👼" },
-        { id: 19, name: "치아의 신", cost: 100000000000000, atkMul: 300.0, baseHp: 5000, spd: 2.0, icon: "🦷" }
-    ],
-    
-    dungeons: [
-        "시작의 이끼 동굴", "낡은 해골 병영", "침묵의 지하 수로", "버려진 광산 심부", 
-        "혹한의 얼음 감옥", "작열하는 용암 터널", "맹독의 늪지대", "고대 거인의 무덤", 
-        "환영의 안개 숲", "천공의 무너진 성채", "심연의 수직 낙하", "차원의 균열 지대", 
-        "초월자의 시험장", "파멸의 잿더미", "영겁의 감시자 탑", "신의 영역: 입구", 
-        "황혼의 그림자 성소", "우주 너머의 공허", "혼돈의 끝자락", "카오스 울트라 최종장"
-    ],
-    
-    hellDungeons: [
-        "지옥: 피의 강물", "지옥: 절망의 절벽", "지옥: 악몽의 요람", "지옥: 뼈의 산", 
-        "지옥: 영혼 파쇄기", "지옥: 타락한 여명", "지옥: 심연의 심장", "지옥: 멸망의 전조", 
-        "지옥: 신살자의 투기장", "지옥: 절대 카오스"
-    ],
+"use strict";
 
-    artifacts: [
-        { name: "이끼 낀 톱니", icon: "⚙️" }, { name: "부서진 해골바가지", icon: "💀" },
-        { name: "하수구 쥐의 꼬리", icon: "🐁" }, { name: "녹슨 곡괭이 날", icon: "🪓" },
-        { name: "얼어붙은 눈물", icon: "💧" }, { name: "식지 않는 용암석", icon: "🌋" },
-        { name: "맹독 버섯 포자", icon: "🍄" }, { name: "거인의 부러진 뼈", icon: "🦴" },
-        { name: "안개꽃 잎사귀", icon: "🌿" }, { name: "부유석 조각", icon: "☁️" },
-        { name: "심연의 비늘", icon: "🐟" }, { name: "차원의 파편", icon: "🌌" },
-        { name: "초월자의 징표", icon: "🏅" }, { name: "꺼지지 않는 불씨", icon: "🔥" },
-        { name: "감시자의 눈알", icon: "👁️" }, { name: "신성한 깃털", icon: "🪽" },
-        { name: "그림자 단검", icon: "🗡️" }, { name: "공허의 결정", icon: "🔮" },
-        { name: "혼돈의 주사위", icon: "🎲" }, { name: "카오스의 왕관", icon: "👑" },
-        { name: "피로 물든 성배", icon: "🍷" }, { name: "절망의 밧줄", icon: "🪢" },
-        { name: "악몽의 드림캐처", icon: "🕸️" }, { name: "마수석 뼈대", icon: "☠️" },
-        { name: "영혼을 담은 호리병", icon: "🏺" }, { name: "타락한 천사의 고리", icon: "🪹" },
-        { name: "마왕의 심장", icon: "🫀" }, { name: "멸망의 나침반", icon: "🧭" },
-        { name: "신살자의 투구", icon: "🪖" }, { name: "절대자의 증명", icon: "📜" }
-    ],
-    
-    dungeonMobs: [
-        { theme: 'bg-grass', mobs: ['🍄','🐌','🐛'], boss: '🥦' }, 
-        { theme: 'bg-stone', mobs: ['💀','🦴','🦇'], boss: '☠️' }, 
-        { theme: 'bg-water', mobs: ['🐀','💧','🐊'], boss: '🐙' }, 
-        { theme: 'bg-brick', mobs: ['🐜','🕷️','⛏️'], boss: '🗿' }, 
-        { theme: 'bg-ice', mobs: ['🐧','❄️','☃️'], boss: '🐻‍❄️' }, 
-        { theme: 'bg-lava', mobs: ['🔥','🦎','💣'], boss: '👹' }, 
-        { theme: 'bg-poison', mobs: ['🐸','🐍','🦠'], boss: '🐉' }, 
-        { theme: 'bg-dark', mobs: ['👻','🧟','🕯️'], boss: '🧛' }, 
-        { theme: 'bg-fog', mobs: ['🐺','🦉','🌫️'], boss: '🦌' }, 
-        { theme: 'bg-brick', mobs: ['🛡️','⚔️','🦅'], boss: '🤴' }, 
-        { theme: 'bg-water', mobs: ['🐡','🌪️','👁️'], boss: '🐋' }, 
-        { theme: 'bg-space', mobs: ['👽','🛸','👾'], boss: '🪐' }, 
-        { theme: 'bg-sky', mobs: ['👼','🕊️','☀️'], boss: '🗽' }, 
-        { theme: 'bg-stone', mobs: ['🦂','🐪','🌵'], boss: '🦁' }, 
-        { theme: 'bg-brick', mobs: ['🤖','🦾','📡'], boss: '🏗️' }, 
-        { theme: 'bg-sky', mobs: ['🌩️','🦅','🧚'], boss: '⚡' }, 
-        { theme: 'bg-dark', mobs: ['🥷','👺','🗡️'], boss: '👹' }, 
-        { theme: 'bg-space', mobs: ['🌟','☄️','🚀'], boss: '☀️' }, 
-        { theme: 'bg-chaos', mobs: ['🤡','🃏','🎭'], boss: '😈' }, 
-        { theme: 'bg-tooth', mobs: ['🍬','🍫','🦠'], boss: '👑' }  
-    ],
-    
-    hellMobs: [
-        { theme: 'bg-hell', mobs: ['🩸','🔪','🩸'], boss: '🧛‍♂️' },
-        { theme: 'bg-hell', mobs: ['👁️','🧠','🫀'], boss: '🕷️' },
-        { theme: 'bg-hell', mobs: ['🦇','🦂','🐍'], boss: '🧟‍♂️' },
-        { theme: 'bg-hell', mobs: ['💀','☠️','👻'], boss: '🧌' },
-        { theme: 'bg-hell', mobs: ['🔥','🌋','☄️'], boss: '🐉' },
-        { theme: 'bg-hell', mobs: ['🌑','🌒','🌓'], boss: '🌚' },
-        { theme: 'bg-hell', mobs: ['⚡','🌩️','🌪️'], boss: '🧞‍♂️' },
-        { theme: 'bg-hell', mobs: ['⚔️','🗡️','🛡️'], boss: '🥷' },
-        { theme: 'bg-hell', mobs: ['👹','👺','👿'], boss: '😈' },
-        { theme: 'bg-hell', mobs: ['👑','🔱','⚜️'], boss: '👁️‍🗨️' }
-    ],
-    
-    invExpansion: [2000, 20000, 200000, 2000000],
+window.GAME_VERSION = "8.2.0";
 
-    AWAKEN_REQ: {
-        gold: 1000000000000000, 
-        dia: 100000,            
-        bossMarks: 50           
-    },
-
-    REAL_NICKNAMES: [
-        "빛나는금니", "DarkKnight", "임플란트마스터", "치아파괴자", "스케일링장인", 
-        "치석브레이커", "충치사냥꾼", "ProGamer", "양치질만렙", "건치미남", 
-        "사랑니발치러", "지옥의치과의사", "황금임플란트", "무과금전사", "서버1위"
-    ]
+window.BALANCE = {
+  MINING_MAX_LEVEL: 12,
+  MERGE_MAX_LEVEL: 24,
+  TRANSCEND_LEVEL: 25,
+  PICKAXE_MAX_LEVEL: 8,
+  TOP_SLOT_COUNT: 8,
+  BASE_INVENTORY_SIZE: 56,
+  MAX_INVENTORY_SIZE: 96
 };
 
-const TOOTH_DATA = window.TOOTH_DATA;
+window.TRANSCEND_COST = {
+  gold: 1_000_000_000_000_000,
+  diamond: 5000,
+  bossToken: 5
+};
 
-// --- 사운드 시스템 ---
-window.audioCtx = null;
+/* =========================
+   치아 레벨 체계
+========================= */
 
-function getAudioCtx() {
-    if (!window.audioCtx) {
-        try {
-            window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        } catch(e) {
-            window.audioCtx = null;
-        }
-    }
-    return window.audioCtx;
+window.TOOTH_TIERS = [
+  {
+    from: 1,
+    to: 3,
+    icon: "🦷",
+    baseName: "일반 치아",
+    themeClass: "tooth-normal"
+  },
+  {
+    from: 4,
+    to: 6,
+    icon: "🦴",
+    baseName: "뿌리 치아",
+    themeClass: "tooth-root"
+  },
+  {
+    from: 7,
+    to: 9,
+    icon: "🛡️",
+    baseName: "수호 치아",
+    themeClass: "tooth-guard"
+  },
+  {
+    from: 10,
+    to: 12,
+    icon: "⚜️",
+    baseName: "성문장 치아",
+    themeClass: "tooth-emblem"
+  },
+  {
+    from: 13,
+    to: 15,
+    icon: "💎",
+    baseName: "다이아 치아",
+    themeClass: "tooth-diamond"
+  },
+  {
+    from: 16,
+    to: 18,
+    icon: "🌋",
+    baseName: "용암 치아",
+    themeClass: "tooth-lava"
+  },
+  {
+    from: 19,
+    to: 21,
+    icon: "🌌",
+    baseName: "오로라 치아",
+    themeClass: "tooth-aurora"
+  },
+  {
+    from: 22,
+    to: 24,
+    icon: "👑",
+    baseName: "왕관 치아",
+    themeClass: "tooth-crown"
+  },
+  {
+    from: 25,
+    to: 25,
+    icon: "✨👑✨",
+    baseName: "초월 왕관 치아",
+    themeClass: "tooth-transcend"
+  }
+];
+
+function clampToothLevel(level) {
+  const lv = Number(level) || 1;
+  return Math.max(1, Math.min(window.BALANCE.TRANSCEND_LEVEL, lv));
 }
-window.getAudioCtx = getAudioCtx;
 
-function playTone(freq, type, duration, vol = 0.1) {
-    if (window.isMuted) return;
-
-    const ctx = getAudioCtx();
-    if (!ctx) return;
-
-    try {
-        if (ctx.state === 'suspended') ctx.resume();
-
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.type = (type === 'noise') ? 'square' : type;
-        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-
-        const finalVol = vol * (window.masterVolume || 2) * 0.5;
-        gain.gain.setValueAtTime(finalVol, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start();
-        osc.stop(ctx.currentTime + duration);
-    } catch(e) {}
+function getToothTier(level) {
+  const lv = clampToothLevel(level);
+  return window.TOOTH_TIERS.find((tier) => lv >= tier.from && lv <= tier.to) || window.TOOTH_TIERS[0];
 }
-window.playTone = playTone;
 
-function playSfx(name) {
-    if (window.isMuted) return;
-    if (document.hidden) return;
+function getToothStep(level) {
+  const lv = clampToothLevel(level);
 
-    const ctx = getAudioCtx();
-    if (!ctx) return;
+  if (lv >= window.BALANCE.TRANSCEND_LEVEL) return "max";
 
-    try {
-        if (ctx.state === 'suspended') ctx.resume();
+  const step = ((lv - 1) % 3) + 1;
 
-        switch (name) {
-            case 'mine':
-                playTone(150, 'square', 0.1, 0.1);
-                break;
-            case 'merge':
-                playTone(400, 'sine', 0.1, 0.1);
-                setTimeout(() => playTone(600, 'sine', 0.1, 0.1), 100);
-                break;
-            case 'great':
-                playTone(500, 'triangle', 0.1, 0.1);
-                setTimeout(() => playTone(1000, 'triangle', 0.3, 0.1), 150);
-                break;
-            case 'attack':
-                playTone(800, 'sawtooth', 0.05, 0.05);
-                break;
-            case 'hit':
-                playTone(100, 'noise', 0.05, 0.1);
-                break;
-            case 'upgrade':
-                playTone(600, 'square', 0.1, 0.1);
-                setTimeout(() => playTone(900, 'square', 0.1, 0.1), 100);
-                break;
-            case 'damage':
-                playTone(80, 'sawtooth', 0.2, 0.2);
-                break;
-            case 'unlock':
-                playTone(440, 'sine', 0.2, 0.2);
-                setTimeout(() => playTone(554, 'sine', 0.2, 0.2), 200);
-                setTimeout(() => playTone(659, 'sine', 0.4, 0.2), 400);
-                break;
-            case 'awaken':
-                playTone(300, 'sine', 0.5, 0.2);
-                setTimeout(() => playTone(600, 'sine', 1.0, 0.3), 500);
-                break;
-        }
-    } catch(e) {}
+  if (step === 1) return "small";
+  if (step === 2) return "middle";
+  return "large";
 }
-window.playSfx = playSfx;
 
-// --- 유틸리티 및 데이터 계산 ---
-function fNum(num) {
-    if (num === undefined || num === null || isNaN(num)) return 0;
-    if (num < 1000) return Math.floor(num);
+function getToothSizeClass(level) {
+  const step = getToothStep(level);
 
-    const units = ["", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"];
-    const unitIdx = Math.floor(Math.log10(num) / 3);
-    const safeIdx = Math.min(unitIdx, units.length - 1);
-    const shortNum = num / Math.pow(10, safeIdx * 3);
-
-    return shortNum.toFixed(2).replace(/\.00$/, "") + units[safeIdx];
+  if (step === "small") return "tooth-size-small";
+  if (step === "middle") return "tooth-size-middle";
+  if (step === "large") return "tooth-size-large";
+  return "tooth-size-max";
 }
-window.fNum = fNum;
 
-function getAtk(lv) { 
-    if(lv === 0) return 0;
-    
-    if(lv === 24 && !window.isToothAwakened) {
-        return Math.floor(20 * Math.pow(1.8, 22) * 1.2); 
-    }
-    
-    if(lv === 24 && window.isToothAwakened) {
-        let base23 = Math.floor(20 * Math.pow(1.8, 22));
-        return base23 * 1000;
-    }
-
-    let atk = Math.floor(20 * Math.pow(1.8, lv - 1));
-    
-    if(window.highestToothLevel >= 19) {
-        atk *= 10; 
-    }
-
-    return atk;
+function getToothEmoji(level) {
+  const lv = clampToothLevel(level);
+  return getToothTier(lv).icon;
 }
-window.getAtk = getAtk;
 
-function getToothName(lv) {
-    if (lv === 0) return "";
-
-    let safeLv = Math.min(24, lv); 
-    
-    if (safeLv === 24) {
-        return window.isToothAwakened ? "진(眞) 절대자의 치아" : "봉인된 고대 치아";
-    }
-
-    let tier = Math.floor((safeLv - 1) / 3);
-    let step = (safeLv - 1) % 3;
-
-    return TOOTH_DATA.prefix[step] + " " + TOOTH_DATA.baseNames[tier];
+function getSimpleToothEmoji(level) {
+  return getToothEmoji(level);
 }
+
+function getToothName(level) {
+  const lv = clampToothLevel(level);
+  const tier = getToothTier(lv);
+
+  if (lv >= window.BALANCE.TRANSCEND_LEVEL) {
+    return "초월 왕관 치아";
+  }
+
+  const step = getToothStep(lv);
+
+  if (step === "small") return `작은 ${tier.baseName}`;
+  if (step === "middle") return tier.baseName;
+  if (step === "large") return `거대한 ${tier.baseName}`;
+
+  return tier.baseName;
+}
+
+function getToothDisplayLevel(level) {
+  const lv = clampToothLevel(level);
+  if (lv >= window.BALANCE.TRANSCEND_LEVEL) return "Lv.MAX";
+  return `Lv.${lv}`;
+}
+
+function getToothThemeClass(level) {
+  return getToothTier(level).themeClass;
+}
+
+function isMaxTooth(level) {
+  return clampToothLevel(level) >= window.BALANCE.TRANSCEND_LEVEL;
+}
+
+function isSealedCrownTooth(level) {
+  return clampToothLevel(level) === window.BALANCE.MERGE_MAX_LEVEL;
+}
+
+function canMergeLevel(level) {
+  const lv = clampToothLevel(level);
+  return lv < window.BALANCE.MERGE_MAX_LEVEL;
+}
+
+function canTranscendLevel(level) {
+  return clampToothLevel(level) === window.BALANCE.MERGE_MAX_LEVEL;
+}
+
+/* 기본 공격력
+   도감에는 이 값만 표시.
+   슬롯 제련, 훈련, 용병, 유물 효과는 실제 전투 계산에서 추가.
+*/
+function getBaseAttackByLevel(level) {
+  const lv = clampToothLevel(level);
+
+  const table = {
+    1: 10,
+    2: 18,
+    3: 32,
+    4: 58,
+    5: 105,
+    6: 190,
+    7: 340,
+    8: 610,
+    9: 1100,
+    10: 1980,
+    11: 3560,
+    12: 6400,
+    13: 11500,
+    14: 20700,
+    15: 37300,
+    16: 67100,
+    17: 120800,
+    18: 217400,
+    19: 391300,
+    20: 704300,
+    21: 1268000,
+    22: 2282000,
+    23: 4108000,
+    24: 7394000,
+    25: 15000000
+  };
+
+  return table[lv] || Math.floor(10 * Math.pow(1.8, lv - 1));
+}
+
+/* 기존 코드 호환용 별칭 */
+window.getAtk = window.getAtk || getBaseAttackByLevel;
+window.getBaseAtk = getBaseAttackByLevel;
+window.getBaseAttackByLevel = getBaseAttackByLevel;
+window.getToothEmoji = getToothEmoji;
+window.getSimpleToothEmoji = getSimpleToothEmoji;
 window.getToothName = getToothName;
+window.getToothDisplayLevel = getToothDisplayLevel;
+window.getToothSizeClass = getToothSizeClass;
+window.getToothThemeClass = getToothThemeClass;
+window.clampToothLevel = clampToothLevel;
+window.isMaxTooth = isMaxTooth;
+window.isSealedCrownTooth = isSealedCrownTooth;
+window.canMergeLevel = canMergeLevel;
+window.canTranscendLevel = canTranscendLevel;
 
-function getToothIcon(lv) {
-    if (lv === 0) return "";
+/* 1-based 배열 호환용 */
+window.toothIcons = Array.from({ length: 26 }, (_, index) => {
+  if (index === 0) return "";
+  return getToothEmoji(index);
+});
 
-    let safeLv = Math.min(24, lv); 
-    
-    if (safeLv === 24) {
-        if (!window.isToothAwakened) {
-            return `<div style="position:relative; display:inline-block;"><div class="tooth-icon effect-tier-7 effect-size-2" style="filter:grayscale(1);">👑</div><span style="position:absolute; font-size:15px; top:50%; left:50%; transform:translate(-50%, -50%); text-shadow:1px 1px 0 #000;">🔒</span></div>`;
-        } else {
-            return `<div class="tooth-icon effect-tier-7 effect-size-2" style="animation: pulse 0.5s infinite alternate, shakeLava 0.1s infinite; filter: drop-shadow(0 0 20px #ff00ff) hue-rotate(90deg) brightness(2);">👑</div>`;
-        }
-    }
+window.toothNames = Array.from({ length: 26 }, (_, index) => {
+  if (index === 0) return "";
+  return getToothName(index);
+});
 
-    let tier = Math.floor((safeLv - 1) / 3);
-    let step = (safeLv - 1) % 3; 
-    
-    let icon = TOOTH_DATA.icons[tier] || "🦷";
+/* =========================
+   곡괭이 체계
+========================= */
 
-    return `<div class="tooth-icon effect-tier-${tier} effect-size-${step}">${icon}</div>`;
+window.PICKAXES = [
+  {
+    level: 1,
+    icon: "🪵⛏️",
+    name: "나무 곡괭이",
+    power: 1,
+    cost: 0,
+    desc: "기본 채굴 도구"
+  },
+  {
+    level: 2,
+    icon: "🪨⛏️",
+    name: "돌 곡괭이",
+    power: 2,
+    cost: 100,
+    desc: "조금 더 단단한 곡괭이"
+  },
+  {
+    level: 3,
+    icon: "⚙️⛏️",
+    name: "철 곡괭이",
+    power: 5,
+    cost: 1200,
+    desc: "안정적인 채굴 성능"
+  },
+  {
+    level: 4,
+    icon: "🪙⛏️",
+    name: "황금 곡괭이",
+    power: 12,
+    cost: 15000,
+    desc: "황금빛 채굴 도구"
+  },
+  {
+    level: 5,
+    icon: "💎⛏️",
+    name: "다이아 곡괭이",
+    power: 30,
+    cost: 240000,
+    desc: "고급 광맥을 뚫는 곡괭이"
+  },
+  {
+    level: 6,
+    icon: "🔥⛏️",
+    name: "용암 곡괭이",
+    power: 75,
+    cost: 4_500_000,
+    desc: "뜨거운 광맥을 녹여 채굴"
+  },
+  {
+    level: 7,
+    icon: "⚡⛏️",
+    name: "번개 곡괭이",
+    power: 180,
+    cost: 100_000_000,
+    desc: "순간적으로 광석을 쪼개는 곡괭이"
+  },
+  {
+    level: 8,
+    icon: "🔱⛏️",
+    name: "신화의 곡괭이",
+    power: 420,
+    cost: 3_000_000_000,
+    desc: "최고 등급 채굴 도구"
+  }
+];
+
+function getPickaxeInfo(level) {
+  const lv = Math.max(1, Math.min(window.BALANCE.PICKAXE_MAX_LEVEL, Number(level) || 1));
+  return window.PICKAXES[lv - 1] || window.PICKAXES[0];
 }
-window.getToothIcon = getToothIcon;
+
+function getPickaxeDisplay(level) {
+  const pickaxe = getPickaxeInfo(level);
+  return `${pickaxe.icon} ${pickaxe.name} Lv.${pickaxe.level} / ${window.BALANCE.PICKAXE_MAX_LEVEL}`;
+}
+
+window.getPickaxeInfo = getPickaxeInfo;
+window.getPickaxeDisplay = getPickaxeDisplay;
+
+window.pickaxeIcons = window.PICKAXES.map((p) => p.icon);
+window.pickaxeNames = window.PICKAXES.map((p) => p.name);
+window.pickaxePowers = window.PICKAXES.map((p) => p.power);
+window.pickaxeCosts = window.PICKAXES.map((p) => p.cost);
+
+/* =========================
+   던전 테마
+========================= */
+
+window.DUNGEON_THEMES = {
+  forest: {
+    name: "숲의 충치굴",
+    className: "dungeon-theme-forest"
+  },
+  cave: {
+    name: "회색 석회동굴",
+    className: "dungeon-theme-cave"
+  },
+  ice: {
+    name: "푸른 결정 폐허",
+    className: "dungeon-theme-ice"
+  },
+  lava: {
+    name: "용암 치근 지대",
+    className: "dungeon-theme-lava"
+  },
+  royal: {
+    name: "왕관의 성역",
+    className: "dungeon-theme-royal"
+  },
+  boss: {
+    name: "보스의 방",
+    className: "dungeon-theme-boss"
+  },
+  hell: {
+    name: "HELL 심연",
+    className: "dungeon-theme-hell"
+  },
+  hellboss: {
+    name: "HELL 보스 심장부",
+    className: "dungeon-theme-hellboss"
+  }
+};
+
+function getDungeonThemeKey(stage, mode) {
+  const type = String(mode || "").toLowerCase();
+
+  if (type === "hellboss") return "hellboss";
+  if (type === "hell") return "hell";
+  if (type === "boss") return "boss";
+
+  const s = Number(stage) || 1;
+
+  if (s <= 5) return "forest";
+  if (s <= 10) return "cave";
+  if (s <= 15) return "ice";
+  if (s <= 20) return "lava";
+  return "royal";
+}
+
+function getDungeonThemeClass(stage, mode) {
+  const key = getDungeonThemeKey(stage, mode);
+  return window.DUNGEON_THEMES[key]?.className || window.DUNGEON_THEMES.forest.className;
+}
+
+window.getDungeonThemeKey = getDungeonThemeKey;
+window.getDungeonThemeClass = getDungeonThemeClass;
+
+/* =========================
+   던전 / 몬스터 / 유물
+========================= */
+
+window.TOOTH_DATA = {
+  maxLevel: window.BALANCE.TRANSCEND_LEVEL,
+  mergeMaxLevel: window.BALANCE.MERGE_MAX_LEVEL,
+  miningMaxLevel: window.BALANCE.MINING_MAX_LEVEL,
+  transcendLevel: window.BALANCE.TRANSCEND_LEVEL,
+
+  icons: window.toothIcons,
+  baseNames: window.toothNames,
+
+  stageNames: [
+    "입문자의 충치굴",
+    "작은 법랑질 동굴",
+    "초록 플라그 숲",
+    "붉은 치석 협곡",
+    "보라 세균 늪",
+    "은빛 치근 광산",
+    "황금 교합 평원",
+    "다이아 법랑 성소",
+    "용암 치수 지대",
+    "오로라 치아 성역",
+    "왕관의 문",
+    "봉인된 왕관의 방"
+  ],
+
+  dungeonMobs: [
+    { name: "작은 충치균", icon: "🦠", hp: 40, atk: 5, speed: 0.55, reward: 8 },
+    { name: "플라그 덩어리", icon: "🟢", hp: 90, atk: 8, speed: 0.48, reward: 18 },
+    { name: "산성 세균", icon: "🧪", hp: 180, atk: 14, speed: 0.52, reward: 36 },
+    { name: "치석 골렘", icon: "🪨", hp: 360, atk: 24, speed: 0.42, reward: 75 },
+    { name: "검은 충치 기사", icon: "♟️", hp: 720, atk: 40, speed: 0.58, reward: 150 },
+    { name: "치근 흡수귀", icon: "🦴", hp: 1350, atk: 70, speed: 0.62, reward: 320 },
+    { name: "균열 수호자", icon: "🛡️", hp: 2600, atk: 115, speed: 0.50, reward: 700 },
+    { name: "용암 세균", icon: "🌋", hp: 5200, atk: 190, speed: 0.55, reward: 1600 },
+    { name: "오로라 포식자", icon: "🌌", hp: 9500, atk: 320, speed: 0.66, reward: 3800 },
+    { name: "왕관 파수꾼", icon: "👑", hp: 18000, atk: 520, speed: 0.58, reward: 9000 }
+  ],
+
+  hellMobs: [
+    { name: "HELL 충치균", icon: "😈", hp: 50000, atk: 900, speed: 0.72, reward: 25000 },
+    { name: "심연의 플라그", icon: "🕳️", hp: 85000, atk: 1400, speed: 0.64, reward: 45000 },
+    { name: "검붉은 치석마", icon: "🔥", hp: 140000, atk: 2300, speed: 0.70, reward: 80000 },
+    { name: "지옥 왕관 수호자", icon: "💀", hp: 240000, atk: 3800, speed: 0.62, reward: 150000 }
+  ],
+
+  bosses: [
+    { name: "거대 충치균", icon: "🦠", hp: 2500, atk: 60, reward: 2000, token: 1 },
+    { name: "치석 군주", icon: "🪨", hp: 18000, atk: 220, reward: 15000, token: 1 },
+    { name: "용암 치수룡", icon: "🐉", hp: 90000, atk: 850, reward: 80000, token: 2 },
+    { name: "오로라 균왕", icon: "🌌", hp: 260000, atk: 2200, reward: 260000, token: 3 },
+    { name: "봉인 왕관의 그림자", icon: "👑", hp: 800000, atk: 5200, reward: 900000, token: 5 }
+  ],
+
+  hellBosses: [
+    { name: "HELL 충치 대마왕", icon: "👿", hp: 1800000, atk: 9000, reward: 2500000, token: 8 },
+    { name: "심연의 왕관 파괴자", icon: "💀", hp: 5000000, atk: 18000, reward: 9000000, token: 12 }
+  ],
+
+  artifacts: [
+    {
+      id: "root_core",
+      name: "치근의 핵",
+      icon: "🦴",
+      desc: "기본 공격력 증가",
+      effectText: "전체 치아 공격력 증가"
+    },
+    {
+      id: "enamel_shield",
+      name: "법랑 방패",
+      icon: "🛡️",
+      desc: "용병 생존력 증가",
+      effectText: "용병 체력 증가"
+    },
+    {
+      id: "golden_cusp",
+      name: "황금 교두",
+      icon: "🪙",
+      desc: "골드 획득량 증가",
+      effectText: "골드 보상 증가"
+    },
+    {
+      id: "diamond_pulp",
+      name: "다이아 치수",
+      icon: "💎",
+      desc: "채굴 보상 강화",
+      effectText: "채굴 보상 증가"
+    },
+    {
+      id: "lava_root",
+      name: "용암 치근",
+      icon: "🌋",
+      desc: "스플래시 공격 강화",
+      effectText: "범위 피해 증가"
+    },
+    {
+      id: "aurora_nerve",
+      name: "오로라 신경",
+      icon: "🌌",
+      desc: "공격 속도 강화",
+      effectText: "공격 쿨타임 감소"
+    },
+    {
+      id: "crown_seal",
+      name: "왕관의 봉인",
+      icon: "👑",
+      desc: "초월의 단서",
+      effectText: "최종 각성의 흔적"
+    },
+    {
+      id: "transcend_spark",
+      name: "초월의 불꽃",
+      icon: "✨",
+      desc: "초월 왕관 치아의 흔적",
+      effectText: "Lv.MAX의 증표"
+    }
+  ]
+};
+
+window.DATA = window.TOOTH_DATA;
+
+/* =========================
+   용병 / 훈련 데이터
+========================= */
+
+window.MERCENARIES = [
+  {
+    id: 0,
+    name: "견습 치아병",
+    icon: "🧑‍🚀",
+    cost: 0,
+    hp: 800,
+    atkRate: 1,
+    speed: 1,
+    desc: "기본 용병"
+  },
+  {
+    id: 1,
+    name: "방패 치아병",
+    icon: "🛡️",
+    cost: 5000,
+    hp: 1800,
+    atkRate: 1.05,
+    speed: 0.95,
+    desc: "높은 체력"
+  },
+  {
+    id: 2,
+    name: "번개 궁수",
+    icon: "⚡",
+    cost: 80000,
+    hp: 2400,
+    atkRate: 1.2,
+    speed: 1.15,
+    desc: "빠른 공격"
+  },
+  {
+    id: 3,
+    name: "용암 기사",
+    icon: "🌋",
+    cost: 900000,
+    hp: 5200,
+    atkRate: 1.45,
+    speed: 1,
+    desc: "강한 공격력"
+  },
+  {
+    id: 4,
+    name: "오로라 사수",
+    icon: "🌌",
+    cost: 12000000,
+    hp: 8500,
+    atkRate: 1.8,
+    speed: 1.25,
+    desc: "상위 공격 용병"
+  },
+  {
+    id: 5,
+    name: "왕관 수호자",
+    icon: "👑",
+    cost: 250000000,
+    hp: 18000,
+    atkRate: 2.4,
+    speed: 1.15,
+    desc: "왕관급 최종 용병"
+  }
+];
+
+window.TRAINING_TYPES = [
+  {
+    key: "hp",
+    name: "체력 훈련",
+    icon: "❤️",
+    desc: "용병 최대 체력 증가",
+    max: 50
+  },
+  {
+    key: "atk",
+    name: "공격 훈련",
+    icon: "⚔️",
+    desc: "용병 공격력 증가",
+    max: 50
+  },
+  {
+    key: "spd",
+    name: "속도 훈련",
+    icon: "🏃",
+    desc: "이동 속도 증가",
+    max: 30
+  },
+  {
+    key: "crit",
+    name: "치명 훈련",
+    icon: "💥",
+    desc: "치명타 확률 증가",
+    max: 30
+  },
+  {
+    key: "splashDmg",
+    name: "범위 피해 훈련",
+    icon: "🌊",
+    desc: "스플래시 피해 증가",
+    max: 30
+  },
+  {
+    key: "splashRange",
+    name: "범위 확장 훈련",
+    icon: "📡",
+    desc: "스플래시 범위 증가",
+    max: 30
+  }
+];
+
+/* =========================
+   영상 다시보기 데이터
+========================= */
+
+window.REPLAY_VIDEOS = [
+  {
+    key: "intro",
+    title: "인트로 영상",
+    icon: "🎬",
+    unlockType: "always",
+    playFunction: "playIntroVideo"
+  },
+  {
+    key: "hell",
+    title: "지옥문 개방 영상",
+    icon: "🔥",
+    unlockType: "hell",
+    playFunction: "playHellVideo"
+  },
+  {
+    key: "awaken",
+    title: "초월 왕관 치아 각성 영상",
+    icon: "👑",
+    unlockType: "awaken",
+    playFunction: "playAwakenVideo"
+  }
+];
+
+function isReplayVideoUnlocked(key) {
+  if (key === "intro") return true;
+  if (key === "hell") return !!window.hasSeenHellIntro || !!window.hellUnlocked;
+  if (key === "awaken") return !!window.hasPlayedAwakenVideo;
+  return false;
+}
+
+window.isReplayVideoUnlocked = isReplayVideoUnlocked;
+
+/* =========================
+   안전 초기값
+   실제 저장 데이터 로드는 engine.js에서 덮어씀
+========================= */
+
+if (typeof window.hasSeenTranscendGuide === "undefined") {
+  window.hasSeenTranscendGuide = false;
+}
+
+if (typeof window.hasPlayedAwakenVideo === "undefined") {
+  window.hasPlayedAwakenVideo = false;
+}
+
+if (typeof window.hasSeenHellIntro === "undefined") {
+  window.hasSeenHellIntro = false;
+}
+
+if (typeof window.hellUnlocked === "undefined") {
+  window.hellUnlocked = false;
+}
+
+/* =========================
+   디버그 확인용
+========================= */
+
+console.log(`치아 연대기 data.js loaded v${window.GAME_VERSION}`);
+console.log(
+  `채굴 최대 Lv.${window.BALANCE.MINING_MAX_LEVEL}, 합성 최대 Lv.${window.BALANCE.MERGE_MAX_LEVEL}, 초월 Lv.${window.BALANCE.TRANSCEND_LEVEL}`
+);
