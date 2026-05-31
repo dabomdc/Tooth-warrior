@@ -1,7 +1,6 @@
-// Version: 7.5.1 - Master Data (Bug Fixes: Emoji Mapping, Infinite Number Format, Audio Clipping)
+// Version: 7.5.2 - Master Data (Syntax Error Fixed)
 
 window.TOOTH_DATA = {
-    // 🌟 수정완료: 황금 치아(👑)와 용암 치아(🌋)의 이모지 순서 교정
     icons: ["🦷", "🦴", "🛡️", "⚜️", "💎", "👑", "🌌", "🌋"],
     baseNames: ["유치", "푸른 치아", "초록 치아", "붉은 치아", "보라 치아", "황금 치아", "다이아 치아", "용암 치아"],
     prefix: ["일반", "단단한", "거대한"],
@@ -66,7 +65,6 @@ window.TOOTH_DATA = {
         { name: "감시자의 눈알", icon: "👁️" }, { name: "신성한 깃털", icon: "🪽" },
         { name: "그림자 단검", icon: "🗡️" }, { name: "공허의 결정", icon: "🔮" },
         { name: "혼돈의 주사위", icon: "🎲" }, { name: "카오스의 왕관", icon: "👑" },
-        // --- HELL 유물 ---
         { name: "피로 물든 성배", icon: "🍷" }, { name: "절망의 밧줄", icon: "🪢" },
         { name: "악몽의 드림캐처", icon: "🕸️" }, { name: "마수석 뼈대", icon: "☠️" },
         { name: "영혼을 담은 호리병", icon: "🏺" }, { name: "타락한 천사의 고리", icon: "🪹" },
@@ -121,7 +119,6 @@ window.TOOTH_DATA = {
     REAL_NICKNAMES:
 };
 
-// --- 사운드 시스템 ---
 window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 window.playTone = function(freq, type, duration, vol = 0.1) {
@@ -135,7 +132,6 @@ window.playTone = function(freq, type, duration, vol = 0.1) {
         
         const finalVol = vol * (window.masterVolume || 2) * 0.5;
         
-        // 🌟 최적화완료: 팝 노이즈(오디오 찢어짐) 방지를 위한 볼륨 엔벨로프(Envelope) 적용
         gain.gain.setValueAtTime(0, window.audioCtx.currentTime); 
         gain.gain.linearRampToValueAtTime(finalVol, window.audioCtx.currentTime + 0.01);
         gain.gain.exponentialRampToValueAtTime(0.001, window.audioCtx.currentTime + duration); 
@@ -165,9 +161,6 @@ window.playSfx = function(name) {
     }
 };
 
-// --- 유틸리티 및 데이터 계산 ---
-
-// 🌟 수정완료: z단위를 넘어갔을 때 에러(undefined)가 나지 않도록 aa, ab 등 무한대 단위 확장
 window.fNum = function(num) {
     if (num < 1000) return Math.floor(num);
     const units = ["", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"];
@@ -218,8 +211,8 @@ window.getToothName = function(lv) {
     let tier = Math.floor((safeLv - 1) / 3);
     let step = (safeLv - 1) % 3;
     
-    let pName = window.TOOTH_DATA.prefix;
-    let bName = window.TOOTH_DATA.baseNames || "미지의 치아";
+    let pName = window.TOOTH_DATA.prefix[step];
+    let bName = window.TOOTH_DATA.baseNames[tier] || "미지의 치아";
     
     return pName + " " + bName;
 };
@@ -239,6 +232,6 @@ window.getToothIcon = function(lv) {
     let tier = Math.floor((safeLv - 1) / 3);
     let step = (safeLv - 1) % 3; 
     
-    let icon = window.TOOTH_DATA.icons || "❓";
+    let icon = window.TOOTH_DATA.icons[tier] || "❓";
     return `<div class="tooth-icon effect-tier-${Math.min(tier, 7)} effect-size-${Math.min(step, 2)}">${icon}</div>`;
 };
