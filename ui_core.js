@@ -1,4 +1,4 @@
-// Version: 8.0.0 - Core UI, View Switch, Dungeon List, Result, Mercenary Camp
+// Version: 8.1.0 - Core UI, View Switch, Dungeon List, Result, Mercenary Camp
 
 // --- [ 1. 메인 뷰 전환 ] ---
 window.switchView = function(viewName) {
@@ -93,30 +93,24 @@ window.switchDungeonTab = function(tabName) {
 };
 
 
-// --- [ 3. 용병 캠프 ] ---
+// --- [ 3. 현재 용병 상태 표시 ] ---
 window.renderMercenaryCamp = function() { 
     const display = document.getElementById('current-mercenary-display');
 
     if (!display || typeof window.TOOTH_DATA === 'undefined') return;
 
-    const curId = window.mercenaryIdx;
+    if (!Array.isArray(window.ownedMercenaries)) {
+        window.ownedMercenaries = [0];
+    }
+
+    const curId = window.mercenaryIdx || 0;
     const merc = window.TOOTH_DATA.mercenaries[curId];
 
     if (!merc) return;
 
-    let bonusText = "";
-
-    if (window.highestToothLevel >= 16) {
-        bonusText = `<div style="color:#2ecc71; font-size:10px; font-weight:bold; margin-top:3px;">✨ 16치아 보너스: 공격력 x2 적용 중!</div>`;
-    }
-
     let trainAtk = (window.trainingLevels && window.trainingLevels.atk) ? window.trainingLevels.atk * 10 : 0;
     let trainHp = (window.trainingLevels && window.trainingLevels.hp) ? window.trainingLevels.hp * 5 : 0;
     let trainSpd = (window.trainingLevels && window.trainingLevels.spd) ? window.trainingLevels.spd * 10 : 0;
-
-    let atkStr = trainAtk > 0 ? `<span style="color:#2ecc71; font-weight:bold;">(+${trainAtk}%)</span>` : '';
-    let hpStr = trainHp > 0 ? `<span style="color:#2ecc71; font-weight:bold;">(+${trainHp}%)</span>` : '';
-    let spdStr = trainSpd > 0 ? `<span style="color:#2ecc71; font-weight:bold;">(+${trainSpd}%)</span>` : '';
 
     let critLv = (window.trainingLevels && window.trainingLevels.crit) ? window.trainingLevels.crit : 0;
     let splashDmgLv = (window.trainingLevels && window.trainingLevels.splashDmg) ? window.trainingLevels.splashDmg : 0;
@@ -127,31 +121,44 @@ window.renderMercenaryCamp = function() {
     let splashRatio = 20 + (splashDmgLv * 5); 
     let splashRange = 50 + (splashRangeLv * 10); 
 
-    let advStatsHtml = "";
+    let mercAtkMul = merc.atkMul;
 
-    if (window.highestToothLevel >= 7 || critLv > 0 || splashDmgLv > 0) {
-        advStatsHtml = `<div style="font-size:10px; color:#f1c40f; margin-top:3px; font-weight:bold;">
-            ⚡치명타: ${critChance}% (x${critMul.toFixed(1)}) | 💥광역: ${splashRatio}% (${splashRange}px)
-        </div>`;
+    if (window.highestToothLevel >= 16) {
+        mercAtkMul *= 2;
     }
 
+    const bonusText = window.highestToothLevel >= 16
+        ? `<div class="merc-bonus-text">✨ 16치아 보너스: 용병 공격력 x2 적용 중</div>`
+        : "";
+
     display.innerHTML = `
-        <div style="font-size:40px; background:#1a1a2e; width:60px; height:60px; display:flex; align-items:center; justify-content:center; border:2px solid #555; box-shadow: 2px 2px 0 #000;">${merc.icon}</div>
-        <div style="flex:1;">
-            <div style="font-size:16px; font-weight:bold; color:white;">${merc.name} <span style="font-size:12px; color:#aaa; font-weight:normal;">(Lv.${curId})</span></div>
-            <div style="font-size:11px; color:#ccc; margin-top:2px;">
-                공격 x<span style="color:var(--gold);">${merc.atkMul}</span> ${atkStr} | 
-                체력 <span style="color:#ff4757;">${window.safeFNum ? window.safeFNum(merc.baseHp) : merc.baseHp}</span> ${hpStr} | 
-                이동속도 <span style="color:#3498db;">${merc.spd.toFixed(1)}</span> ${spdStr}
+        <div class="war-merc-card">
+            <div class="war-merc-icon">${merc.icon}</div>
+            <div class="war-merc-info">
+                <div class="war-merc-name">
+                    ${merc.name} <span>(Lv.${curId})</span>
+                </div>
+                <div class="war-merc-basic">
+                    공격 x<span class="stat-gold">${mercAtkMul}</span> 
+                    <span class="stat-green">(+${trainAtk}%)</span> |
+                    체력 <span class="stat-red">${window.safeFNum ? window.safeFNum(merc.baseHp) : merc.baseHp}</span>
+                    <span class="stat-green">(+${trainHp}%)</span> |
+                    이동속도 <span class="stat-blue">${merc.spd.toFixed(1)}</span>
+                    <span class="stat-green">(+${trainSpd}%)</span>
+                </div>
+                <div class="war-merc-advanced">
+                    ⚡ 치명타 ${critChance}% x${critMul.toFixed(1)}
+                    &nbsp;|&nbsp;
+                    💥 광역 ${splashRatio}% / ${splashRange}px
+                </div>
+                ${bonusText}
             </div>
-            ${advStatsHtml}
-            ${bonusText}
         </div>
     `;
 };
 
 
-// --- [ 4. 용병 모달 ] ---
+// --- [ 4. 용병 모집/교체 모달 ] ---
 window.openMercenaryModal = function() {
     const m = document.getElementById('mercenary-modal');
 
@@ -167,12 +174,20 @@ window.openMercenaryModal = function() {
 window.closeMercenaryModal = function() {
     const m = document.getElementById('mercenary-modal');
     if (m) m.style.display = 'none';
+
+    if (typeof window.renderRefineView === 'function' && window.currentView === 'refine') {
+        window.renderRefineView();
+    }
 };
 
 window.renderMercenaryModalList = function() {
     const list = document.getElementById('mercenary-list-modal');
 
     if (!list || typeof window.TOOTH_DATA === 'undefined') return;
+
+    if (!Array.isArray(window.ownedMercenaries)) {
+        window.ownedMercenaries = [0];
+    }
 
     list.innerHTML = '';
 
@@ -222,7 +237,15 @@ window.buyMerc = function(id, cost) {
             if (typeof window.playSfx === 'function') window.playSfx('upgrade'); 
         } catch(e) {} 
 
-        window.ownedMercenaries.push(id); 
+        if (!Array.isArray(window.ownedMercenaries)) {
+            window.ownedMercenaries = [0];
+        }
+
+        if (!window.ownedMercenaries.includes(id)) {
+            window.ownedMercenaries.push(id);
+        }
+
+        window.mercenaryIdx = id;
 
         if (typeof window.renderMercenaryModalList === 'function') {
             window.renderMercenaryModalList(); 
@@ -230,6 +253,10 @@ window.buyMerc = function(id, cost) {
 
         if (typeof window.renderMercenaryCamp === 'function') {
             window.renderMercenaryCamp();
+        }
+
+        if (typeof window.renderRefineView === 'function' && window.currentView === 'refine') {
+            window.renderRefineView();
         }
 
         if (typeof window.updateUI === 'function') {
@@ -253,6 +280,10 @@ window.equipMerc = function(id) {
 
     if (typeof window.renderMercenaryCamp === 'function') {
         window.renderMercenaryCamp();
+    }
+
+    if (typeof window.renderRefineView === 'function' && window.currentView === 'refine') {
+        window.renderRefineView();
     }
 
     if (typeof window.saveGame === 'function') {
@@ -298,7 +329,7 @@ window.renderDungeonList = function() {
                 div.innerHTML = `
                     <h4 style="margin:0;">🔥 ${name} 보스 토벌전</h4>
                     <p style="margin:5px 0 0 0; font-size:12px; color:#ff8888;">입장료: <span style="color:var(--gold);">${window.safeFNum ? window.safeFNum(goldFee) : goldFee}G</span>, ♦️${diaFee}</p>
-                    <p style="color:#f1c40f; font-size:11px; margin:5px 0 0 0;">보스 5연속 처치 시 엄청난 보상 & 보스 징표 획득!</p>
+                    <p style="color:#f1c40f; font-size:11px; margin:5px 0 0 0;">보스 5연속 처치 시 엄청난 보상과 보스 징표 획득</p>
                 `;
 
                 div.onclick = function() { 
@@ -383,9 +414,10 @@ window.showResultModal = function() {
 
     modal.style.display = 'flex';
     
-    let dName = window.isHellMode ? 
-        window.TOOTH_DATA.hellDungeons[window.currentDungeonIdx] : 
-        window.TOOTH_DATA.dungeons[window.currentDungeonIdx];
+    const dungeonList = window.isHellMode ? window.TOOTH_DATA.hellDungeons : window.TOOTH_DATA.dungeons;
+    const maxIdx = dungeonList.length - 1;
+
+    let dName = dungeonList[window.currentDungeonIdx] || "던전";
 
     if (window.isBossRush) {
         dName = `[토벌전] ` + dName;
@@ -398,7 +430,7 @@ window.showResultModal = function() {
     
     if (!window.isBossRush) {
         if (window.isHellMode) {
-            if (window.unlockedHellDungeon <= window.currentDungeonIdx + 1 && window.currentDungeonIdx < 19) {
+            if (window.unlockedHellDungeon <= window.currentDungeonIdx + 1 && window.currentDungeonIdx < maxIdx) {
                 window.unlockedHellDungeon = window.currentDungeonIdx + 2;
                 nextStr = `신규 HELL 던전 오픈!`;
             }
@@ -434,7 +466,7 @@ window.showResultModal = function() {
                     }
                 }, 1500);
             } 
-            else if (window.unlockedDungeon <= window.currentDungeonIdx + 1 && window.currentDungeonIdx < 19) {
+            else if (window.unlockedDungeon <= window.currentDungeonIdx + 1 && window.currentDungeonIdx < maxIdx) {
                 window.unlockedDungeon = window.currentDungeonIdx + 2;
                 nextStr = `신규 던전 오픈!`;
             }
@@ -486,7 +518,7 @@ window.showResultModal = function() {
     const btnNext = document.getElementById('btn-next-dungeon');
 
     if (btnNext) {
-        if (window.isBossRush || window.currentDungeonIdx >= 19) {
+        if (window.isBossRush || window.currentDungeonIdx >= maxIdx) {
             btnNext.style.display = 'none';
         } else {
             btnNext.style.display = 'block';
@@ -587,7 +619,7 @@ window.updateToggleButtons = function() {
     const mineDial = document.getElementById('mine-dial');
 
     if (mineBtn) {
-        mineBtn.innerText = window.isAutoMineOn ? "자동 ON" : "자동 OFF"; 
+        mineBtn.innerText = window.isAutoMineOn ? "자동채굴 ON" : "자동채굴 OFF"; 
 
         if (!window.isAutoMineOn) {
             mineBtn.classList.add('off');
@@ -604,7 +636,7 @@ window.updateToggleButtons = function() {
     const mergeDial = document.getElementById('merge-dial');
 
     if (mergeBtn) {
-        mergeBtn.innerText = window.isAutoMergeOn ? "자동 ON" : "자동 OFF"; 
+        mergeBtn.innerText = window.isAutoMergeOn ? "자동합성 ON" : "자동합성 OFF"; 
 
         if (!window.isAutoMergeOn) {
             mergeBtn.classList.add('off');
