@@ -1,4 +1,4 @@
-// Version: 7.5.1 - Upgrades & Training (Shop, Refine, Toast Popups)
+// Version: 7.5.3 - Upgrades & Training (Shop, Refine, Toast Popups)
 
 // --- [ 0. 커스텀 토스트 팝업 (alert 대체) ] ---
 window.showToast = function(msg, isError = true) {
@@ -9,16 +9,12 @@ window.showToast = function(msg, isError = true) {
     }
     const toast = document.createElement('div');
     toast.className = 'toast-msg';
-    // 에러면 빨간색, 성공이면 녹색 테두리 포인트
     toast.style.borderColor = isError? '#e74c3c' : '#2ecc71';
     toast.innerHTML = (isError? '⚠️ ' : '✅ ') + msg;
     
     container.appendChild(toast);
-    
-    // 애니메이션 지속 시간 후 DOM에서 완전히 삭제
     setTimeout(() => { toast.remove(); }, 2000);
 };
-
 
 // --- [ 1. Upgrade Lab (상점) ] ---
 window.openShop = function() {
@@ -45,7 +41,6 @@ window.renderShop = function() {
         <div class="modal-content-area shop-grid">
     `;
 
-    // 1. 곡괭이 업그레이드
     let nextPickaxe = window.pickaxeIdx + 1;
     if (nextPickaxe < window.TOOTH_DATA.pickaxes.length) {
         let pData = window.TOOTH_DATA.pickaxes[nextPickaxe];
@@ -64,7 +59,6 @@ window.renderShop = function() {
         html += `<div class="shop-item"><div class="shop-info"><span>${maxData.icon} 최고 등급 곡괭이 장착중</span></div><div class="shop-desc">수동 채굴 파워: ${maxData.power}</div><button class="btn-max" style="width:100%; margin-top:5px;" disabled>MAX</button></div>`;
     }
 
-    // 2. 자동 채굴 속도
     let mineCost = Math.floor(100 * Math.pow(1.5, window.autoMineLevel - 1));
     let isMineMax = window.autoMineLevel >= 41; 
     let currentMineTime = Math.max(2.0, 10.0 - ((window.autoMineLevel - 1) * 0.2));
@@ -79,7 +73,6 @@ window.renderShop = function() {
         </div>
     `;
 
-    // 3. 자동 합성 속도
     let mergeCost = Math.floor(500 * Math.pow(1.6, window.autoMergeSpeedLevel - 1));
     let isMergeMax = window.autoMergeSpeedLevel >= 41; 
     let currentMergeTime = Math.max(20.0, 60.0 - ((window.autoMergeSpeedLevel - 1) * 1.0));
@@ -94,7 +87,6 @@ window.renderShop = function() {
         </div>
     `;
 
-    // 4. 합성 대성공 확률
     let greatCost = Math.floor(1000 * Math.pow(1.8, window.greatChanceLevel));
     let isGreatMax = window.greatChanceLevel >= 25; 
     html += `
@@ -108,9 +100,9 @@ window.renderShop = function() {
         </div>
     `;
 
-    // 5. 인벤토리 확장
     let isSlotMax = window.maxSlots >= 56;
-    let slotCost = isSlotMax? 0 : window.TOOTH_DATA.invExpansion;
+    let slotIdx = Math.floor((window.maxSlots - 24) / 8);
+    let slotCost = isSlotMax? 0 : (window.TOOTH_DATA.invExpansion && window.TOOTH_DATA.invExpansion[slotIdx]? window.TOOTH_DATA.invExpansion[slotIdx] : 0);
     
     html += `
         <div class="shop-item">
@@ -180,7 +172,6 @@ window.buyInventorySlot = function(cost) {
         window.showToast("인벤토리가 확장되었습니다!", false);
     } else window.showToast("골드가 부족합니다!");
 };
-
 
 // --- [ 2. 용병 훈련장 (다이아 소모) ] ---
 window.openTrainingCamp = function() {
@@ -256,7 +247,6 @@ window.buyTraining = function(id, cost) {
         window.showToast("다이아가 부족합니다!");
     }
 };
-
 
 // --- ---
 window.renderRefineView = function() {
