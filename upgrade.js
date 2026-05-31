@@ -1,6 +1,5 @@
 // Version: 7.5.3 - Upgrades & Training (Shop, Refine, Toast Popups)
 
-// --- [ 0. 커스텀 토스트 팝업 (alert 대체) ] ---
 window.showToast = function(msg, isError = true) {
     const container = document.getElementById('toast-container');
     if(!container) { 
@@ -16,7 +15,6 @@ window.showToast = function(msg, isError = true) {
     setTimeout(() => { toast.remove(); }, 2000);
 };
 
-// --- [ 1. Upgrade Lab (상점) ] ---
 window.openShop = function() {
     const m = document.getElementById('shop-modal');
     if(m) { m.style.display = 'flex'; window.renderShop(); }
@@ -173,7 +171,6 @@ window.buyInventorySlot = function(cost) {
     } else window.showToast("골드가 부족합니다!");
 };
 
-// --- [ 2. 용병 훈련장 (다이아 소모) ] ---
 window.openTrainingCamp = function() {
     const m = document.getElementById('training-modal');
     if(m) { m.style.display = 'flex'; window.renderTrainingCamp(); }
@@ -248,7 +245,6 @@ window.buyTraining = function(id, cost) {
     }
 };
 
-// --- ---
 window.renderRefineView = function() {
     const grid = document.getElementById('refine-grid');
     if(!grid) return;
