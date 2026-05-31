@@ -1,4 +1,4 @@
-// Version: 7.5.1 - Battle Physics & Joystick (60FPS Fixed, Optimized, Diagonal Fixed)
+// Version: 7.5.3 - Battle Physics & Joystick (60FPS Fixed, Optimized, Diagonal Fixed)
 
 window.playerX = 1000;
 window.playerY = 1000;
@@ -10,15 +10,14 @@ window.playerHp = 100;
 window.playerMaxHp = 100;
 
 let joystickActive = false;
-let activePointerId = null; // 🌟 멀티터치 간섭 방지 식별자
+let activePointerId = null; 
 let originX = 0;
 let originY = 0;
 let battleLoopId = null;
 
 let lastBattleTime = performance.now();
-const fpsInterval = 1000 / 60; // 60 FPS 고정
+const fpsInterval = 1000 / 60; 
 
-// 🌟 DOM 탐색 캐싱 변수 (매 프레임 무거운 DOM 탐색 방지)
 let domPlayer = null;
 let domCamera = null;
 let domWorld = null;
@@ -50,7 +49,6 @@ window.renderBattleSlots = function() {
     let spdBonus = (window.trainingLevels && window.trainingLevels.spd)? window.trainingLevels.spd * 0.1 : 0;
     window.currentPlayerSpeed = window.baseSpeed * pSpd * (1 + spdBonus);
 
-    // 🌟 전투 진입 시점에 DOM 요소를 1회만 캐싱
     domPlayer = document.getElementById('player');
     domCamera = document.getElementById('battle-camera');
     domWorld = document.getElementById('battle-world');
@@ -80,7 +78,6 @@ function battleLoop(timestamp) {
 function updatePlayerPosition() {
     if (!window.dungeonActive || window.bossDead) return;
     
-    // 🌟 최적화 및 버그 수정: 대각선 이동 과속 방지를 위한 벡터 정규화 로직
     let moveLen = Math.sqrt(window.moveX * window.moveX + window.moveY * window.moveY);
     let normX = window.moveX;
     let normY = window.moveY;
@@ -93,11 +90,9 @@ function updatePlayerPosition() {
     window.playerX += normX * window.currentPlayerSpeed;
     window.playerY += normY * window.currentPlayerSpeed;
 
-    // 맵 경계 제한
     window.playerX = Math.max(20, Math.min(window.worldWidth - 20, window.playerX));
     window.playerY = Math.max(20, Math.min(window.worldHeight - 20, window.playerY));
 
-    // 🌟 매 프레임 탐색 대신, 캐싱된 DOM 사용하여 성능 대폭 개선
     if(domPlayer) {
         domPlayer.style.left = window.playerX + 'px';
         domPlayer.style.top = window.playerY + 'px';
@@ -154,17 +149,15 @@ window.takeDamage = function(amount) {
     }
 };
 
-// --- [ 모바일 터치 조이스틱 로직 (멀티터치 보완) ] ---
 const zone = document.getElementById('joystick-zone');
 const knob = document.getElementById('joystick-knob');
 
 if(zone && knob) {
     zone.addEventListener('pointerdown', (e) => {
-        // 이미 조이스틱이 잡혀있다면 다른 손가락의 터치는 무시
         if(joystickActive) return;
         
         joystickActive = true;
-        activePointerId = e.pointerId; // 🌟 현재 조작 중인 고유 손가락 식별자 저장
+        activePointerId = e.pointerId; 
         
         const rect = zone.getBoundingClientRect();
         originX = rect.left + rect.width / 2;
@@ -174,7 +167,6 @@ if(zone && knob) {
     });
 
     zone.addEventListener('pointermove', (e) => {
-        // 🌟 저장된 손가락 ID와 일치할 때만 반응하여 조작 꼬임 방지
         if(!joystickActive || e.pointerId!== activePointerId) return; 
         updateJoystick(e.clientX, e.clientY);
     });
@@ -204,7 +196,7 @@ if(zone && knob) {
     function updateJoystick(cx, cy) {
         let dx = cx - originX;
         let dy = cy - originY;
-        const dist = Math.sqrt(dx * dx + dy * dy); // 최적화: 무거운 Math.hypot 대체
+        const dist = Math.sqrt(dx * dx + dy * dy); 
         const maxDist = 40; 
         
         if(dist > maxDist) {
@@ -224,7 +216,6 @@ if(zone && knob) {
     }
 }
 
-// --- ---
 const keys = { w: false, a: false, s: false, d: false };
 
 window.addEventListener('keydown', (e) => {
@@ -252,7 +243,7 @@ window.addEventListener('keyup', (e) => {
 });
 
 function updateMoveVector() {
-    if(joystickActive) return; // 모바일 조이스틱 사용 중일 땐 키보드 무시
+    if(joystickActive) return; 
     window.moveX = (keys.d? 1 : 0) - (keys.a? 1 : 0);
     window.moveY = (keys.s? 1 : 0) - (keys.w? 1 : 0);
 }
