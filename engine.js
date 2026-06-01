@@ -1,14 +1,100 @@
-/* engine.js v8.2.0
+/* engine.js v8.2.1
    치아 연대기 - 저장 / 로드 / 초기화 / 공통 유틸
-   핵심:
-   - Lv.25 / Lv.MAX 저장 구조 반영
-   - Lv.24 초월 안내 플래그 저장
-   - 첫 Lv.MAX 각성 영상 1회 재생 플래그 저장
-   - 인트로 / HELL / 최종각성 영상 다시보기 기반 정리
-   - 토스트 메시지 기능 추가
+   긴급 수정:
+   - 첫 화면 인트로 영상 레이어 비율 깨짐 복구
+   - 영상 레이어가 터치를 막는 문제 복구
+   - 모바일 브라우저 자동재생 제한 대응: "화면을 터치하세요" 버튼으로 재생
+   - 기존 v8.2.0 저장/로드/토스트/설정 기능 유지
 */
 
 "use strict";
+
+/* =========================
+   영상 레이어 긴급 스타일 주입
+========================= */
+
+function injectVideoLayerFixStyles() {
+  if (document.getElementById("video-layer-fix-style-v821")) return;
+
+  const style = document.createElement("style");
+  style.id = "video-layer-fix-style-v821";
+  style.textContent = `
+    #intro-video-layer,
+    #hell-video-layer,
+    #awaken-video-layer,
+    .video-layer {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100dvh !important;
+      z-index: 99999 !important;
+      display: none !important;
+      align-items: center !important;
+      justify-content: center !important;
+      background: #000 !important;
+      overflow: hidden !important;
+      touch-action: manipulation !important;
+      pointer-events: none !important;
+    }
+
+    #intro-video-layer.active,
+    #hell-video-layer.active,
+    #awaken-video-layer.active,
+    .video-layer.active {
+      display: flex !important;
+      pointer-events: auto !important;
+    }
+
+    #intro-video-layer video,
+    #hell-video-layer video,
+    #awaken-video-layer video,
+    .video-layer video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: contain !important;
+      background: #000 !important;
+      display: block !important;
+    }
+
+    .video-start-btn {
+      position: absolute !important;
+      left: 50% !important;
+      bottom: max(54px, env(safe-area-inset-bottom)) !important;
+      transform: translateX(-50%) !important;
+      z-index: 100001 !important;
+      width: min(82vw, 360px) !important;
+      height: 54px !important;
+      border-radius: 18px !important;
+      border: 2px solid rgba(255, 229, 138, 0.9) !important;
+      background: linear-gradient(180deg, #ffe58a, #f7b733) !important;
+      color: #1d1200 !important;
+      font-size: 17px !important;
+      font-weight: 1000 !important;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55) !important;
+    }
+
+    .video-skip-btn {
+      position: absolute !important;
+      right: 14px !important;
+      top: max(14px, env(safe-area-inset-top)) !important;
+      z-index: 100002 !important;
+      width: auto !important;
+      min-width: 76px !important;
+      height: 38px !important;
+      border-radius: 999px !important;
+      padding: 0 13px !important;
+      background: rgba(0, 0, 0, 0.58) !important;
+      color: #fff !important;
+      font-size: 13px !important;
+      font-weight: 900 !important;
+      border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+injectVideoLayerFixStyles();
 
 /* =========================
    저장 키
@@ -59,7 +145,7 @@ function createDefaultDiscoveredTeeth() {
 
 function createDefaultState() {
   return {
-    version: window.GAME_VERSION || "8.2.0",
+    version: window.GAME_VERSION || "8.2.1",
 
     gold: 0,
     diamond: 0,
@@ -245,7 +331,7 @@ function applyStateToWindow(state) {
 
 function collectStateFromWindow() {
   return {
-    version: window.GAME_VERSION || "8.2.0",
+    version: window.GAME_VERSION || "8.2.1",
 
     gold: Number(window.gold) || 0,
     diamond: Number(window.diamond) || 0,
@@ -713,12 +799,6 @@ function addBossToken(amount) {
   window.bossToken = (Number(window.bossToken) || 0) + a;
 }
 
-window.canAffordGold = canAffordGold;
-window.spendGold = spendGold;
-window.addGold = addGold;
-window.addDiamond = addDiamond;
-window.addBossToken = addBossToken;
-
 /* =========================
    숫자 표기
 ========================= */
@@ -751,11 +831,6 @@ function formatPercent(value, digits = 1) {
   const n = Number(value) || 0;
   return `${n.toFixed(digits)}%`;
 }
-
-window.formatNumber = formatNumber;
-window.fmt = formatNumber;
-window.formatGold = formatNumber;
-window.formatPercent = formatPercent;
 
 /* =========================
    토스트
@@ -794,8 +869,6 @@ function showToast(message, type = "info", duration = 1800) {
   }, duration);
 }
 
-window.showToast = showToast;
-
 /* =========================
    공용 모달
 ========================= */
@@ -832,29 +905,100 @@ function closeGenericModal() {
   modal.style.display = "none";
 }
 
-window.openGenericModal = openGenericModal;
-window.closeGenericModal = closeGenericModal;
-
 /* =========================
-   영상 재생
+   영상 레이어 처리 v8.2.1
 ========================= */
 
-function playVideoLayer(layerId, onEnd) {
-  const layer = document.getElementById(layerId);
+function getVideoLayer(id) {
+  return document.getElementById(id);
+}
 
-  if (!layer) {
-    if (typeof onEnd === "function") onEnd();
-    return false;
-  }
+function prepareVideoLayer(layer) {
+  if (!layer) return;
 
-  layer.style.display = "flex";
-  layer.classList.add("active");
+  layer.classList.remove("active");
+  layer.style.display = "none";
+  layer.style.pointerEvents = "none";
+
+  layer.querySelectorAll("button").forEach((btn) => {
+    btn.style.display = "none";
+  });
 
   const video = layer.querySelector("video");
 
+  if (video) {
+    video.setAttribute("playsinline", "true");
+    video.setAttribute("webkit-playsinline", "true");
+    video.preload = "auto";
+
+    try {
+      video.pause();
+      video.currentTime = 0;
+    } catch (error) {
+      console.warn(error);
+    }
+  }
+}
+
+function hideAllVideoLayers() {
+  ["intro-video-layer", "hell-video-layer", "awaken-video-layer"].forEach((id) => {
+    prepareVideoLayer(getVideoLayer(id));
+  });
+}
+
+function ensureVideoButton(layer, className, text) {
+  let btn = layer.querySelector("." + className);
+
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = className;
+    layer.appendChild(btn);
+  }
+
+  btn.textContent = text;
+  btn.style.display = "block";
+
+  return btn;
+}
+
+function hideOldVideoButtons(layer) {
+  if (!layer) return;
+
+  layer.querySelectorAll("button").forEach((btn) => {
+    if (!btn.classList.contains("video-start-btn") && !btn.classList.contains("video-skip-btn")) {
+      btn.style.display = "none";
+    }
+  });
+}
+
+function playLayerWithTap(layerId, onFinish) {
+  injectVideoLayerFixStyles();
+
+  const layer = getVideoLayer(layerId);
+
+  if (!layer) {
+    if (typeof onFinish === "function") onFinish();
+    return false;
+  }
+
+  const video = layer.querySelector("video");
+
+  hideOldVideoButtons(layer);
+
+  layer.classList.add("active");
+  layer.style.display = "flex";
+  layer.style.pointerEvents = "auto";
+
+  const startBtn = ensureVideoButton(layer, "video-start-btn", "🎬 화면을 터치하세요");
+  const skipBtn = ensureVideoButton(layer, "video-skip-btn", "건너뛰기");
+
+  let finished = false;
+  let started = false;
+
   function finish() {
-    layer.classList.remove("active");
-    layer.style.display = "none";
+    if (finished) return;
+    finished = true;
 
     if (video) {
       try {
@@ -865,49 +1009,83 @@ function playVideoLayer(layerId, onEnd) {
       }
     }
 
-    if (typeof onEnd === "function") onEnd();
+    layer.classList.remove("active");
+    layer.style.display = "none";
+    layer.style.pointerEvents = "none";
+
+    startBtn.style.display = "none";
+    skipBtn.style.display = "none";
+
+    if (typeof onFinish === "function") onFinish();
   }
 
-  const closeBtn = layer.querySelector(".video-skip, .skip-video, .close-video, button");
+  function start(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
 
-  if (closeBtn) {
-    closeBtn.onclick = finish;
-  }
+    if (started) return;
+    started = true;
 
-  if (video) {
+    startBtn.style.display = "none";
+
+    if (!video) {
+      setTimeout(finish, 400);
+      return;
+    }
+
+    try {
+      video.currentTime = 0;
+    } catch (error) {
+      console.warn(error);
+    }
+
     video.onended = finish;
-    video.onclick = () => {};
+    video.onerror = function () {
+      showToast("영상 파일을 재생하지 못했습니다.", "danger");
+      finish();
+    };
 
-    const playPromise = video.play();
+    const promise = video.play();
 
-    if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch(() => {
-        console.warn("Video autoplay blocked:", layerId);
+    if (promise && typeof promise.catch === "function") {
+      promise.catch(function () {
+        started = false;
+        startBtn.style.display = "block";
+        showToast("재생이 막혔습니다. 버튼을 다시 눌러보세요.", "info");
       });
     }
-  } else {
-    setTimeout(finish, 3500);
   }
+
+  startBtn.onclick = start;
+
+  skipBtn.onclick = function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    finish();
+  };
+
+  layer.onclick = function (event) {
+    if (event.target === skipBtn) return;
+    if (event.target === startBtn) return;
+    start(event);
+  };
 
   return true;
 }
 
 function playIntroVideo(forceReplay = false) {
-  if (!forceReplay && window.hasSeenIntro) return;
+  if (!forceReplay && window.hasSeenIntro) return false;
 
-  playVideoLayer("intro-video-layer", () => {
+  return playLayerWithTap("intro-video-layer", function () {
     window.hasSeenIntro = true;
     saveGame(false);
   });
 }
 
 function playHellVideo(forceReplay = false) {
-  if (!forceReplay) {
-    window.hasSeenHellIntro = true;
-    window.hellUnlocked = true;
-  }
-
-  playVideoLayer("hell-video-layer", () => {
+  return playLayerWithTap("hell-video-layer", function () {
     window.hasSeenHellIntro = true;
     window.hellUnlocked = true;
     saveGame(false);
@@ -917,46 +1095,40 @@ function playHellVideo(forceReplay = false) {
 function playAwakenVideo(forceReplay = false) {
   if (!forceReplay && window.hasPlayedAwakenVideo) return false;
 
-  playVideoLayer("awaken-video-layer", () => {
+  return playLayerWithTap("awaken-video-layer", function () {
     window.hasPlayedAwakenVideo = true;
     saveGame(false);
   });
-
-  return true;
 }
 
 function replayVideo(key) {
-  const video = (window.REPLAY_VIDEOS || []).find((item) => item.key === key);
-
-  if (!video) {
-    showToast("영상을 찾을 수 없습니다.", "danger");
+  if (key === "intro") {
+    playIntroVideo(true);
     return;
   }
 
-  if (typeof window.isReplayVideoUnlocked === "function") {
-    if (!window.isReplayVideoUnlocked(key)) {
+  if (key === "hell") {
+    if (!window.hellUnlocked && !window.hasSeenHellIntro) {
       showToast("아직 해금되지 않은 영상입니다.", "info");
       return;
     }
+
+    playHellVideo(true);
+    return;
   }
 
-  const fn = window[video.playFunction];
+  if (key === "awaken") {
+    if (!window.hasPlayedAwakenVideo) {
+      showToast("아직 해금되지 않은 영상입니다.", "info");
+      return;
+    }
 
-  if (typeof fn === "function") {
-    fn(true);
-  } else {
-    showToast("영상 재생 함수가 없습니다.", "danger");
+    playAwakenVideo(true);
+    return;
   }
+
+  showToast("영상을 찾을 수 없습니다.", "danger");
 }
-
-window.playIntroVideo = playIntroVideo;
-window.playHellVideo = playHellVideo;
-window.playAwakenVideo = playAwakenVideo;
-window.replayVideo = replayVideo;
-
-/* =========================
-   HELL 개방 처리
-========================= */
 
 function unlockHellIfNeeded() {
   if (window.hellUnlocked) return false;
@@ -969,8 +1141,6 @@ function unlockHellIfNeeded() {
 
   return true;
 }
-
-window.unlockHellIfNeeded = unlockHellIfNeeded;
 
 /* =========================
    UI 갱신
@@ -1010,9 +1180,6 @@ function updateResourceBar() {
     pickaxeEl.textContent = window.getPickaxeDisplay(window.pickaxeLevel);
   }
 }
-
-window.refreshAllUI = refreshAllUI;
-window.updateResourceBar = updateResourceBar;
 
 /* =========================
    설정 / 영상 다시보기 화면
@@ -1070,8 +1237,6 @@ function openSettingsModal() {
   openGenericModal(html);
 }
 
-window.openSettingsModal = openSettingsModal;
-
 /* =========================
    메인 초기화
 ========================= */
@@ -1116,7 +1281,12 @@ function setupBottomButtons() {
 }
 
 function initGame() {
+  injectVideoLayerFixStyles();
+  hideAllVideoLayers();
+
   loadGame();
+
+  hideAllVideoLayers();
 
   setupBottomButtons();
 
@@ -1134,7 +1304,15 @@ function initGame() {
     window.__autoSaveTimer = setInterval(() => saveGame(false), 5000);
   }
 
-  console.log(`치아 연대기 engine.js loaded v${window.GAME_VERSION || "8.2.0"}`);
+  setTimeout(function () {
+    hideAllVideoLayers();
+
+    if (!window.hasSeenIntro) {
+      playIntroVideo(false);
+    }
+  }, 350);
+
+  console.log(`치아 연대기 engine.js loaded v${window.GAME_VERSION || "8.2.1"}`);
 }
 
 if (document.readyState === "loading") {
@@ -1157,6 +1335,32 @@ window.importSave = importSave;
 window.registerToothDiscovery = registerToothDiscovery;
 window.checkTranscendGuide = checkTranscendGuide;
 window.showTranscendGuideModal = showTranscendGuideModal;
+
+window.canAffordGold = canAffordGold;
+window.spendGold = spendGold;
+window.addGold = addGold;
+window.addDiamond = addDiamond;
+window.addBossToken = addBossToken;
+
+window.formatNumber = formatNumber;
+window.fmt = formatNumber;
+window.formatGold = formatNumber;
+window.formatPercent = formatPercent;
+
+window.showToast = showToast;
+
+window.openGenericModal = openGenericModal;
+window.closeGenericModal = closeGenericModal;
+
+window.playIntroVideo = playIntroVideo;
+window.playHellVideo = playHellVideo;
+window.playAwakenVideo = playAwakenVideo;
+window.replayVideo = replayVideo;
+window.unlockHellIfNeeded = unlockHellIfNeeded;
+
+window.refreshAllUI = refreshAllUI;
+window.updateResourceBar = updateResourceBar;
+window.openSettingsModal = openSettingsModal;
 
 window.gameTick = gameTick;
 window.initGame = initGame;
