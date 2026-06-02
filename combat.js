@@ -1,102 +1,1173 @@
-/* combat.js v8.3.0
-   던전 / 적 / 전투 / 보상 / 후퇴
-*/
-"use strict";
+// Version: 8.0.0 - Combat Engine / Dungeon / Reward / Retreat Fixed
 
+// =========================
+// 전투 상태값
+// =========================
 window.dungeonActive = false;
-window.dungeonPaused = false;
 window.bossDead = false;
-window.currentDungeon = null;
-window.battleEnemies = [];
-window.battlePlayerProjectiles = [];
-window.battleEnemyBullets = [];
-window.battleEffects = [];
+
+window.currentDungeonIdx = 0;
 window.currentWave = 1;
-window.maxWave = 5;
+window.isBossWave = false;
 
-function combatFmt(value) { return window.formatNumber ? window.formatNumber(value) : String(Math.floor(Number(value) || 0)); }
-function combatToast(message, type = "info", duration = 1700) { window.showToast ? window.showToast(message, type, duration) : console.log(message); }
-function rand(min, max) { return min + Math.random() * (max - min); }
-function dist(a, b) { const dx = (a.x || 0) - (b.x || 0); const dy = (a.y || 0) - (b.y || 0); return Math.sqrt(dx * dx + dy * dy); }
-function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
-function getBattleWorld() { return document.getElementById("battle-world") || document.getElementById("battle-field"); }
-function getBattleScreen() { return document.getElementById("battle-screen") || document.getElementById("battle-view"); }
-function setBattleText(text) { ["battle-title", "battle-status", "battle-info", "current-dungeon-name"].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = text; }); }
-function setBattleSubText(text) { ["battle-subtitle", "battle-substatus", "wave-info"].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = text; }); }
+window.dungeonGoldEarned = 0;
+window.dungeonDiaEarned = 0;
+window.dungeonArtifactDropped = null;
 
-function clearDungeonThemeClasses(el) { if (!el) return; [...el.classList].filter((cls) => cls.startsWith("dungeon-theme-")).forEach((cls) => el.classList.remove(cls)); }
-function applyDungeonTheme(stage, mode) { const world = getBattleWorld(); const screen = getBattleScreen(); const themeClass = window.getDungeonThemeClass ? window.getDungeonThemeClass(stage, mode) : "dungeon-theme-forest"; [world, screen].forEach((el) => { if (!el) return; clearDungeonThemeClasses(el); el.classList.add(themeClass); }); return themeClass; }
-function getDungeonModeText(mode) { if (mode === "boss") return "보스전"; if (mode === "hell") return "HELL"; if (mode === "hellboss") return "HELL 보스"; return "일반 던전"; }
-function getStagePower(stage, mode) { const s = Math.max(1, Number(stage) || 1); if (mode === "hellboss") return 80 + s * 18; if (mode === "hell") return 42 + s * 12; if (mode === "boss") return 18 + s * 8; return 1 + s * 1.45; }
-function getNormalMob(stage) { const mobs = window.TOOTH_DATA?.dungeonMobs || []; return mobs[Math.min(mobs.length - 1, Math.floor((Math.max(1, stage) - 1) / 2))] || { name: "충치균", icon: "🦠", hp: 100, atk: 10, speed: 0.5, reward: 10 }; }
-function getHellMob(stage) { const mobs = window.TOOTH_DATA?.hellMobs || []; return mobs[Math.min(mobs.length - 1, Math.floor((Math.max(1, stage) - 1) / 3))] || { name: "HELL 충치균", icon: "😈", hp: 50000, atk: 900, speed: 0.7, reward: 25000 }; }
-function getBossData(stage, mode) { const list = mode === "hellboss" ? (window.TOOTH_DATA?.hellBosses || []) : (window.TOOTH_DATA?.bosses || []); return list[Math.min(list.length - 1, Math.max(0, Number(stage) - 1))] || { name: mode === "hellboss" ? "HELL 보스" : "보스", icon: mode === "hellboss" ? "💀" : "👑", hp: 10000, atk: 100, reward: 1000, token: 1 }; }
+let enemies = [];
+let missiles = [];
+let enemyMissiles = [];
+let spawnTimeouts = [];
 
-function showBattleScreen() { const battle = getBattleScreen(); const game = document.getElementById("game-container") || document.body; if (game) game.classList.add("battle-active"); if (battle) { battle.style.display = "block"; battle.classList.add("active"); } }
-function hideBattleScreen() { const battle = getBattleScreen(); const game = document.getElementById("game-container") || document.body; if (game) game.classList.remove("battle-active"); if (battle) { battle.style.display = "none"; battle.classList.remove("active"); } window.switchView?.("war"); }
-function prepareBattleWorld() { const world = getBattleWorld(); if (!world) return; world.innerHTML = `<div id="battle-tile-layer"></div><div id="battle-effect-layer"></div><div id="battle-enemy-layer"></div><div id="battle-projectile-layer"></div><div id="player" class="battle-player"><span id="player-icon">🧑‍⚕️</span></div><div id="merc" class="battle-merc">🧑‍🚀</div>`; }
-function resetBattleStateForDungeon(stage, mode) { window.currentDungeon = { stage: Number(stage) || 1, mode: mode || "normal", startedAt: Date.now() }; window.dungeonActive = true; window.dungeonPaused = false; window.bossDead = false; window.battleEnemies = []; window.battlePlayerProjectiles = []; window.battleEnemyBullets = []; window.battleEffects = []; window.currentWave = 1; window.maxWave = mode === "normal" || !mode ? 5 : 1; window.__slotShotTimes = {}; window.resetBattlePlayerState?.(); window.renderBattleSlots?.(); }
+let missilePool = [];
+let enemyMissilePool = [];
 
-function startDungeon(stage, mode = "normal") { const s = Math.max(1, Number(stage) || 1); const m = mode || "normal"; if (window.dungeonActive) { combatToast("이미 던전 진행 중입니다.", "info"); return; } if ((m === "hell" || m === "hellboss") && !window.hellUnlocked) { combatToast("HELL은 아직 해금되지 않았습니다.", "info"); return; } showBattleScreen(); prepareBattleWorld(); applyDungeonTheme(s, m); resetBattleStateForDungeon(s, m); setBattleText(`${getDungeonModeText(m)} ${s}`); setBattleSubText("전투 시작"); spawnWave(); }
-function startNormalDungeon(stage) { startDungeon(stage || window.unlockedStage || 1, "normal"); }
-function startBossDungeon(stage) { startDungeon(stage || window.unlockedBossStage || 1, "boss"); }
-function startHellDungeon(stage) { startDungeon(stage || 1, "hell"); }
-function startHellBossDungeon(stage) { startDungeon(stage || 1, "hellboss"); }
+let activeSlotIndex = 0;
+let slotFireCds = new Array(8).fill(0);
 
-function spawnWave() { if (!window.dungeonActive || window.dungeonPaused || window.bossDead) return; const dungeon = window.currentDungeon || { stage: 1, mode: "normal" }; const mode = dungeon.mode || "normal"; const stage = Number(dungeon.stage) || 1; if (mode === "boss" || mode === "hellboss") { spawnBoss(stage, mode); setBattleSubText("보스전"); return; } const mobBase = mode === "hell" ? getHellMob(stage) : getNormalMob(stage); const power = getStagePower(stage, mode); const count = mode === "hell" ? 4 + Math.min(8, stage) : 4 + Math.min(10, stage + window.currentWave); for (let i = 0; i < count; i += 1) spawnEnemy({ name: mobBase.name, icon: mobBase.icon, hp: Math.floor((mobBase.hp || 100) * power * (0.75 + window.currentWave * 0.22)), atk: Math.floor((mobBase.atk || 10) * power * (0.65 + window.currentWave * 0.12)), speed: (mobBase.speed || 0.5) * (mode === "hell" ? 1.1 : 1), reward: Math.floor((mobBase.reward || 10) * power), isBoss: false }); setBattleSubText(`Wave ${window.currentWave} / ${window.maxWave}`); }
-function spawnBoss(stage, mode) { const boss = getBossData(stage, mode); const power = getStagePower(stage, mode); spawnEnemy({ name: boss.name, icon: boss.icon, hp: Math.floor((boss.hp || 10000) * power), atk: Math.floor((boss.atk || 100) * power), speed: mode === "hellboss" ? 0.55 : 0.48, reward: Math.floor((boss.reward || 1000) * power), token: boss.token || 1, isBoss: true }); }
-function spawnEnemy(data) { const world = getBattleWorld(); if (!world) return; const layer = document.getElementById("battle-enemy-layer") || world; const player = getPlayerCenter(); const angle = Math.random() * Math.PI * 2; const radius = rand(280, 470); const enemy = { id: `enemy_${Date.now()}_${Math.floor(Math.random() * 999999)}`, name: data.name || "적", icon: data.icon || "🦠", x: player.x + Math.cos(angle) * radius, y: player.y + Math.sin(angle) * radius, hp: Number(data.hp) || 100, maxHp: Number(data.hp) || 100, atk: Number(data.atk) || 10, speed: Number(data.speed) || 0.5, reward: Number(data.reward) || 10, token: Number(data.token) || 0, isBoss: !!data.isBoss, attackCooldownUntil: 0, dead: false }; const el = document.createElement("div"); el.className = `battle-enemy ${enemy.isBoss ? "boss-enemy" : ""}`; el.dataset.enemyId = enemy.id; el.innerHTML = `<div class="enemy-icon">${enemy.icon}</div><div class="enemy-hp"><div class="enemy-hp-fill"></div></div>`; layer.appendChild(el); enemy.el = el; window.battleEnemies.push(enemy); updateEnemyElement(enemy); }
-function updateEnemyElement(enemy) { if (!enemy?.el) return; enemy.el.style.transform = `translate(${enemy.x}px, ${enemy.y}px)`; const fill = enemy.el.querySelector(".enemy-hp-fill"); if (fill) fill.style.width = `${(enemy.maxHp > 0 ? clamp(enemy.hp / enemy.maxHp, 0, 1) : 0) * 100}%`; }
-function getPlayerCenter() { return { x: Number(window.playerX) || 1000, y: Number(window.playerY) || 1000 }; }
-function getTopAttackSlots() { const topCount = window.BALANCE?.TOP_SLOT_COUNT || 8; const inventory = Array.isArray(window.inventory) ? window.inventory : []; return inventory.slice(0, topCount).map((lv, index) => ({ index, level: Number(lv) || 0, upgrade: window.slotUpgrades?.[index] || { atk: 0, cd: 0, rng: 0 } })); }
-function getSlotDamage(slot) { const lv = Number(slot.level) || 0; if (!lv) return 0; const base = window.getBaseAttackByLevel ? window.getBaseAttackByLevel(lv) : lv * 10; const slotBonus = 1 + (Number(slot.upgrade?.atk) || 0) * 0.08; const trainingBonus = 1 + (Number(window.trainingLevels?.atk) || 0) * 0.025; const merc = (window.MERCENARIES || []).find((m) => m.id === window.currentMercenary) || { atkRate: 1 }; return Math.floor(base * slotBonus * trainingBonus * (Number(merc.atkRate) || 1)); }
-function getSlotRange(slot) { return 210 + (Number(slot.upgrade?.rng) || 0) * 9 + (Number(window.globalUpgrades?.rng) || 0) * 8; }
-function getSlotCooldown(slot) { return Math.max(230, 950 - (Number(slot.upgrade?.cd) || 0) * 32 - (Number(window.globalUpgrades?.cd) || 0) * 28 - (Number(window.trainingLevels?.spd) || 0) * 10); }
-function updateCombat() { if (!window.dungeonActive || window.dungeonPaused) return; updateEnemies(); updateAutoAttack(); updatePlayerProjectiles(); checkWaveClear(); }
-function updateEnemies() { const player = getPlayerCenter(); const now = Date.now(); window.battleEnemies.forEach((enemy) => { if (!enemy || enemy.dead) return; const dx = player.x - enemy.x; const dy = player.y - enemy.y; const d = Math.sqrt(dx * dx + dy * dy) || 1; enemy.x += (dx / d) * enemy.speed * 2.2; enemy.y += (dy / d) * enemy.speed * 2.2; if (d < 38 && now >= (enemy.attackCooldownUntil || 0)) { enemy.attackCooldownUntil = now + (enemy.isBoss ? 900 : 1300); damagePlayer(enemy.atk); showHitEffect(player.x, player.y, "💢"); } updateEnemyElement(enemy); }); }
-function updateAutoAttack() { if (!window.__slotShotTimes) window.__slotShotTimes = {}; const now = Date.now(); getTopAttackSlots().forEach((slot) => { if (!slot.level) return; const last = window.__slotShotTimes[slot.index] || 0; if (now - last < getSlotCooldown(slot)) return; const target = findNearestEnemyInRange(getSlotRange(slot)); if (!target) return; window.__slotShotTimes[slot.index] = now; shootToothProjectile(slot, target); }); }
-function findNearestEnemyInRange(range) { const player = getPlayerCenter(); let best = null, bestDist = Infinity; window.battleEnemies.forEach((enemy) => { if (!enemy || enemy.dead) return; const d = dist(player, enemy); if (d <= range && d < bestDist) { best = enemy; bestDist = d; } }); return best; }
-function shootToothProjectile(slot, target) { const world = getBattleWorld(); if (!world || !target) return; const layer = document.getElementById("battle-projectile-layer") || world; const player = getPlayerCenter(); const lv = Number(slot.level) || 1; const projectile = { id: `proj_${Date.now()}_${Math.floor(Math.random() * 999999)}`, x: player.x, y: player.y, targetId: target.id, damage: getSlotDamage(slot), speed: 15, level: lv, splash: lv >= 16, max: lv >= (window.BALANCE?.TRANSCEND_LEVEL || 25), dead: false }; const el = document.createElement("div"); el.className = `battle-projectile ${window.getToothSizeClass ? window.getToothSizeClass(lv) : ""} ${projectile.max ? "max-projectile" : ""}`; el.textContent = window.getToothEmoji ? window.getToothEmoji(lv) : "🦷"; layer.appendChild(el); projectile.el = el; window.battlePlayerProjectiles.push(projectile); updateProjectileElement(projectile); }
-function updatePlayerProjectiles() { window.battlePlayerProjectiles.forEach((projectile) => { if (!projectile || projectile.dead) return; const target = window.battleEnemies.find((enemy) => enemy.id === projectile.targetId && !enemy.dead); if (!target) { projectile.dead = true; removeProjectile(projectile); return; } const dx = target.x - projectile.x, dy = target.y - projectile.y, d = Math.sqrt(dx * dx + dy * dy) || 1; projectile.x += (dx / d) * projectile.speed; projectile.y += (dy / d) * projectile.speed; if (d < 22) { hitEnemy(target, projectile.damage, projectile); projectile.dead = true; removeProjectile(projectile); return; } updateProjectileElement(projectile); }); window.battlePlayerProjectiles = window.battlePlayerProjectiles.filter((p) => !p.dead); }
-function updateProjectileElement(projectile) { if (projectile?.el) projectile.el.style.transform = `translate(${projectile.x}px, ${projectile.y}px)`; }
-function removeProjectile(projectile) { if (projectile?.el?.parentNode) projectile.el.parentNode.removeChild(projectile.el); }
-function hitEnemy(enemy, damage, projectile) { if (!enemy || enemy.dead) return; const critChance = Math.min(0.35, (Number(window.trainingLevels?.crit) || 0) * 0.006); const isCrit = Math.random() < critChance; let finalDamage = Number(damage) || 1; if (isCrit) finalDamage = Math.floor(finalDamage * 1.8); enemy.hp -= finalDamage; showDamageText(enemy.x, enemy.y, isCrit ? `CRIT ${combatFmt(finalDamage)}` : combatFmt(finalDamage), isCrit); if (projectile?.splash || projectile?.max) applySplashDamage(enemy, finalDamage, projectile); if (enemy.hp <= 0) killEnemy(enemy); else updateEnemyElement(enemy); }
-function applySplashDamage(centerEnemy, damage, projectile) { const range = (projectile?.max ? 95 : 58) + (Number(window.trainingLevels?.splashRange) || 0) * 2.5; const ratio = projectile?.max ? 0.55 : 0.28 + (Number(window.trainingLevels?.splashDmg) || 0) * 0.006; window.battleEnemies.forEach((enemy) => { if (!enemy || enemy.dead || enemy.id === centerEnemy.id) return; if (dist(centerEnemy, enemy) <= range) { const splashDamage = Math.floor(damage * ratio); enemy.hp -= splashDamage; showDamageText(enemy.x, enemy.y, combatFmt(splashDamage), false, "splash"); if (enemy.hp <= 0) killEnemy(enemy); else updateEnemyElement(enemy); } }); showHitEffect(centerEnemy.x, centerEnemy.y, projectile?.max ? "✨" : "💥"); }
-function killEnemy(enemy) { if (!enemy || enemy.dead) return; enemy.dead = true; if (enemy.el?.parentNode) { enemy.el.classList.add("enemy-dead"); setTimeout(() => enemy.el?.remove(), 220); } const reward = Number(enemy.reward) || 0; window.addGold ? window.addGold(reward) : (window.gold = (Number(window.gold) || 0) + reward); if (enemy.token) window.addBossToken ? window.addBossToken(enemy.token) : (window.bossToken = (Number(window.bossToken) || 0) + enemy.token); maybeDropArtifact(enemy); showFloatingBattleReward(enemy.x, enemy.y, `+${combatFmt(reward)}G`); window.battleEnemies = window.battleEnemies.filter((e) => !e.dead); }
-function damagePlayer(amount) { if (typeof window.takeDamage === "function") window.takeDamage(amount); }
-function handlePlayerDeath() { if (!window.dungeonActive) return; window.dungeonPaused = true; setTimeout(() => { combatToast("던전에서 쓰러졌습니다.", "danger"); exitDungeon(false); }, 100); }
-function checkWaveClear() { if (!window.dungeonActive || window.dungeonPaused || window.battleEnemies.length > 0) return; const dungeon = window.currentDungeon || { stage: 1, mode: "normal" }; const mode = dungeon.mode || "normal"; if (mode === "boss" || mode === "hellboss") { finishDungeon(true); return; } if (window.currentWave < window.maxWave) { window.currentWave += 1; setTimeout(() => { if (window.dungeonActive && !window.dungeonPaused) spawnWave(); }, 600); return; } finishDungeon(true); }
-function finishDungeon(success) { if (!window.currentDungeon) return; const dungeon = window.currentDungeon; const stage = Number(dungeon.stage) || 1; const mode = dungeon.mode || "normal"; window.dungeonActive = false; window.dungeonPaused = false; if (success) handleDungeonClear(stage, mode); cleanupBattleObjects(); window.saveGame?.(false); window.renderDungeonList?.(); window.updateUI?.(); window.showResultModal?.({ success, title: success ? "던전 클리어!" : "후퇴 완료", message: success ? "클리어!" : "후퇴했습니다.", stage, mode }); }
-function handleDungeonClear(stage, mode) { if (mode === "normal") { window.clearedStage = Math.max(Number(window.clearedStage) || 0, stage); window.unlockedStage = Math.max(Number(window.unlockedStage) || 1, stage + 1); if (stage >= 20 && !window.hellUnlocked) window.unlockHellIfNeeded?.(); } if (mode === "boss") window.unlockedBossStage = Math.max(Number(window.unlockedBossStage) || 1, stage + 1); if (mode === "hell") window.unlockedHellDungeon = Math.max(Number(window.unlockedHellDungeon) || 1, stage + 1); if (mode === "hellboss") window.unlockedHellBossStage = Math.max(Number(window.unlockedHellBossStage) || 1, stage + 1); }
-function cleanupBattleObjects() { window.battleEnemies.forEach((e) => e.el?.remove()); window.battlePlayerProjectiles.forEach((p) => p.el?.remove()); window.battleEnemies = []; window.battlePlayerProjectiles = []; window.battleEnemyBullets = []; window.battleEffects = []; }
-function exitDungeon(showToastMessage = true) { window.dungeonActive = false; window.dungeonPaused = false; window.bossDead = false; cleanupBattleObjects(); hideBattleScreen(); if (showToastMessage) combatToast("던전에서 나왔습니다.", "info"); window.saveGame?.(false); }
-function requestRetreat() { if (!window.dungeonActive) { exitDungeon(false); return; } window.dungeonPaused = true; window.resetJoystick?.(); window.openGenericModal?.(`<div class="retreat-modal-inner"><h2>🏳️ 후퇴하시겠습니까?</h2><p>현재 던전 진행을 중단하고 밖으로 나갑니다.</p><div class="modal-actions"><button class="btn-main" onclick="cancelRetreat()">계속 싸우기</button><button class="btn-danger" onclick="confirmRetreat()">후퇴하기</button></div></div>`); }
-function cancelRetreat() { window.dungeonPaused = false; window.closeGenericModal?.(); }
-function confirmRetreat() { window.closeGenericModal?.(); finishDungeon(false); }
-function maybeDropArtifact(enemy) { const artifacts = window.TOOTH_DATA?.artifacts || []; if (!artifacts.length) return; let chance = enemy?.isBoss ? 0.32 : 0.035; if (window.currentDungeon?.mode === "hell") chance += 0.04; if (window.currentDungeon?.mode === "hellboss") chance += 0.18; if (Math.random() > chance) return; const artifact = artifacts[Math.floor(Math.random() * artifacts.length)]; const id = artifact.id || artifact.name; if (!window.discoveredArtifacts) window.discoveredArtifacts = {}; if (!window.artifactCounts) window.artifactCounts = {}; window.discoveredArtifacts[id] = true; window.artifactCounts[id] = (Number(window.artifactCounts[id]) || 0) + 1; combatToast(`${artifact.icon} ${artifact.name} 획득!`, "success", 2200); }
-function showDamageText(x, y, text, crit = false, extraClass = "") { const layer = document.getElementById("battle-effect-layer") || getBattleWorld(); if (!layer) return; const el = document.createElement("div"); el.className = `damage-text ${crit ? "crit" : ""} ${extraClass}`; el.textContent = text; el.style.transform = `translate(${x}px, ${y}px)`; layer.appendChild(el); setTimeout(() => el.remove(), 750); }
-function showHitEffect(x, y, icon) { const layer = document.getElementById("battle-effect-layer") || getBattleWorld(); if (!layer) return; const el = document.createElement("div"); el.className = "hit-effect"; el.textContent = icon || "💥"; el.style.transform = `translate(${x}px, ${y}px)`; layer.appendChild(el); setTimeout(() => el.remove(), 520); }
-function showFloatingBattleReward(x, y, text) { const layer = document.getElementById("battle-effect-layer") || getBattleWorld(); if (!layer) return; const el = document.createElement("div"); el.className = "battle-reward-text"; el.textContent = text; el.style.transform = `translate(${x}px, ${y}px)`; layer.appendChild(el); setTimeout(() => el.remove(), 850); }
-function retryDungeon() { const dungeon = window.currentDungeon || { stage: 1, mode: "normal" }; window.closeGenericModal?.(); hideBattleScreen(); setTimeout(() => startDungeon(dungeon.stage, dungeon.mode), 100); }
-function nextDungeon() { const dungeon = window.currentDungeon || { stage: 1, mode: "normal" }; let nextStage = Number(dungeon.stage) || 1; if (dungeon.mode === "normal" || dungeon.mode === "hell") nextStage += 1; window.closeGenericModal?.(); hideBattleScreen(); setTimeout(() => startDungeon(nextStage, dungeon.mode), 100); }
+const WORLD_WIDTH = 2000;
+const WORLD_HEIGHT = 2000;
 
-window.getBattleWorld = getBattleWorld;
-window.getBattleScreen = getBattleScreen;
-window.applyDungeonTheme = applyDungeonTheme;
-window.showBattleScreen = showBattleScreen;
-window.hideBattleScreen = hideBattleScreen;
-window.startDungeon = startDungeon;
-window.startNormalDungeon = startNormalDungeon;
-window.startBossDungeon = startBossDungeon;
-window.startHellDungeon = startHellDungeon;
-window.startHellBossDungeon = startHellBossDungeon;
+// =========================
+// 안전 유틸
+// =========================
+function cNum(value) {
+    if (typeof fNum === "function") return fNum(value);
+    return Math.floor(Number(value) || 0);
+}
+
+function cGetAtk(lv) {
+    if (typeof getAtk === "function") return getAtk(lv);
+    return 10;
+}
+
+function cGetIcon(lv) {
+    if (typeof getToothIcon === "function") return getToothIcon(lv);
+    return "🦷";
+}
+
+function cDistance(ax, ay, bx, by) {
+    const dx = ax - bx;
+    const dy = ay - by;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+function cClamp(v, min, max) {
+    return Math.max(min, Math.min(max, v));
+}
+
+function clearSpawnTimeouts() {
+    spawnTimeouts.forEach((t) => clearTimeout(t));
+    spawnTimeouts = [];
+}
+
+function getDungeonData() {
+    if (typeof TOOTH_DATA === "undefined") return [];
+
+    return window.isHellMode ? TOOTH_DATA.hellDungeons : TOOTH_DATA.dungeons;
+}
+
+function getMobData(idx) {
+    if (typeof TOOTH_DATA === "undefined") return null;
+
+    const list = window.isHellMode ? TOOTH_DATA.hellMobs : TOOTH_DATA.dungeonMobs;
+    if (!list || list.length === 0) return null;
+
+    return list[Math.min(idx, list.length - 1)] || list[0];
+}
+
+function getBossRushMaxWaves() {
+    const data = getDungeonData();
+    const remain = data.length - window.currentDungeonIdx;
+
+    return Math.max(1, Math.min(5, remain));
+}
+
+// =========================
+// 던전 시작
+// =========================
+window.startDungeon = function(idx) {
+    idx = Number(idx) || 0;
+
+    if (typeof TOOTH_DATA === "undefined") {
+        alert("던전 데이터를 불러오지 못했습니다.");
+        return;
+    }
+
+    const tab = window.currentDungeonTab || "normal";
+
+    window.isHellMode = tab === "hell" || tab === "hellboss";
+    window.isBossRush = tab === "boss" || tab === "hellboss";
+    window.currentDungeonIdx = idx;
+
+    const dungeonData = getDungeonData();
+
+    if (!dungeonData[idx]) {
+        alert("존재하지 않는 던전입니다.");
+        return;
+    }
+
+    if (window.isHellMode && window.unlockedDungeon <= 20) {
+        alert("아직 HELL 던전이 열리지 않았습니다.");
+        return;
+    }
+
+    const unlocked = window.isHellMode ? window.unlockedHellDungeon : window.unlockedDungeon;
+
+    if (!window.isBossRush && idx >= unlocked) {
+        alert("아직 열리지 않은 던전입니다.");
+        return;
+    }
+
+    if (window.isBossRush) {
+        let goldFee = Math.floor(5000 * Math.pow(2.0, idx));
+        let diaFee = 5 + (idx * 5);
+
+        if (window.isHellMode) {
+            goldFee *= 10;
+            diaFee *= 5;
+        }
+
+        if (window.gold < goldFee || window.dia < diaFee) {
+            alert(`입장료가 부족합니다.\n필요: ${cNum(goldFee)}G, ♦️${diaFee}`);
+            return;
+        }
+
+        window.gold -= goldFee;
+        window.dia -= diaFee;
+    }
+
+    try {
+        if (typeof playSfx === "function") playSfx("unlock");
+    } catch (e) {}
+
+    window.dungeonGoldEarned = 0;
+    window.dungeonDiaEarned = 0;
+    window.dungeonArtifactDropped = null;
+
+    window.dungeonActive = true;
+    window.bossDead = false;
+    window.currentWave = 1;
+    window.isBossWave = window.isBossRush;
+
+    activeSlotIndex = 0;
+    slotFireCds = new Array(8).fill(0);
+
+    clearSpawnTimeouts();
+    clearBattleObjects();
+
+    window.playerX = WORLD_WIDTH / 2;
+    window.playerY = WORLD_HEIGHT / 2;
+    window.moveX = 0;
+    window.moveY = 0;
+
+    const gameContainer = document.getElementById("game-container");
+    const battleScreen = document.getElementById("battle-screen");
+    const worldDiv = document.getElementById("battle-world");
+
+    if (gameContainer) gameContainer.style.display = "none";
+
+    if (battleScreen) {
+        battleScreen.style.display = "block";
+        battleScreen.style.boxShadow = window.isHellMode ? "inset 0 0 100px #ff0000" : "";
+    }
+
+    if (worldDiv) {
+        worldDiv.style.width = WORLD_WIDTH + "px";
+        worldDiv.style.height = WORLD_HEIGHT + "px";
+        worldDiv.className = "";
+
+        const mobData = getMobData(idx);
+        if (mobData && mobData.theme) {
+            worldDiv.classList.add(mobData.theme);
+        } else {
+            worldDiv.classList.add(window.isHellMode ? "bg-hell" : "bg-stone");
+        }
+
+        const merc = TOOTH_DATA.mercenaries[window.mercenaryIdx] || TOOTH_DATA.mercenaries[0];
+        const mercIcon = merc ? merc.icon : "🦷";
+
+        worldDiv.innerHTML = `
+            <div id="player" style="left:${window.playerX}px; top:${window.playerY}px;">
+                <div id="player-hp-bar-bg">
+                    <div id="player-hp-bar-fill"></div>
+                </div>
+                <div>${mercIcon}</div>
+            </div>
+        `;
+    }
+
+    const nameEl = document.getElementById("current-dungeon-name");
+    if (nameEl) {
+        const prefix = window.isBossRush ? "[토벌전] " : "";
+        nameEl.innerText = `${prefix}${dungeonData[idx]}`;
+    }
+
+    if (typeof window.renderBattleSlots === "function") {
+        window.renderBattleSlots();
+    }
+
+    if (typeof window.updateUI === "function") {
+        window.updateUI();
+    }
+
+    if (typeof window.saveGame === "function") {
+        window.saveGame();
+    }
+
+    const t = setTimeout(() => {
+        spawnWave();
+    }, 700);
+
+    spawnTimeouts.push(t);
+};
+
+// =========================
+// 웨이브 생성
+// =========================
+function spawnWave() {
+    if (!window.dungeonActive || window.bossDead) return;
+
+    const waveInfo = document.getElementById("wave-info");
+
+    if (window.isBossRush) {
+        const maxWaves = getBossRushMaxWaves();
+
+        if (waveInfo) {
+            waveInfo.innerText = `🔥 BOSS RUSH ${window.currentWave}/${maxWaves} 🔥`;
+        }
+
+        const t = setTimeout(() => {
+            spawnEnemy(true);
+        }, 500);
+
+        spawnTimeouts.push(t);
+
+        return;
+    }
+
+    if (window.isBossWave) {
+        if (waveInfo) waveInfo.innerText = "👑 BOSS WAVE 👑";
+
+        const t = setTimeout(() => {
+            spawnEnemy(true);
+        }, 700);
+
+        spawnTimeouts.push(t);
+
+        return;
+    }
+
+    if (waveInfo) {
+        waveInfo.innerText = `WAVE ${window.currentWave}/5`;
+    }
+
+    const count = 5 + (window.currentWave * 2);
+
+    for (let i = 0; i < count; i++) {
+        const t = setTimeout(() => {
+            spawnEnemy(false);
+        }, i * 500);
+
+        spawnTimeouts.push(t);
+    }
+}
+
 window.spawnWave = spawnWave;
-window.updateCombat = updateCombat;
-window.requestRetreat = requestRetreat;
-window.cancelRetreat = cancelRetreat;
-window.confirmRetreat = confirmRetreat;
-window.exitDungeon = exitDungeon;
-window.retryDungeon = retryDungeon;
-window.nextDungeon = nextDungeon;
-window.handlePlayerDeath = handlePlayerDeath;
-console.log("치아 연대기 combat.js loaded v8.3.0");
+
+// =========================
+// 적 생성
+// =========================
+function spawnEnemy(isBoss) {
+    if (!window.dungeonActive || window.bossDead) return;
+
+    const worldDiv = document.getElementById("battle-world");
+    if (!worldDiv) return;
+
+    let safeIdx = Number(window.currentDungeonIdx) || 0;
+
+    if (window.isBossRush) {
+        safeIdx = window.currentDungeonIdx + window.currentWave - 1;
+    }
+
+    const dungeonData = getDungeonData();
+    safeIdx = cClamp(safeIdx, 0, Math.max(0, dungeonData.length - 1));
+
+    const mobData = getMobData(safeIdx);
+    const mobs = mobData && mobData.mobs ? mobData.mobs : ["👾"];
+    const icon = isBoss ? (mobData && mobData.boss ? mobData.boss : "👑") : mobs[Math.floor(Math.random() * mobs.length)];
+
+    const angle = Math.random() * Math.PI * 2;
+    const spawnDist = 600;
+
+    const px = window.playerX || WORLD_WIDTH / 2;
+    const py = window.playerY || WORLD_HEIGHT / 2;
+
+    const x = cClamp(px + Math.cos(angle) * spawnDist, 60, WORLD_WIDTH - 60);
+    const y = cClamp(py + Math.sin(angle) * spawnDist, 60, WORLD_HEIGHT - 60);
+
+    let baseHp = Math.floor(100 * Math.pow(window.isHellMode ? 2.5 : 2.2, safeIdx));
+
+    if (window.isHellMode) baseHp *= 50;
+
+    let hp = baseHp;
+    let speed = 2.5 + (safeIdx * 0.1);
+    let shootInterval = 300;
+    let damage = 10 + (safeIdx * 5);
+
+    if (window.isHellMode) {
+        damage *= 10;
+        shootInterval = Math.floor(shootInterval / 2);
+    }
+
+    if (isBoss) {
+        let bossMul = 30;
+
+        if (window.isBossRush) {
+            bossMul = 20 * Math.pow(1.5, window.currentWave);
+        }
+
+        hp = Math.floor(baseHp * bossMul);
+        speed = 1.5 + (safeIdx * 0.04);
+        shootInterval = window.isHellMode ? 60 : 120;
+        damage *= 2.5;
+    }
+
+    const el = document.createElement("div");
+    el.className = `battle-enemy ${isBoss ? "boss" : ""}`;
+    el.style.left = x + "px";
+    el.style.top = y + "px";
+
+    const hpWidth = isBoss ? 90 : 40;
+
+    el.innerHTML = `
+        <div class="hp-bar-bg" style="width:${hpWidth}px;">
+            <div class="hp-bar-fill" style="width:100%;"></div>
+        </div>
+        <div>${icon}</div>
+    `;
+
+    worldDiv.appendChild(el);
+
+    const enemy = {
+        x,
+        y,
+        hp,
+        maxHp: hp,
+        speed,
+        damage,
+        isBoss,
+        icon,
+        el,
+        shootTimer: Math.floor(Math.random() * 60),
+        shootInterval,
+        touchTimer: 0,
+        phase: 1
+    };
+
+    enemies.push(enemy);
+}
+
+window.spawnEnemy = spawnEnemy;
+
+// =========================
+// 전투 업데이트
+// battle.js에서 60FPS로 호출
+// =========================
+window.updateCombat = function() {
+    if (!window.dungeonActive || window.bossDead) return;
+
+    updateEnemies();
+    updatePlayerWeapons();
+    updateMissiles();
+    updateEnemyMissiles();
+};
+
+// =========================
+// 적 이동 / 공격
+// =========================
+function updateEnemies() {
+    const px = window.playerX || WORLD_WIDTH / 2;
+    const py = window.playerY || WORLD_HEIGHT / 2;
+
+    enemies.forEach((en) => {
+        if (!en || !en.el) return;
+
+        const dx = px - en.x;
+        const dy = py - en.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+        let shouldMove = true;
+
+        if (en.isBoss && dist < 280) {
+            shouldMove = false;
+        }
+
+        if (shouldMove) {
+            en.x += (dx / dist) * en.speed;
+            en.y += (dy / dist) * en.speed;
+        }
+
+        en.x = cClamp(en.x, 30, WORLD_WIDTH - 30);
+        en.y = cClamp(en.y, 30, WORLD_HEIGHT - 30);
+
+        en.el.style.left = en.x + "px";
+        en.el.style.top = en.y + "px";
+
+        if (en.touchTimer > 0) en.touchTimer--;
+
+        const hitRange = en.isBoss ? 85 : 35;
+
+        if (dist < hitRange && en.touchTimer <= 0) {
+            en.touchTimer = 45;
+
+            if (typeof window.takeDamage === "function") {
+                window.takeDamage(en.damage);
+            }
+        }
+
+        en.shootTimer--;
+
+        if (en.shootTimer <= 0) {
+            en.shootTimer = Math.max(25, en.shootInterval);
+
+            const angle = Math.atan2(py - en.y, px - en.x);
+            enemyShoot(en.x, en.y, angle, en.isBoss ? "🔥" : "•");
+        }
+    });
+}
+
+// =========================
+// 플레이어 무기 발사
+// =========================
+function updatePlayerWeapons() {
+    if (!Array.isArray(window.inventory)) return;
+
+    const slotCount = window.TOP_ATTACK_SLOT_COUNT || 8;
+
+    for (let i = 0; i < slotCount; i++) {
+        if (slotFireCds[i] > 0) slotFireCds[i]--;
+    }
+
+    const cdReduction = Math.min(90, (window.globalUpgrades && window.globalUpgrades.cd ? window.globalUpgrades.cd : 0) * 2);
+    const baseCd = Math.max(6, Math.floor(60 * (1 - cdReduction / 100)));
+
+    const range = Math.min(WORLD_WIDTH / 2, 300 + ((window.globalUpgrades && window.globalUpgrades.rng ? window.globalUpgrades.rng : 0) * 20));
+
+    for (let loop = 0; loop < slotCount; loop++) {
+        const slotIdx = activeSlotIndex;
+        activeSlotIndex = (activeSlotIndex + 1) % slotCount;
+
+        const lv = Number(window.inventory[slotIdx]) || 0;
+
+        if (lv <= 0) {
+            updateSlotCooldownOverlay(slotIdx, 0);
+            continue;
+        }
+
+        if (slotFireCds[slotIdx] > 0) {
+            updateSlotCooldownOverlay(slotIdx, slotFireCds[slotIdx] / baseCd);
+            continue;
+        }
+
+        const target = findNearestEnemy(range);
+
+        if (!target) {
+            updateSlotCooldownOverlay(slotIdx, 0);
+            continue;
+        }
+
+        playerShoot(slotIdx, target);
+
+        slotFireCds[slotIdx] = baseCd;
+        updateSlotCooldownOverlay(slotIdx, 1);
+    }
+}
+
+function updateSlotCooldownOverlay(slotIdx, ratio) {
+    const slot = document.getElementById(`war-slot-${slotIdx}`);
+    if (!slot) return;
+
+    const overlay = slot.querySelector(".cd-overlay");
+    if (!overlay) return;
+
+    const percent = Math.max(0, Math.min(100, ratio * 100));
+    overlay.style.height = percent + "%";
+}
+
+function findNearestEnemy(range) {
+    if (!enemies.length) return null;
+
+    const px = window.playerX || WORLD_WIDTH / 2;
+    const py = window.playerY || WORLD_HEIGHT / 2;
+
+    let nearest = null;
+    let bestDist = Infinity;
+
+    enemies.forEach((en) => {
+        if (!en || !en.el) return;
+
+        const d = cDistance(px, py, en.x, en.y);
+
+        if (d < bestDist && d <= range) {
+            bestDist = d;
+            nearest = en;
+        }
+    });
+
+    return nearest;
+}
+
+// =========================
+// 플레이어 미사일
+// =========================
+function getMissileFromPool() {
+    const worldDiv = document.getElementById("battle-world");
+
+    if (!worldDiv) return null;
+
+    let m = missilePool.find((item) => !item.active);
+
+    if (!m) {
+        const el = document.createElement("div");
+        el.className = "missile";
+        el.style.display = "none";
+        worldDiv.appendChild(el);
+
+        m = {
+            active: false,
+            el
+        };
+
+        missilePool.push(m);
+    }
+
+    return m;
+}
+
+function playerShoot(slotIdx, target) {
+    const lv = Number(window.inventory[slotIdx]) || 0;
+
+    if (lv <= 0 || !target) return;
+
+    try {
+        if (typeof playSfx === "function") playSfx("attack");
+    } catch (e) {}
+
+    const m = getMissileFromPool();
+    if (!m) return;
+
+    const px = window.playerX || WORLD_WIDTH / 2;
+    const py = window.playerY || WORLD_HEIGHT / 2;
+
+    const angle = Math.atan2(target.y - py, target.x - px);
+
+    const refineMul = 1 + (((window.slotUpgrades && window.slotUpgrades[slotIdx] && window.slotUpgrades[slotIdx].atk) || 0) * 0.1);
+
+    let dmg = cGetAtk(lv) * refineMul;
+
+    const merc = typeof TOOTH_DATA !== "undefined" ? TOOTH_DATA.mercenaries[window.mercenaryIdx] : null;
+
+    if (merc) dmg *= merc.atkMul;
+
+    if (window.highestToothLevel >= 16) dmg *= 2;
+
+    if (window.trainingLevels && window.trainingLevels.atk) {
+        dmg *= 1 + (window.trainingLevels.atk * 0.1);
+    }
+
+    let isCrit = false;
+
+    if (window.highestToothLevel >= 10) {
+        const critLv = window.trainingLevels && window.trainingLevels.crit ? window.trainingLevels.crit : 0;
+        const critChance = 0.05 + (critLv * 0.02);
+        const critMul = 2 + (critLv * 0.2);
+
+        if (Math.random() < critChance) {
+            dmg *= critMul;
+            isCrit = true;
+        }
+    }
+
+    m.active = true;
+    m.x = px;
+    m.y = py;
+    m.vx = Math.cos(angle) * 18;
+    m.vy = Math.sin(angle) * 18;
+    m.dmg = Math.floor(dmg);
+    m.isCrit = isCrit;
+    m.range = 2000;
+    m.travel = 0;
+    m.slotIdx = slotIdx;
+
+    m.el.innerHTML = cGetIcon(lv);
+    m.el.style.left = m.x + "px";
+    m.el.style.top = m.y + "px";
+    m.el.style.display = "block";
+}
+
+function updateMissiles() {
+    missiles = missilePool.filter((m) => m.active);
+
+    for (let i = missiles.length - 1; i >= 0; i--) {
+        const m = missiles[i];
+
+        m.x += m.vx;
+        m.y += m.vy;
+        m.travel += Math.sqrt(m.vx * m.vx + m.vy * m.vy);
+
+        m.el.style.left = m.x + "px";
+        m.el.style.top = m.y + "px";
+
+        if (m.travel > m.range || m.x < -50 || m.y < -50 || m.x > WORLD_WIDTH + 50 || m.y > WORLD_HEIGHT + 50) {
+            deactivateMissile(m);
+            continue;
+        }
+
+        let hitEnemy = null;
+
+        for (const en of enemies) {
+            if (!en || !en.el) continue;
+
+            const hitRange = en.isBoss ? 75 : 28;
+
+            if (cDistance(m.x, m.y, en.x, en.y) <= hitRange) {
+                hitEnemy = en;
+                break;
+            }
+        }
+
+        if (hitEnemy) {
+            damageEnemy(hitEnemy, m.dmg, m.isCrit, m.x, m.y);
+            applySplashDamage(hitEnemy, m.dmg);
+            deactivateMissile(m);
+        }
+    }
+}
+
+function deactivateMissile(m) {
+    if (!m) return;
+
+    m.active = false;
+
+    if (m.el) {
+        m.el.style.display = "none";
+    }
+}
+
+// =========================
+// 적 데미지 처리
+// =========================
+function damageEnemy(en, dmg, isCrit, tx, ty) {
+    if (!en || !en.el) return;
+
+    dmg = Math.max(1, Math.floor(dmg));
+
+    en.hp -= dmg;
+
+    showDmgText(tx || en.x, ty || en.y, dmg, isCrit);
+
+    const fill = en.el.querySelector(".hp-bar-fill");
+    if (fill) {
+        fill.style.width = Math.max(0, (en.hp / en.maxHp) * 100) + "%";
+    }
+
+    try {
+        if (typeof playSfx === "function") playSfx("hit");
+    } catch (e) {}
+
+    if (en.hp <= 0) {
+        processEnemyDeath(en);
+    }
+}
+
+function applySplashDamage(mainEnemy, mainDmg) {
+    if (!mainEnemy) return;
+
+    if (window.highestToothLevel < 7) return;
+
+    const splashDmgLv = window.trainingLevels && window.trainingLevels.splashDmg ? window.trainingLevels.splashDmg : 0;
+    const splashRangeLv = window.trainingLevels && window.trainingLevels.splashRange ? window.trainingLevels.splashRange : 0;
+
+    const ratio = Math.min(0.8, 0.2 + (splashDmgLv * 0.05));
+    const radius = 50 + (splashRangeLv * 10);
+
+    if (radius <= 0 || ratio <= 0) return;
+
+    showSplashEffect(mainEnemy.x, mainEnemy.y, radius);
+
+    enemies.slice().forEach((en) => {
+        if (!en || en === mainEnemy || !en.el) return;
+
+        if (cDistance(mainEnemy.x, mainEnemy.y, en.x, en.y) <= radius) {
+            damageEnemy(en, mainDmg * ratio, false, en.x, en.y);
+        }
+    });
+}
+
+// =========================
+// 적 미사일
+// =========================
+function getEnemyMissileFromPool() {
+    const worldDiv = document.getElementById("battle-world");
+
+    if (!worldDiv) return null;
+
+    let m = enemyMissilePool.find((item) => !item.active);
+
+    if (!m) {
+        const el = document.createElement("div");
+        el.className = "enemy-missile";
+        el.style.display = "none";
+        worldDiv.appendChild(el);
+
+        m = {
+            active: false,
+            el
+        };
+
+        enemyMissilePool.push(m);
+    }
+
+    return m;
+}
+
+function enemyShoot(ex, ey, angle, iconStr) {
+    const m = getEnemyMissileFromPool();
+
+    if (!m) return;
+
+    const idx = Number(window.currentDungeonIdx) || 0;
+
+    let dmg = 15 + (idx * 5);
+
+    if (window.isHellMode) dmg *= 10;
+
+    m.active = true;
+    m.x = ex;
+    m.y = ey;
+    m.vx = Math.cos(angle) * 7;
+    m.vy = Math.sin(angle) * 7;
+    m.dmg = dmg;
+    m.range = 1500;
+    m.travel = 0;
+
+    m.el.innerHTML = iconStr || "•";
+    m.el.style.left = m.x + "px";
+    m.el.style.top = m.y + "px";
+    m.el.style.display = "block";
+}
+
+function updateEnemyMissiles() {
+    enemyMissiles = enemyMissilePool.filter((m) => m.active);
+
+    const px = window.playerX || WORLD_WIDTH / 2;
+    const py = window.playerY || WORLD_HEIGHT / 2;
+
+    for (let i = enemyMissiles.length - 1; i >= 0; i--) {
+        const m = enemyMissiles[i];
+
+        m.x += m.vx;
+        m.y += m.vy;
+        m.travel += Math.sqrt(m.vx * m.vx + m.vy * m.vy);
+
+        m.el.style.left = m.x + "px";
+        m.el.style.top = m.y + "px";
+
+        if (m.travel > m.range || m.x < -50 || m.y < -50 || m.x > WORLD_WIDTH + 50 || m.y > WORLD_HEIGHT + 50) {
+            deactivateEnemyMissile(m);
+            continue;
+        }
+
+        if (cDistance(m.x, m.y, px, py) < 30) {
+            if (typeof window.takeDamage === "function") {
+                window.takeDamage(m.dmg);
+            }
+
+            deactivateEnemyMissile(m);
+        }
+    }
+}
+
+function deactivateEnemyMissile(m) {
+    if (!m) return;
+
+    m.active = false;
+
+    if (m.el) {
+        m.el.style.display = "none";
+    }
+}
+
+// =========================
+// 적 사망 / 보상
+// =========================
+function processEnemyDeath(en) {
+    if (!en || !en.el) return;
+
+    // HELL 보스 2페이즈
+    if (en.isBoss && window.isHellMode && en.phase === 1) {
+        en.phase = 2;
+        en.hp = Math.floor(en.maxHp * 0.5);
+        en.maxHp = en.hp;
+        en.speed *= 1.8;
+        en.shootInterval = Math.max(25, Math.floor(en.shootInterval / 2));
+
+        const fill = en.el.querySelector(".hp-bar-fill");
+        if (fill) fill.style.width = "100%";
+
+        showDmgText(en.x, en.y - 40, "광폭화!!", true);
+        flashBattleScreen("rgba(255,0,0,0.45)");
+
+        return;
+    }
+
+    const idx = Number(window.currentDungeonIdx) || 0;
+
+    const enemyIdx = enemies.indexOf(en);
+    if (enemyIdx >= 0) enemies.splice(enemyIdx, 1);
+
+    if (en.el) en.el.remove();
+
+    let goldGain = Math.floor(2000 * Math.pow(2.5, idx));
+
+    if (en.isBoss) goldGain *= 5;
+    if (window.isHellMode) goldGain *= 20;
+    if (window.isBossRush) goldGain *= (2 * window.currentWave);
+    if (window.highestToothLevel >= 22) goldGain *= 5;
+
+    window.gold += goldGain;
+    window.dungeonGoldEarned += goldGain;
+
+    showGoldText(en.x, en.y, goldGain);
+
+    let diaGain = 0;
+
+    const baseDia = (1 + Math.floor(idx * 1.5)) * (window.isHellMode ? 10 : 1);
+
+    if (en.isBoss) {
+        diaGain = baseDia * 5;
+
+        if (window.isBossRush) {
+            diaGain *= window.currentWave;
+        }
+    } else if (Math.random() < 0.1) {
+        diaGain = baseDia;
+    }
+
+    if (diaGain > 0) {
+        if (window.highestToothLevel >= 13) diaGain *= 2;
+        if (window.highestToothLevel >= 22) diaGain *= 5;
+
+        diaGain = Math.floor(diaGain);
+
+        window.dia += diaGain;
+        window.dungeonDiaEarned += diaGain;
+
+        showDiaText(en.x, en.y - 20, diaGain);
+    }
+
+    if (en.isBoss) {
+        showExplosion(en.x, en.y);
+
+        handleBossReward();
+        return;
+    }
+
+    checkWaveClear();
+}
+
+function handleBossReward() {
+    const idx = Number(window.currentDungeonIdx) || 0;
+
+    // 일반 원정 보스 유물 드랍
+    if (!window.isBossRush) {
+        const dropChance = 0.3;
+
+        if (Math.random() < dropChance) {
+            const artifactIdx = window.isHellMode ? idx + 20 : idx;
+
+            if (typeof TOOTH_DATA !== "undefined" && TOOTH_DATA.artifacts[artifactIdx]) {
+                if (!Array.isArray(window.artifactCounts)) {
+                    window.artifactCounts = new Array(30).fill(0);
+                }
+
+                window.artifactCounts[artifactIdx] = (window.artifactCounts[artifactIdx] || 0) + 1;
+
+                const art = TOOTH_DATA.artifacts[artifactIdx];
+
+                window.dungeonArtifactDropped = {
+                    idx: artifactIdx,
+                    name: art.name,
+                    icon: art.icon,
+                    count: window.artifactCounts[artifactIdx]
+                };
+            }
+        }
+    }
+
+    if (window.isBossRush) {
+        const maxWaves = getBossRushMaxWaves();
+
+        if (window.currentWave < maxWaves) {
+            window.currentWave++;
+            window.isBossWave = true;
+
+            const t = setTimeout(() => {
+                spawnWave();
+            }, 1200);
+
+            spawnTimeouts.push(t);
+        } else {
+            finishDungeonClear();
+        }
+
+        return;
+    }
+
+    finishDungeonClear();
+}
+
+function finishDungeonClear() {
+    window.bossDead = true;
+    window.dungeonActive = false;
+
+    clearSpawnTimeouts();
+
+    if (typeof window.showResultModal === "function") {
+        window.showResultModal();
+    }
+
+    if (typeof window.saveGame === "function") {
+        window.saveGame();
+    }
+}
+
+function checkWaveClear() {
+    if (!window.dungeonActive || window.bossDead) return;
+    if (window.isBossRush || window.isBossWave) return;
+
+    if (enemies.length > 0) return;
+
+    if (window.currentWave < 5) {
+        window.currentWave++;
+
+        const t = setTimeout(() => {
+            spawnWave();
+        }, 800);
+
+        spawnTimeouts.push(t);
+    } else {
+        window.isBossWave = true;
+
+        const t = setTimeout(() => {
+            spawnWave();
+        }, 1000);
+
+        spawnTimeouts.push(t);
+    }
+}
+
+// =========================
+// 텍스트 / 효과
+// =========================
+function showDmgText(x, y, dmg, isCrit) {
+    const worldDiv = document.getElementById("battle-world");
+    if (!worldDiv) return;
+
+    const txt = document.createElement("div");
+    txt.className = isCrit ? "crit-text" : "dmg-text";
+    txt.innerText = typeof dmg === "string" ? dmg : (isCrit ? `CRIT! ${cNum(dmg)}` : cNum(dmg));
+    txt.style.left = x + "px";
+    txt.style.top = y + "px";
+
+    worldDiv.appendChild(txt);
+
+    setTimeout(() => txt.remove(), 700);
+}
+
+function showGoldText(x, y, amount) {
+    const worldDiv = document.getElementById("battle-world");
+    if (!worldDiv) return;
+
+    const txt = document.createElement("div");
+    txt.className = "gold-text";
+    txt.innerText = `💰+${cNum(amount)}`;
+    txt.style.left = x + "px";
+    txt.style.top = y + "px";
+
+    worldDiv.appendChild(txt);
+
+    setTimeout(() => txt.remove(), 900);
+}
+
+function showDiaText(x, y, amount) {
+    const worldDiv = document.getElementById("battle-world");
+    if (!worldDiv) return;
+
+    const txt = document.createElement("div");
+    txt.className = "dia-drop-text";
+    txt.innerText = `♦️+${cNum(amount)}`;
+    txt.style.left = x + "px";
+    txt.style.top = y + "px";
+
+    worldDiv.appendChild(txt);
+
+    setTimeout(() => txt.remove(), 1000);
+}
+
+function showSplashEffect(x, y, radius) {
+    const worldDiv = document.getElementById("battle-world");
+    if (!worldDiv) return;
+
+    const effect = document.createElement("div");
+    effect.className = "splash-effect";
+    effect.style.left = x + "px";
+    effect.style.top = y + "px";
+    effect.style.width = radius * 2 + "px";
+    effect.style.height = radius * 2 + "px";
+
+    worldDiv.appendChild(effect);
+
+    setTimeout(() => effect.remove(), 400);
+}
+
+function showExplosion(x, y) {
+    const worldDiv = document.getElementById("battle-world");
+    if (!worldDiv) return;
+
+    const boom = document.createElement("div");
+    boom.className = "hit-effect";
+    boom.innerText = "💥";
+    boom.style.position = "absolute";
+    boom.style.left = x + "px";
+    boom.style.top = y + "px";
+    boom.style.fontSize = "80px";
+    boom.style.transform = "translate(-50%, -50%)";
+
+    worldDiv.appendChild(boom);
+
+    setTimeout(() => boom.remove(), 600);
+}
+
+function flashBattleScreen(color) {
+    const battleScreen = document.getElementById("battle-screen");
+    if (!battleScreen) return;
+
+    const flash = document.createElement("div");
+    flash.style.position = "absolute";
+    flash.style.inset = "0";
+    flash.style.background = color || "rgba(255,0,0,0.35)";
+    flash.style.pointerEvents = "none";
+    flash.style.zIndex = "2000";
+    flash.style.animation = "splashFade 0.5s ease-out forwards";
+
+    battleScreen.appendChild(flash);
+
+    setTimeout(() => flash.remove(), 600);
+}
+
+// =========================
+// 후퇴
+// =========================
+window.requestRetreat = function() {
+    if (!window.dungeonActive && !window.bossDead) {
+        window.exitDungeon();
+        return;
+    }
+
+    const modal = document.getElementById("retreat-confirm-modal");
+
+    if (modal) {
+        modal.style.display = "flex";
+    } else {
+        if (confirm("던전에서 후퇴하시겠습니까?")) {
+            window.exitDungeon();
+        }
+    }
+};
+
+window.cancelRetreat = function() {
+    const modal = document.getElementById("retreat-confirm-modal");
+    if (modal) modal.style.display = "none";
+};
+
+window.confirmRetreat = function() {
+    const modal = document.getElementById("retreat-confirm-modal");
+    if (modal) modal.style.display = "none";
+
+    window.exitDungeon();
+};
+
+// =========================
+// 던전 종료 / 정리
+// =========================
+function clearBattleObjects() {
+    enemies.forEach((en) => {
+        if (en && en.el) en.el.remove();
+    });
+
+    enemies = [];
+
+    missilePool.forEach((m) => {
+        if (m && m.el) m.el.remove();
+    });
+
+    enemyMissilePool.forEach((m) => {
+        if (m && m.el) m.el.remove();
+    });
+
+    missiles = [];
+    enemyMissiles = [];
+    missilePool = [];
+    enemyMissilePool = [];
+}
+
+window.exitDungeon = function() {
+    window.dungeonActive = false;
+    window.bossDead = true;
+
+    window.moveX = 0;
+    window.moveY = 0;
+
+    clearSpawnTimeouts();
+    clearBattleObjects();
+
+    const battleScreen = document.getElementById("battle-screen");
+    const gameContainer = document.getElementById("game-container");
+    const worldDiv = document.getElementById("battle-world");
+
+    if (battleScreen) {
+        battleScreen.style.display = "none";
+        battleScreen.style.boxShadow = "";
+    }
+
+    if (gameContainer) {
+        gameContainer.style.display = "flex";
+    }
+
+    if (worldDiv) {
+        worldDiv.className = "";
+        worldDiv.innerHTML = "";
+        worldDiv.style.transform = "translate(0px, 0px)";
+    }
+
+    const knob = document.getElementById("joystick-knob");
+    if (knob) {
+        knob.style.left = "50%";
+        knob.style.top = "50%";
+    }
+
+    if (typeof window.updateUI === "function") window.updateUI();
+    if (typeof window.renderDungeonList === "function") window.renderDungeonList();
+    if (typeof window.renderMercenaryCamp === "function") window.renderMercenaryCamp();
+    if (typeof window.renderInventory === "function") window.renderInventory();
+    if (typeof window.saveGame === "function") window.saveGame();
+};
+
+window.closeResultModal = function() {
+    const modal = document.getElementById("dungeon-result-modal");
+    if (modal) modal.style.display = "none";
+
+    window.exitDungeon();
+};
