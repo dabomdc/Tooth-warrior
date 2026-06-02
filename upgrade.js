@@ -1,120 +1,693 @@
-/* upgrade.js v8.3.0
-   전력강화 / 채굴강화 / 슬롯제련 / 용병훈련
-*/
-"use strict";
+// Version: 8.0.0 - Upgrade / Training / Refine
+// 기존 비용/밸런스 보존 + Lv.MAX 표시 대응
 
-function ensureUpgradeState() {
-  if (!window.globalUpgrades) window.globalUpgrades = { rng: 0, cd: 0 };
-  window.globalUpgrades.rng = Number(window.globalUpgrades.rng) || 0;
-  window.globalUpgrades.cd = Number(window.globalUpgrades.cd) || 0;
-  const count = window.BALANCE?.TOP_SLOT_COUNT || 8;
-  if (!Array.isArray(window.slotUpgrades)) window.slotUpgrades = [];
-  while (window.slotUpgrades.length < count) window.slotUpgrades.push({ atk: 0, cd: 0, rng: 0 });
-  window.slotUpgrades = window.slotUpgrades.slice(0, count).map((slot) => ({ atk: Number(slot?.atk) || 0, cd: Number(slot?.cd) || 0, rng: Number(slot?.rng) || 0 }));
-  if (!window.trainingLevels) window.trainingLevels = { hp: 0, atk: 0, spd: 0, crit: 0, splashDmg: 0, splashRange: 0 };
-  ["hp", "atk", "spd", "crit", "splashDmg", "splashRange"].forEach((key) => { window.trainingLevels[key] = Number(window.trainingLevels[key]) || 0; });
-  if (!Array.isArray(window.ownedMercenaries)) window.ownedMercenaries = [0];
-  if (!window.ownedMercenaries.includes(0)) window.ownedMercenaries.unshift(0);
-  if (typeof window.currentMercenary === "undefined") window.currentMercenary = 0;
+// =========================
+// 안전 유틸
+// =========================
+function upgNum(value) {
+    if (typeof fNum === "function") return fNum(value);
+    return Math.floor(Number(value) || 0);
 }
 
-function upgradeToast(message, type = "info", duration = 1700) { window.showToast ? window.showToast(message, type, duration) : console.log(message); }
-function upgradeFmt(value) { return window.formatNumber ? window.formatNumber(value) : String(Math.floor(Number(value) || 0)); }
-function upgradeSaveAndRefresh() { window.saveGame?.(false); renderRefineView(); window.updateUI?.(); window.updateResourceBar?.(); window.renderInventory?.(); window.renderBattleSlots?.(); }
-function payGold(cost) { const c = Number(cost) || 0; if (c <= 0) return true; if ((Number(window.gold) || 0) < c) { upgradeToast("골드가 부족합니다.", "danger"); return false; } window.gold -= c; return true; }
-function openUpgradeModal(html) { window.openGenericModal ? window.openGenericModal(html) : alert("강화창을 열 수 없습니다."); }
-function closeUpgradeModal() { window.closeGenericModal?.(); }
-
-function renderRefineView() {
-  ensureUpgradeState();
-  const grid = document.getElementById("refine-grid");
-  if (!grid) return;
-  const topCount = window.BALANCE?.TOP_SLOT_COUNT || 8;
-  const inventory = Array.isArray(window.inventory) ? window.inventory : [];
-  const topPower = inventory.slice(0, topCount).reduce((sum, lv, index) => {
-    const base = typeof window.getBaseAttackByLevel === "function" ? window.getBaseAttackByLevel(lv) : Number(lv || 0) * 10;
-    const slotBonus = 1 + (Number(window.slotUpgrades[index]?.atk) || 0) * 0.08;
-    return sum + Math.floor(base * slotBonus);
-  }, 0);
-  const pickaxe = window.getPickaxeInfo ? window.getPickaxeInfo(window.pickaxeLevel) : { level: 1, icon: "⛏️", name: "곡괭이", power: 1 };
-  const pickaxeText = window.getPickaxeDisplay ? window.getPickaxeDisplay(window.pickaxeLevel) : `${pickaxe.icon} ${pickaxe.name}`;
-  const merc = (window.MERCENARIES || []).find((m) => m.id === window.currentMercenary) || (window.MERCENARIES || [])[0] || { icon: "🧑‍🚀", name: "기본 용병", hp: 0, atkRate: 1 };
-  const trainingTotal = Object.values(window.trainingLevels || {}).reduce((a, b) => a + (Number(b) || 0), 0);
-  grid.innerHTML = `
-    <div class="power-card mining-card"><div class="power-card-head"><div class="power-icon">${pickaxe.icon}</div><div><h3>채굴 / 자동화 강화</h3><p>${pickaxeText} 사용중</p></div></div><div class="power-stats"><span>채굴 파워 <b>${upgradeFmt(pickaxe.power || 1)}</b></span><span>자동채굴 Lv.<b>${window.autoMineLevel || 0}</b></span><span>자동합성 Lv.<b>${window.autoMergeLevel || 0}</b></span></div><button class="btn-main full" onclick="openShop()">강화하기</button></div>
-    <div class="power-card"><div class="power-card-head"><div class="power-icon">🔥</div><div><h3>Top8 슬롯 제련</h3><p>첫 줄 공격 슬롯의 화력을 강화합니다.</p></div></div><div class="power-stats"><span>Top8 화력 <b>${upgradeFmt(topPower)}</b></span><span>슬롯 수 <b>${topCount}</b></span></div><button class="btn-main full" onclick="openSlotRefineModal()">슬롯 제련</button></div>
-    <div class="power-card"><div class="power-card-head"><div class="power-icon">🎯</div><div><h3>공통 전투 시스템</h3><p>모든 공격 슬롯에 적용됩니다.</p></div></div><div class="power-stats"><span>사거리 Lv.<b>${window.globalUpgrades.rng}</b></span><span>공속 Lv.<b>${window.globalUpgrades.cd}</b></span></div><button class="btn-main full" onclick="openSystemUpgradeModal()">시스템 강화</button></div>
-    <div class="power-card"><div class="power-card-head"><div class="power-icon">${merc.icon}</div><div><h3>용병 모집 / 교체</h3><p>현재 용병: ${merc.name}</p></div></div><div class="power-stats"><span>보유 용병 <b>${window.ownedMercenaries.length}</b></span><span>공격 배율 <b>x${Number(merc.atkRate || 1).toFixed(2)}</b></span></div><button class="btn-main full" onclick="openMercenaryModal()">용병 관리</button></div>
-    <div class="power-card"><div class="power-card-head"><div class="power-icon">🏋️</div><div><h3>용병 훈련</h3><p>체력, 공격, 속도, 치명, 범위를 올립니다.</p></div></div><div class="power-stats"><span>총 훈련 <b>${trainingTotal}</b></span><span>체력 Lv.<b>${window.trainingLevels.hp}</b></span><span>공격 Lv.<b>${window.trainingLevels.atk}</b></span></div><button class="btn-main full" onclick="openTrainingCamp()">훈련하기</button></div>
-    <div class="power-card guide-card"><div class="power-card-head"><div class="power-icon">👑</div><div><h3>초월 왕관 치아</h3><p>Lv.24 왕관 치아를 더블터치하면 봉인해제 창이 열립니다.</p></div></div><div class="power-stats"><span>합성 최대 <b>Lv.24</b></span><span>초월 <b>Lv.MAX</b></span></div><button class="btn-sub full" onclick="showTranscendGuideModal()">초월 안내 보기</button></div>
-  `;
+function upgGetAtk(lv) {
+    if (typeof getAtk === "function") return getAtk(lv);
+    return 0;
 }
 
-function getAutoMineCost() { return Math.floor(800 * Math.pow(2.25, Number(window.autoMineLevel) || 0)); }
-function getAutoMergeCost() { return Math.floor(1800 * Math.pow(2.45, Number(window.autoMergeLevel) || 0)); }
-function getGreatChanceCost() { return Math.floor(2500 * Math.pow(2.4, Number(window.greatChanceLevel) || 0)); }
-function getInventorySlotCost() { const extra = Math.max(0, (Number(window.inventorySize) || 56) - (window.BALANCE?.BASE_INVENTORY_SIZE || 56)); return Math.floor(6000 * Math.pow(1.8, extra / 8)); }
-function openShop() { renderShop(); }
-function renderShop() {
-  ensureUpgradeState();
-  const maxPickaxe = window.BALANCE?.PICKAXE_MAX_LEVEL || 8;
-  const cur = Number(window.pickaxeLevel) || 1;
-  const pickaxe = window.getPickaxeInfo(cur);
-  const isPickaxeMax = cur >= maxPickaxe;
-  const nextPickaxe = !isPickaxeMax ? window.getPickaxeInfo(cur + 1) : null;
-  const inventorySize = Number(window.inventorySize) || window.BALANCE?.BASE_INVENTORY_SIZE || 56;
-  const maxInventory = window.BALANCE?.MAX_INVENTORY_SIZE || 96;
-  const inventoryMax = inventorySize >= maxInventory;
-  openUpgradeModal(`
-    <div class="upgrade-modal-inner"><h2>⛏️ 채굴 / 자동화 강화</h2><p class="modal-desc">채굴 속도와 자동화 성능을 강화합니다.</p><div class="upgrade-list">
-      <div class="upgrade-row"><div class="upgrade-info"><div class="upgrade-title">${pickaxe.icon} ${pickaxe.name} Lv.${pickaxe.level} / ${maxPickaxe} 사용중</div><div class="upgrade-desc">수동 채굴 파워 ${upgradeFmt(pickaxe.power)}<br>${nextPickaxe ? `다음: ${nextPickaxe.icon} ${nextPickaxe.name} Lv.${nextPickaxe.level} / ${maxPickaxe}` : "최고 등급 곡괭이입니다."}</div></div>${isPickaxeMax ? `<button class="btn-max same-size" disabled>MAX</button>` : `<button class="btn-main same-size" onclick="buyPickaxe()">강화<br><small>${upgradeFmt(nextPickaxe.cost)}G</small></button>`}</div>
-      <div class="upgrade-row"><div class="upgrade-info"><div class="upgrade-title">🤖 자동채굴 Lv.${window.autoMineLevel || 0}</div><div class="upgrade-desc">자동으로 채굴합니다.</div></div><button class="btn-main same-size" onclick="buyAutoMine()">강화<br><small>${upgradeFmt(getAutoMineCost())}G</small></button></div>
-      <div class="upgrade-row"><div class="upgrade-info"><div class="upgrade-title">🔁 자동합성 Lv.${window.autoMergeLevel || 0}</div><div class="upgrade-desc">Top8 공격 슬롯을 제외하고 자동합성합니다.</div></div><button class="btn-main same-size" onclick="buyAutoMerge()">강화<br><small>${upgradeFmt(getAutoMergeCost())}G</small></button></div>
-      <div class="upgrade-row"><div class="upgrade-info"><div class="upgrade-title">✨ 대성공 확률 Lv.${window.greatChanceLevel || 0}</div><div class="upgrade-desc">합성 시 +2레벨 대성공 확률 증가. Lv.23+23은 대성공 제외.</div></div><button class="btn-main same-size" onclick="buyGreatChance()">강화<br><small>${upgradeFmt(getGreatChanceCost())}G</small></button></div>
-      <div class="upgrade-row"><div class="upgrade-info"><div class="upgrade-title">🎒 인벤토리 확장 ${inventorySize} / ${maxInventory}</div><div class="upgrade-desc">8칸씩 확장합니다.</div></div>${inventoryMax ? `<button class="btn-max same-size" disabled>MAX</button>` : `<button class="btn-main same-size" onclick="buyInventorySlot()">확장<br><small>${upgradeFmt(getInventorySlotCost())}G</small></button>`}</div>
-    </div><button class="btn-sub full" onclick="closeUpgradeModal()">닫기</button></div>
-  `);
+function upgGetBaseAtk(lv) {
+    if (typeof getBaseAtk === "function") return getBaseAtk(lv);
+    return upgGetAtk(lv);
 }
-function buyPickaxe() { const max = window.BALANCE?.PICKAXE_MAX_LEVEL || 8; const cur = Number(window.pickaxeLevel) || 1; if (cur >= max) { upgradeToast(`최고등급 곡괭이 Lv.${max} / ${max} 사용중입니다.`, "info"); renderShop(); return; } const next = window.getPickaxeInfo(cur + 1); if (!payGold(next.cost)) return; window.pickaxeLevel = cur + 1; upgradeToast(`${next.icon} ${next.name} 강화 완료!`, "success"); upgradeSaveAndRefresh(); renderShop(); }
-function buyAutoMine() { if (!payGold(getAutoMineCost())) return; window.autoMineLevel = (Number(window.autoMineLevel) || 0) + 1; upgradeToast(`자동채굴 Lv.${window.autoMineLevel} 강화 완료`, "success"); upgradeSaveAndRefresh(); renderShop(); }
-function buyAutoMerge() { if (!payGold(getAutoMergeCost())) return; window.autoMergeLevel = (Number(window.autoMergeLevel) || 0) + 1; upgradeToast(`자동합성 Lv.${window.autoMergeLevel} 강화 완료`, "success"); upgradeSaveAndRefresh(); renderShop(); }
-function buyGreatChance() { if (!payGold(getGreatChanceCost())) return; window.greatChanceLevel = (Number(window.greatChanceLevel) || 0) + 1; upgradeToast(`대성공 확률 Lv.${window.greatChanceLevel} 강화 완료`, "success"); upgradeSaveAndRefresh(); renderShop(); }
-function buyInventorySlot() { const max = window.BALANCE?.MAX_INVENTORY_SIZE || 96; const cur = Number(window.inventorySize) || 56; if (cur >= max) { upgradeToast("인벤토리가 이미 최대치입니다.", "info"); return; } if (!payGold(getInventorySlotCost())) return; window.inventorySize = Math.min(max, cur + 8); while (window.inventory.length < window.inventorySize) window.inventory.push(0); upgradeToast(`인벤토리 ${window.inventorySize}칸으로 확장`, "success"); upgradeSaveAndRefresh(); renderShop(); }
 
-function getGlobalRngCost() { return Math.floor(5000 * Math.pow(2.15, Number(window.globalUpgrades?.rng) || 0)); }
-function getGlobalCdCost() { return Math.floor(7000 * Math.pow(2.2, Number(window.globalUpgrades?.cd) || 0)); }
-function openSystemUpgradeModal() { ensureUpgradeState(); openUpgradeModal(`<div class="upgrade-modal-inner"><h2>🎯 공통 전투 시스템</h2><div class="upgrade-list"><div class="upgrade-row"><div class="upgrade-info"><div class="upgrade-title">📡 사거리 강화 Lv.${window.globalUpgrades.rng}</div><div class="upgrade-desc">모든 치아 무기 사거리 증가</div></div><button class="btn-main same-size" onclick="upgradeGlobalRng()">강화<br><small>${upgradeFmt(getGlobalRngCost())}G</small></button></div><div class="upgrade-row"><div class="upgrade-info"><div class="upgrade-title">⚡ 공격 속도 강화 Lv.${window.globalUpgrades.cd}</div><div class="upgrade-desc">모든 치아 무기 공격 간격 감소</div></div><button class="btn-main same-size" onclick="upgradeGlobalCd()">강화<br><small>${upgradeFmt(getGlobalCdCost())}G</small></button></div></div><button class="btn-sub full" onclick="closeUpgradeModal()">닫기</button></div>`); }
-function upgradeGlobalRng() { if (!payGold(getGlobalRngCost())) return; window.globalUpgrades.rng += 1; upgradeToast("사거리 강화 완료", "success"); upgradeSaveAndRefresh(); openSystemUpgradeModal(); }
-function upgradeGlobalCd() { if (!payGold(getGlobalCdCost())) return; window.globalUpgrades.cd += 1; upgradeToast("공격 속도 강화 완료", "success"); upgradeSaveAndRefresh(); openSystemUpgradeModal(); }
+function upgGetIcon(lv) {
+    if (typeof getToothIcon === "function") return getToothIcon(lv);
+    return "🦷";
+}
 
-function getSlotUpgradeCost(slotIndex, type) { const lv = Number(window.slotUpgrades[slotIndex]?.[type]) || 0; const base = type === "atk" ? 3500 : type === "cd" ? 5500 : 4800; return Math.floor(base * Math.pow(1.9, lv) * (1 + slotIndex * 0.18)); }
-function openSlotRefineModal() { ensureUpgradeState(); const topCount = window.BALANCE?.TOP_SLOT_COUNT || 8; const inventory = Array.isArray(window.inventory) ? window.inventory : []; const rows = Array.from({ length: topCount }, (_, index) => { const lv = Number(inventory[index]) || 0; const emoji = lv ? window.getToothEmoji(lv) : "—"; const levelText = lv ? window.getToothDisplayLevel(lv) : "빈 슬롯"; const up = window.slotUpgrades[index] || { atk: 0, cd: 0, rng: 0 }; return `<div class="slot-refine-row"><div class="slot-refine-head"><div class="slot-refine-icon">${emoji}</div><div><b>${index + 1}번 공격 슬롯</b><small>${levelText}</small></div></div><div class="slot-refine-buttons"><button class="btn-main same-size" onclick="upgradeSlot(${index}, 'atk')">공격 Lv.${up.atk}<br><small>${upgradeFmt(getSlotUpgradeCost(index, "atk"))}G</small></button><button class="btn-main same-size" onclick="upgradeSlot(${index}, 'cd')">공속 Lv.${up.cd}<br><small>${upgradeFmt(getSlotUpgradeCost(index, "cd"))}G</small></button><button class="btn-main same-size" onclick="upgradeSlot(${index}, 'rng')">사거리 Lv.${up.rng}<br><small>${upgradeFmt(getSlotUpgradeCost(index, "rng"))}G</small></button></div></div>`; }).join(""); openUpgradeModal(`<div class="upgrade-modal-inner wide"><h2>🔥 Top8 슬롯 제련</h2><p class="modal-desc">첫 줄 8칸은 던전 공격 슬롯입니다.</p><div class="slot-refine-list">${rows}</div><button class="btn-sub full" onclick="closeUpgradeModal()">닫기</button></div>`); }
-function upgradeSlot(index, type) { ensureUpgradeState(); const i = Number(index); if (!window.slotUpgrades[i]) return; if (!payGold(getSlotUpgradeCost(i, type))) return; window.slotUpgrades[i][type] = (Number(window.slotUpgrades[i][type]) || 0) + 1; upgradeToast(`${i + 1}번 슬롯 제련 완료`, "success"); upgradeSaveAndRefresh(); openSlotRefineModal(); }
+function upgLvLabel(lv) {
+    return Number(lv) >= 25 ? "Lv.MAX" : `Lv.${lv}`;
+}
 
-function getTrainingCost(key) { const lv = Number(window.trainingLevels[key]) || 0; const baseMap = { hp: 4000, atk: 5500, spd: 7000, crit: 9000, splashDmg: 12000, splashRange: 15000 }; return Math.floor((baseMap[key] || 5000) * Math.pow(1.85, lv)); }
-function getTrainingMax(key) { return (window.TRAINING_TYPES || []).find((item) => item.key === key)?.max || 50; }
-function openTrainingCamp() { renderTrainingCamp(); }
-function renderTrainingCamp() { ensureUpgradeState(); const types = window.TRAINING_TYPES || []; const rows = types.map((type) => { const lv = Number(window.trainingLevels[type.key]) || 0; const max = Number(type.max) || getTrainingMax(type.key); const isMax = lv >= max; return `<div class="upgrade-row"><div class="upgrade-info"><div class="upgrade-title">${type.icon} ${type.name} Lv.${lv} / ${max}</div><div class="upgrade-desc">${type.desc}</div></div>${isMax ? `<button class="btn-max same-size" disabled>MAX</button>` : `<button class="btn-main same-size" onclick="buyTraining('${type.key}')">훈련<br><small>${upgradeFmt(getTrainingCost(type.key))}G</small></button>`}</div>`; }).join(""); openUpgradeModal(`<div class="upgrade-modal-inner"><h2>🏋️ 용병 훈련</h2><p class="modal-desc">전투 능력치를 강화합니다.</p><div class="upgrade-list">${rows}</div><button class="btn-sub full" onclick="closeTrainingCamp()">닫기</button></div>`); }
-function closeTrainingCamp() { closeUpgradeModal(); }
-function buyTraining(key) { ensureUpgradeState(); if (!(key in window.trainingLevels)) return; const max = getTrainingMax(key); if (window.trainingLevels[key] >= max) { upgradeToast("이미 최대 훈련입니다.", "info"); return; } if (!payGold(getTrainingCost(key))) return; window.trainingLevels[key] += 1; upgradeToast("훈련 완료", "success"); upgradeSaveAndRefresh(); renderTrainingCamp(); }
+// =========================
+// 1. Upgrade Lab
+// =========================
+window.openShop = function() {
+    const modal = document.getElementById("shop-modal");
 
-window.ensureUpgradeState = ensureUpgradeState;
-window.renderRefineView = renderRefineView;
-window.openShop = openShop;
-window.renderShop = renderShop;
-window.closeUpgradeModal = closeUpgradeModal;
-window.buyPickaxe = buyPickaxe;
-window.buyAutoMine = buyAutoMine;
-window.buyAutoMerge = buyAutoMerge;
-window.buyGreatChance = buyGreatChance;
-window.buyInventorySlot = buyInventorySlot;
-window.openSystemUpgradeModal = openSystemUpgradeModal;
-window.upgradeGlobalRng = upgradeGlobalRng;
-window.upgradeGlobalCd = upgradeGlobalCd;
-window.openSlotRefineModal = openSlotRefineModal;
-window.upgradeSlot = upgradeSlot;
-window.openTrainingCamp = openTrainingCamp;
-window.renderTrainingCamp = renderTrainingCamp;
-window.closeTrainingCamp = closeTrainingCamp;
-window.buyTraining = buyTraining;
-console.log("치아 연대기 upgrade.js loaded v8.3.0");
+    if (modal) {
+        modal.style.display = "flex";
+        window.renderShop();
+    }
+};
+
+window.closeShop = function() {
+    const modal = document.getElementById("shop-modal");
+    if (modal) modal.style.display = "none";
+};
+
+window.renderShop = function() {
+    const content = document.getElementById("shop-content");
+
+    if (!content || typeof TOOTH_DATA === "undefined") return;
+
+    let html = `
+        <div class="sticky-header">
+            <h2 style="color:var(--gold); margin:0;">💰 Upgrade Lab</h2>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:12px; color:#fff;">
+                    보유 💰 <span style="color:var(--gold); font-weight:bold;">${upgNum(window.gold)}</span>
+                </span>
+                <button onclick="closeShop()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
+            </div>
+        </div>
+
+        <div class="modal-content-area shop-grid">
+    `;
+
+    // 1. 곡괭이 업그레이드
+    const nextPickaxe = window.pickaxeIdx + 1;
+
+    if (nextPickaxe < TOOTH_DATA.pickaxes.length) {
+        const pData = TOOTH_DATA.pickaxes[nextPickaxe];
+
+        html += `
+            <div class="shop-item">
+                <div class="shop-info">
+                    <span>${pData.icon} ${pData.name} 구매</span>
+                    <span>${upgNum(pData.cost)}G</span>
+                </div>
+
+                <div class="shop-desc">
+                    채굴 시 +1레벨 확률: ${(pData.luck * 100).toFixed(0)}% |
+                    수동 채굴 파워: ${pData.power}<br>
+                    <span style="color:#aaa;">직접 채굴은 최대 Lv.${window.MINING_MAX_LEVEL || 12}까지만 가능합니다.</span>
+                </div>
+
+                <button onclick="buyPickaxe(${nextPickaxe}, ${pData.cost})" class="btn-gold" style="width:100%; margin-top:5px;">
+                    구매하기
+                </button>
+            </div>
+        `;
+    } else {
+        const maxData = TOOTH_DATA.pickaxes[window.pickaxeIdx];
+
+        html += `
+            <div class="shop-item">
+                <div class="shop-info">
+                    <span>${maxData.icon} 최고 등급 곡괭이 장착중</span>
+                </div>
+
+                <div class="shop-desc">
+                    수동 채굴 파워: ${maxData.power}<br>
+                    <span style="color:#aaa;">직접 채굴은 최대 Lv.${window.MINING_MAX_LEVEL || 12}까지만 가능합니다.</span>
+                </div>
+
+                <button class="btn-max" style="width:100%; margin-top:5px;" disabled>MAX</button>
+            </div>
+        `;
+    }
+
+    // 2. 자동 채굴 속도
+    const mineCost = Math.floor(100 * Math.pow(1.5, window.autoMineLevel - 1));
+    const isMineMax = window.autoMineLevel >= 41;
+    const currentMineTime = Math.max(2.0, 10.0 - ((window.autoMineLevel - 1) * 0.2));
+
+    html += `
+        <div class="shop-item">
+            <div class="shop-info">
+                <span>⛏️ 자동 채굴 속도 (Lv.${window.autoMineLevel})</span>
+                <span>${isMineMax ? "MAX" : upgNum(mineCost) + "G"}</span>
+            </div>
+
+            <div class="shop-desc">
+                현재: ${currentMineTime.toFixed(1)}초마다 채굴<br>
+                <span style="color:#aaa;">최대 강화 시 2.0초마다 채굴합니다.</span>
+            </div>
+
+            <button onclick="buyAutoMine(${mineCost})" class="${isMineMax ? "btn-max" : "btn-gold"}" style="width:100%; margin-top:5px;" ${isMineMax ? "disabled" : ""}>
+                ${isMineMax ? "MAX" : "업그레이드"}
+            </button>
+        </div>
+    `;
+
+    // 3. 자동 합성 속도
+    const mergeCost = Math.floor(500 * Math.pow(1.6, window.autoMergeSpeedLevel - 1));
+    const isMergeMax = window.autoMergeSpeedLevel >= 41;
+    const currentMergeTime = Math.max(20.0, 60.0 - ((window.autoMergeSpeedLevel - 1) * 1.0));
+
+    html += `
+        <div class="shop-item">
+            <div class="shop-info">
+                <span>⚡ 자동 합성 속도 (Lv.${window.autoMergeSpeedLevel})</span>
+                <span>${isMergeMax ? "MAX" : upgNum(mergeCost) + "G"}</span>
+            </div>
+
+            <div class="shop-desc">
+                현재: ${currentMergeTime.toFixed(1)}초마다 1회 합성<br>
+                <span style="color:#aaa;">자동 합성은 Top8 공격 슬롯을 제외하고 작동합니다.</span>
+            </div>
+
+            <button onclick="buyAutoMerge(${mergeCost})" class="${isMergeMax ? "btn-max" : "btn-gold"}" style="width:100%; margin-top:5px;" ${isMergeMax ? "disabled" : ""}>
+                ${isMergeMax ? "MAX" : "업그레이드"}
+            </button>
+        </div>
+    `;
+
+    // 4. 합성 대성공 확률
+    const greatCost = Math.floor(1000 * Math.pow(1.8, window.greatChanceLevel));
+    const isGreatMax = window.greatChanceLevel >= 25;
+
+    html += `
+        <div class="shop-item">
+            <div class="shop-info">
+                <span>✨ 합성 대성공 확률 (Lv.${window.greatChanceLevel})</span>
+                <span>${isGreatMax ? "MAX" : upgNum(greatCost) + "G"}</span>
+            </div>
+
+            <div class="shop-desc">
+                현재 확률: ${window.greatChanceLevel * 2}%<br>
+                <span style="color:#aaa;">대성공은 +2 합성입니다. 단, Lv.23 이상에서는 Lv.25가 되지 않습니다.</span>
+            </div>
+
+            <button onclick="buyGreatChance(${greatCost})" class="${isGreatMax ? "btn-max" : "btn-gold"}" style="width:100%; margin-top:5px;" ${isGreatMax ? "disabled" : ""}>
+                ${isGreatMax ? "MAX" : "업그레이드"}
+            </button>
+        </div>
+    `;
+
+    // 5. 인벤토리 확장
+    const isSlotMax = window.maxSlots >= 56;
+    const slotIdx = Math.floor((window.maxSlots - 24) / 8);
+    const slotCost = isSlotMax ? 0 : TOOTH_DATA.invExpansion[slotIdx];
+
+    html += `
+        <div class="shop-item">
+            <div class="shop-info">
+                <span>🎒 인벤토리 확장 (${window.maxSlots} ➔ ${isSlotMax ? window.maxSlots : window.maxSlots + 8}칸)</span>
+                <span>${isSlotMax ? "MAX" : upgNum(slotCost) + "G"}</span>
+            </div>
+
+            <div class="shop-desc">
+                더 많은 치아를 보관할 수 있습니다.
+            </div>
+
+            <button ${isSlotMax ? "" : `onclick="buyInventorySlot(${slotCost})"`} class="${isSlotMax ? "btn-max" : "btn-gold"}" style="width:100%; margin-top:5px;" ${isSlotMax ? "disabled" : ""}>
+                ${isSlotMax ? "MAX" : "확장하기"}
+            </button>
+        </div>
+    `;
+
+    html += `</div>`;
+    content.innerHTML = html;
+};
+
+window.buyPickaxe = function(idx, cost) {
+    idx = Number(idx);
+    cost = Number(cost) || 0;
+
+    if (window.gold >= cost) {
+        window.gold -= cost;
+        window.pickaxeIdx = idx;
+
+        try {
+            if (typeof playSfx === "function") playSfx("upgrade");
+        } catch (e) {}
+
+        window.renderShop();
+
+        if (typeof window.updatePickaxeVisual === "function") window.updatePickaxeVisual();
+        if (typeof window.updateUI === "function") window.updateUI();
+        if (typeof window.saveGame === "function") window.saveGame();
+    } else {
+        alert("골드가 부족합니다!");
+    }
+};
+
+window.buyAutoMine = function(cost) {
+    cost = Number(cost) || 0;
+
+    if (window.autoMineLevel >= 41) {
+        alert("최대 레벨입니다!");
+        return;
+    }
+
+    if (window.gold >= cost) {
+        window.gold -= cost;
+        window.autoMineLevel++;
+
+        try {
+            if (typeof playSfx === "function") playSfx("upgrade");
+        } catch (e) {}
+
+        window.renderShop();
+
+        if (typeof window.updateUI === "function") window.updateUI();
+        if (typeof window.saveGame === "function") window.saveGame();
+    } else {
+        alert("골드가 부족합니다!");
+    }
+};
+
+window.buyAutoMerge = function(cost) {
+    cost = Number(cost) || 0;
+
+    if (window.autoMergeSpeedLevel >= 41) {
+        alert("최대 레벨입니다!");
+        return;
+    }
+
+    if (window.gold >= cost) {
+        window.gold -= cost;
+        window.autoMergeSpeedLevel++;
+
+        try {
+            if (typeof playSfx === "function") playSfx("upgrade");
+        } catch (e) {}
+
+        window.renderShop();
+
+        if (typeof window.updateUI === "function") window.updateUI();
+        if (typeof window.saveGame === "function") window.saveGame();
+    } else {
+        alert("골드가 부족합니다!");
+    }
+};
+
+window.buyGreatChance = function(cost) {
+    cost = Number(cost) || 0;
+
+    if (window.greatChanceLevel >= 25) {
+        alert("최대 레벨입니다!");
+        return;
+    }
+
+    if (window.gold >= cost) {
+        window.gold -= cost;
+        window.greatChanceLevel++;
+
+        try {
+            if (typeof playSfx === "function") playSfx("upgrade");
+        } catch (e) {}
+
+        window.renderShop();
+
+        if (typeof window.updateUI === "function") window.updateUI();
+        if (typeof window.saveGame === "function") window.saveGame();
+    } else {
+        alert("골드가 부족합니다!");
+    }
+};
+
+window.buyInventorySlot = function(cost) {
+    cost = Number(cost) || 0;
+
+    if (window.maxSlots >= 56) {
+        alert("이미 최대 인벤토리입니다!");
+        return;
+    }
+
+    if (window.gold >= cost) {
+        window.gold -= cost;
+        window.maxSlots = Math.min(56, window.maxSlots + 8);
+
+        try {
+            if (typeof playSfx === "function") playSfx("upgrade");
+        } catch (e) {}
+
+        window.renderShop();
+
+        if (typeof window.renderInventory === "function") window.renderInventory();
+        if (typeof window.updateUI === "function") window.updateUI();
+        if (typeof window.saveGame === "function") window.saveGame();
+    } else {
+        alert("골드가 부족합니다!");
+    }
+};
+
+// =========================
+// 2. 용병 훈련장
+// =========================
+window.openTrainingCamp = function() {
+    const modal = document.getElementById("training-modal");
+
+    if (modal) {
+        modal.style.display = "flex";
+        window.renderTrainingCamp();
+    }
+};
+
+window.closeTrainingCamp = function() {
+    const modal = document.getElementById("training-modal");
+    if (modal) modal.style.display = "none";
+};
+
+window.renderTrainingCamp = function() {
+    const list = document.getElementById("training-list");
+    const diaDisp = document.getElementById("training-dia-display");
+
+    if (!list || !diaDisp) return;
+
+    diaDisp.innerText = upgNum(window.dia);
+    list.innerHTML = "";
+
+    if (!window.trainingLevels) {
+        window.trainingLevels = {
+            hp: 0,
+            atk: 0,
+            spd: 0,
+            crit: 0,
+            splashDmg: 0,
+            splashRange: 0
+        };
+    }
+
+    const trainings = [
+        {
+            id: "hp",
+            name: "체력 단련",
+            icon: "❤️",
+            desc: "용병 최대 체력 +5%",
+            baseCost: 10,
+            costMul: 1.5,
+            max: 100,
+            currentEffect: `체력 +${(window.trainingLevels.hp || 0) * 5}%`
+        },
+        {
+            id: "atk",
+            name: "무기 연마",
+            icon: "⚔️",
+            desc: "기본 공격력 +10%",
+            baseCost: 15,
+            costMul: 1.6,
+            max: 100,
+            currentEffect: `공격력 +${(window.trainingLevels.atk || 0) * 10}%`
+        },
+        {
+            id: "spd",
+            name: "신속 훈련",
+            icon: "💨",
+            desc: "이동 속도 +10%",
+            baseCost: 20,
+            costMul: 1.7,
+            max: 50,
+            currentEffect: `이동 속도 +${(window.trainingLevels.spd || 0) * 10}%`
+        },
+        {
+            id: "crit",
+            name: "급소 타격",
+            icon: "⚡",
+            desc: "치명타 확률 +2%, 데미지 +20%",
+            baseCost: 50,
+            costMul: 2.0,
+            max: 20,
+            reqLv: 10,
+            currentEffect: `치명타 확률 +${(window.trainingLevels.crit || 0) * 2}%`
+        },
+        {
+            id: "splashDmg",
+            name: "폭발 탄두",
+            icon: "💥",
+            desc: "광역 데미지 비율 +5%",
+            baseCost: 100,
+            costMul: 2.2,
+            max: 12,
+            reqLv: 7,
+            currentEffect: `광역 데미지 +${(window.trainingLevels.splashDmg || 0) * 5}%`
+        },
+        {
+            id: "splashRange",
+            name: "화약 증량",
+            icon: "🧨",
+            desc: "광역 폭발 범위 증가",
+            baseCost: 150,
+            costMul: 2.5,
+            max: 10,
+            reqLv: 7,
+            currentEffect: `폭발 범위 +${(window.trainingLevels.splashRange || 0) * 10}px`
+        }
+    ];
+
+    trainings.forEach((t) => {
+        const div = document.createElement("div");
+
+        div.style.cssText =
+            "background:#222; border:2px solid #555; padding:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; box-shadow:2px 2px 0 #000; gap:10px;";
+
+        const lv = Number(window.trainingLevels[t.id]) || 0;
+        const isMax = lv >= t.max;
+        const cost = Math.floor(t.baseCost * Math.pow(t.costMul, lv));
+        const locked = t.reqLv && window.highestToothLevel < t.reqLv;
+
+        const effectText = `
+            <div style="color:var(--gold); font-size:10px; margin-top:5px; font-weight:bold;">
+                [현재 적용: ${t.currentEffect}]
+            </div>
+        `;
+
+        if (locked) {
+            div.innerHTML = `
+                <div style="display:flex; align-items:center; gap:10px; opacity:0.5;">
+                    <div style="font-size:24px;">🔒</div>
+                    <div>
+                        <div style="font-size:14px; color:#aaa; font-weight:bold;">미해금 훈련</div>
+                        <div style="font-size:10px; color:#888; margin-top:2px;">
+                            치아 Lv.${t.reqLv} 달성 시 개방
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            div.innerHTML = `
+                <div style="display:flex; align-items:center; gap:10px; flex:1;">
+                    <div style="font-size:28px;">${t.icon}</div>
+                    <div>
+                        <div style="font-size:14px; font-weight:bold; color:white;">
+                            ${t.name}
+                            <span style="font-size:11px; color:#aaa;">(Lv.${lv}${isMax ? " MAX" : ""})</span>
+                        </div>
+                        <div style="font-size:11px; color:#ccc; margin-top:2px;">${t.desc}</div>
+                        ${effectText}
+                    </div>
+                </div>
+
+                ${
+                    isMax
+                        ? `<button class="btn-max" disabled>MAX</button>`
+                        : `<button onclick="window.buyTraining('${t.id}', ${cost})" class="btn-sm" style="background:#ff4757; color:white; border-color:#800000; box-shadow:2px 2px 0 #000; white-space:nowrap;">♦️ ${upgNum(cost)}</button>`
+                }
+            `;
+        }
+
+        list.appendChild(div);
+    });
+};
+
+window.buyTraining = function(id, cost) {
+    cost = Number(cost) || 0;
+
+    if (!window.trainingLevels) {
+        window.trainingLevels = {
+            hp: 0,
+            atk: 0,
+            spd: 0,
+            crit: 0,
+            splashDmg: 0,
+            splashRange: 0
+        };
+    }
+
+    if (window.dia >= cost) {
+        window.dia -= cost;
+
+        if (!window.trainingLevels[id]) window.trainingLevels[id] = 0;
+        window.trainingLevels[id]++;
+
+        try {
+            if (typeof playSfx === "function") playSfx("upgrade");
+        } catch (e) {}
+
+        window.renderTrainingCamp();
+
+        if (typeof window.updateUI === "function") window.updateUI();
+        if (typeof window.renderMercenaryCamp === "function") window.renderMercenaryCamp();
+        if (typeof window.saveGame === "function") window.saveGame();
+    } else {
+        alert("다이아가 부족합니다!");
+    }
+};
+
+// =========================
+// 3. Top8 무기 제련
+// =========================
+window.renderRefineView = function() {
+    const grid = document.getElementById("refine-grid");
+
+    if (!grid) return;
+
+    if (!Array.isArray(window.slotUpgrades)) {
+        window.slotUpgrades = Array.from({ length: 8 }, () => ({ atk: 0, cd: 0, rng: 0 }));
+    }
+
+    if (!window.globalUpgrades) {
+        window.globalUpgrades = { cd: 0, rng: 0 };
+    }
+
+    grid.innerHTML = "";
+
+    const rngCost = Math.floor(500 * Math.pow(1.8, window.globalUpgrades.rng));
+    const cdCost = Math.floor(1000 * Math.pow(2.0, window.globalUpgrades.cd));
+
+    const globalCard = document.createElement("div");
+    globalCard.className = "refine-card";
+    globalCard.style.gridColumn = "1 / -1";
+    globalCard.style.border = "2px solid #3498db";
+
+    globalCard.innerHTML = `
+        <div class="refine-header" style="color:#3498db;">🌐 공통 시스템 제련</div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <button onclick="window.upgradeGlobalRng(${rngCost})" class="refine-btn" style="border-color:#3498db;">
+                <span>🎯 탐지 사거리 Lv.${window.globalUpgrades.rng}</span>
+                <span class="refine-val">+${window.globalUpgrades.rng * 20}px</span>
+                <span style="color:var(--gold); margin-top:3px;">${upgNum(rngCost)}G</span>
+            </button>
+
+            <button onclick="window.upgradeGlobalCd(${cdCost})" class="refine-btn" style="border-color:#3498db;">
+                <span>⚡ 연사 속도 Lv.${window.globalUpgrades.cd}</span>
+                <span class="refine-val">대기시간 -${Math.min(90, window.globalUpgrades.cd * 2)}%</span>
+                <span style="color:var(--gold); margin-top:3px;">${upgNum(cdCost)}G</span>
+            </button>
+        </div>
+    `;
+
+    grid.appendChild(globalCard);
+
+    for (let i = 0; i < 8; i++) {
+        if (!window.slotUpgrades[i]) {
+            window.slotUpgrades[i] = { atk: 0, cd: 0, rng: 0 };
+        }
+
+        const upg = window.slotUpgrades[i];
+        const costAtk = Math.floor(100 * Math.pow(1.5, upg.atk));
+
+        let toothInfo = "없음";
+        let atkInfo = "";
+
+        const lv = Array.isArray(window.inventory) ? Number(window.inventory[i]) || 0 : 0;
+
+        if (lv > 0) {
+            const icon = upgGetIcon(lv);
+            toothInfo = `${icon} ${upgLvLabel(lv)}`;
+
+            const baseAtk = upgGetBaseAtk(lv);
+            const realAtk = upgGetAtk(lv);
+
+            atkInfo = `
+                <div style="font-size:10px; color:#e74c3c; font-weight:bold; margin-top:2px;">
+                    기본 공격력: ${upgNum(baseAtk)}
+                </div>
+                <div style="font-size:10px; color:#f1c40f; font-weight:bold; margin-top:2px;">
+                    현재 적용 공격력: ${upgNum(realAtk)}
+                </div>
+            `;
+        }
+
+        const card = document.createElement("div");
+        card.className = "refine-card";
+
+        card.innerHTML = `
+            <div class="refine-header">슬롯 ${i + 1} 제련</div>
+
+            <div style="font-size:11px; color:#ccc; text-align:center; margin-bottom:5px;">
+                현재 장착: ${toothInfo}
+                ${atkInfo}
+            </div>
+
+            <button onclick="window.upgradeSlot(${i}, 'atk', ${costAtk})" class="refine-btn">
+                <span>⚔️ 공격력 증폭 Lv.${upg.atk}</span>
+                <span class="refine-val">+${upg.atk * 10}%</span>
+                <span style="color:var(--gold); margin-top:3px;">${upgNum(costAtk)}G</span>
+            </button>
+        `;
+
+        grid.appendChild(card);
+    }
+};
+
+window.upgradeSlot = function(idx, type, cost) {
+    idx = Number(idx);
+    cost = Number(cost) || 0;
+
+    if (!window.slotUpgrades[idx]) {
+        window.slotUpgrades[idx] = { atk: 0, cd: 0, rng: 0 };
+    }
+
+    if (window.gold >= cost) {
+        window.gold -= cost;
+        window.slotUpgrades[idx][type]++;
+
+        try {
+            if (typeof playSfx === "function") playSfx("upgrade");
+        } catch (e) {}
+
+        window.renderRefineView();
+
+        if (typeof window.updateUI === "function") window.updateUI();
+        if (typeof window.saveGame === "function") window.saveGame();
+    } else {
+        alert("골드가 부족합니다!");
+    }
+};
+
+window.upgradeGlobalRng = function(cost) {
+    cost = Number(cost) || 0;
+
+    if (!window.globalUpgrades) {
+        window.globalUpgrades = { cd: 0, rng: 0 };
+    }
+
+    if (window.gold >= cost) {
+        window.gold -= cost;
+        window.globalUpgrades.rng++;
+
+        try {
+            if (typeof playSfx === "function") playSfx("upgrade");
+        } catch (e) {}
+
+        window.renderRefineView();
+
+        if (typeof window.updateUI === "function") window.updateUI();
+        if (typeof window.saveGame === "function") window.saveGame();
+    } else {
+        alert("골드가 부족합니다!");
+    }
+};
+
+window.upgradeGlobalCd = function(cost) {
+    cost = Number(cost) || 0;
+
+    if (!window.globalUpgrades) {
+        window.globalUpgrades = { cd: 0, rng: 0 };
+    }
+
+    if (window.globalUpgrades.cd >= 45) {
+        alert("최대 레벨입니다!");
+        return;
+    }
+
+    if (window.gold >= cost) {
+        window.gold -= cost;
+        window.globalUpgrades.cd++;
+
+        try {
+            if (typeof playSfx === "function") playSfx("upgrade");
+        } catch (e) {}
+
+        window.renderRefineView();
+
+        if (typeof window.updateUI === "function") window.updateUI();
+        if (typeof window.saveGame === "function") window.saveGame();
+    } else {
+        alert("골드가 부족합니다!");
+    }
+};
