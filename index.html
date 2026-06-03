@@ -1,493 +1,502 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-    <title>치아 연대기 v8.0.0</title>
-
-    <link href="https://cdn.jsdelivr.net/gh/neodgm/neodgm-webfont@latest/neodgm/style.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=8.0.0">
+    <meta charset="UTF-8" />
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>치아 연대기</title>
+    <link rel="stylesheet" href="style.css?v=8.1.0" />
 </head>
 
 <body>
     <!-- =========================
-         인트로 영상 레이어
-         - 첫 화면 터치 → 영상 재생
-         - 영상 종료 또는 SKIP → 도트 타이틀 화면
-         - 타이틀 화면에서 한 번 더 터치 → 게임 시작
+         INTRO VIDEO
     ========================== -->
     <div id="intro-layer">
-        <button id="start-btn-layer" onclick="startIntro(event)">
-            <div id="start-btn-text">🎬 화면을 터치하세요</div>
-        </button>
+        <video
+            id="intro-video"
+            src="assets/intro.mp4"
+            playsinline
+            webkit-playsinline
+            preload="auto"
+        ></video>
 
-        <video id="intro-video" playsinline preload="auto">
-            <source src="assets/intro.mp4" type="video/mp4">
-        </video>
+        <div id="intro-title-overlay">
+            <div class="intro-title-main">치아 연대기</div>
+            <div class="intro-title-sub">Tooth Chronicle</div>
+            <button id="intro-start-btn" onclick="completeIntro()">게임 시작</button>
+        </div>
 
-        <div id="intro-title-overlay" onclick="completeIntro(event)">
-            <div class="intro-title-card">
-                <div class="intro-title-small">TOOTH CHRONICLE</div>
-                <div class="intro-title-main">치아 연대기</div>
-                <div class="intro-title-line"></div>
+        <button id="skip-btn" onclick="skipIntro()">SKIP</button>
+    </div>
 
-                <div class="intro-title-desc">
-                    채굴하고, 합성하고, 던전을 정복하세요.<br>
-                    봉인된 왕관 치아를 초월시켜<br>
-                    <span>Lv.MAX 초월 왕관 치아</span>를 완성하세요.
-                </div>
+    <!-- 처음 시작 터치 레이어 -->
+    <div id="start-btn-layer">
+        <button id="start-intro-btn" onclick="startIntro()">TOUCH TO START</button>
+    </div>
 
-                <div class="intro-title-route">
-                    ⛏️ 채굴 → 🔄 합성 → 🔥 제련 → ⚔️ 던전
-                </div>
+    <!-- =========================
+         HELL OPEN VIDEO
+    ========================== -->
+    <div id="hell-video-layer">
+        <video
+            id="hell-video"
+            src="assets/hell.mp4"
+            playsinline
+            webkit-playsinline
+            preload="auto"
+        ></video>
+        <div class="video-overlay-title">
+            <div class="video-overlay-main">HELL MODE OPEN</div>
+            <div class="video-overlay-sub">지옥의 문이 열렸습니다</div>
+            <button onclick="skipHellIntro()">확인</button>
+        </div>
+        <button id="skip-hell-btn" onclick="skipHellIntro()">SKIP</button>
+    </div>
 
-                <div class="intro-touch-guide">
-                    TOUCH TO START
-                </div>
+    <!-- =========================
+         AWAKEN VIDEO
+    ========================== -->
+    <div id="awaken-video-layer">
+        <video
+            id="awaken-video"
+            src="assets/awaken.mp4"
+            playsinline
+            webkit-playsinline
+            preload="auto"
+        ></video>
+        <div class="video-overlay-title">
+            <div class="video-overlay-main">초월 각성</div>
+            <div class="video-overlay-sub">봉인된 왕관 치아가 깨어났습니다</div>
+            <button onclick="skipAwakenIntro()">확인</button>
+        </div>
+        <button id="skip-awaken-btn" onclick="skipAwakenIntro()">SKIP</button>
+    </div>
+
+    <!-- =========================
+         MAIN GAME
+    ========================== -->
+    <div id="game-container">
+        <!-- TOP STATUS -->
+        <div id="top-nav">
+            <div class="resource-box">
+                <span class="resource-icon">💰</span>
+                <span id="gold-display">0</span>
+            </div>
+            <div class="resource-box">
+                <span class="resource-icon">♦️</span>
+                <span id="dia-display">0</span>
+            </div>
+            <div class="resource-box nickname-box" onclick="openNicknameChange()">
+                <span class="resource-icon">👤</span>
+                <span id="nickname-display">Player</span>
             </div>
         </div>
 
-        <button id="skip-btn" onclick="skipIntro(event)">SKIP ⏩</button>
-    </div>
-
-    <!-- =========================
-         HELL 영상 레이어
-    ========================== -->
-    <div id="hell-video-layer" style="display:none;">
-        <video id="hell-video" playsinline preload="auto">
-            <source src="assets/hell.mp4" type="video/mp4">
-        </video>
-        <button id="skip-hell-btn" onclick="skipHellIntro(event)" style="display:none;">SKIP ⏩</button>
-    </div>
-
-    <!-- =========================
-         초월 각성 영상 레이어
-    ========================== -->
-    <div id="awaken-video-layer" style="display:none;">
-        <video id="awaken-video" playsinline preload="auto">
-            <source src="assets/awaken.mp4" type="video/mp4">
-        </video>
-        <button id="skip-awaken-btn" onclick="skipAwakenIntro(event)" style="display:none;">SKIP ⏩</button>
-    </div>
-
-    <!-- =========================
-         게임 본체
-    ========================== -->
-    <div id="game-container">
-        <nav id="top-nav">
-            <button onclick="switchView('mine')" id="tab-mine" class="active">⛏️ 채굴/합성</button>
-            <button onclick="switchView('refine')" id="tab-refine">🔥 Top8 제련</button>
-            <button onclick="switchView('war')" id="tab-war">⚔️ 던전원정</button>
-        </nav>
-
-        <header>
-            <div class="stats-bar">
-                <span class="currency-group">
-                    <span class="ui-gold-text">💰 <span id="gold-display">0</span></span>
-                    <span class="ui-dia-text" style="margin-left:15px;">♦️ <span id="dia-display">0</span></span>
-                </span>
-            </div>
-        </header>
-
-        <main id="main-content">
+        <!-- MAIN CONTENT -->
+        <div id="main-content">
             <!-- =========================
-                 채굴 화면
+                 MINE VIEW
             ========================== -->
-            <div id="mine-view">
-                <div id="mine-rock-area">
-                    <div id="giant-tooth">🦷</div>
-                    <div id="miner-char">⛏️</div>
-                </div>
-
-                <div id="dashboard" style="display:flex; justify-content: space-around; width: 100%; align-items: center; padding: 8px 0; background: rgba(0,0,0,0.4); border-top: 2px solid #222; border-bottom: 2px solid #000;">
-                    <div style="display:flex; flex-direction:column; align-items:center; width:80px;">
-                        <div id="mine-dial" style="width: 45px; height: 45px; border-radius: 50%; background: conic-gradient(#00fbff 0%, #333 0%); display:flex; align-items:center; justify-content:center; transition: background 0.1s linear; box-shadow: 2px 2px 0 #000; border:2px solid #555;">
-                            <div style="width: 35px; height: 35px; background: #16213e; border-radius: 50%; display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff;">⛏️</div>
+            <section id="mine-view" class="main-view active-view">
+                <div id="mine-layout">
+                    <!-- 좌측 자동채굴 패널 -->
+                    <div id="auto-mine-panel" class="side-gauge-panel interactive-ui">
+                        <div class="side-gauge-title">자동채굴</div>
+                        <div class="side-gauge-frame">
+                            <div id="auto-mine-gauge" class="side-gauge-fill"></div>
                         </div>
-                        <button id="auto-mine-btn" onclick="toggleAutoMine()" class="btn-toggle" style="margin-top:8px; background:#2ecc71; color:white; font-size:11px; padding:4px 10px; width:100%; font-weight:bold;">자동 ON</button>
+                        <button id="auto-mine-toggle" class="mini-toggle-btn" onclick="toggleAutoMine()">
+                            OFF
+                        </button>
                     </div>
 
-                    <div style="text-align:center; flex:1;">
-                        <div style="font-size:10px; color:#aaa; margin-bottom:3px;">현재 장비</div>
-                        <div id="pickaxe-name" style="font-size:12px; font-weight:bold; color:var(--gold); text-shadow: 1px 1px 0 #000; word-break:keep-all;">허름한 나무 곡괭이</div>
+                    <!-- 중앙 채굴 터치 영역 -->
+                    <div id="mine-rock-area">
+                        <div id="mine-touch-hint">화면 중앙을 터치해서 채굴</div>
+                        <div id="giant-tooth">🦷</div>
+                        <div id="miner-char">⛏️</div>
+                        <div id="pickaxe-name">낡은 곡괭이</div>
                     </div>
 
-                    <div style="display:flex; flex-direction:column; align-items:center; width:80px;">
-                        <div id="merge-dial" style="width: 45px; height: 45px; border-radius: 50%; background: conic-gradient(#9b59b6 0%, #333 0%); display:flex; align-items:center; justify-content:center; transition: background 0.1s linear; box-shadow: 2px 2px 0 #000; border:2px solid #555;">
-                            <div style="width: 35px; height: 35px; background: #16213e; border-radius: 50%; display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff;">⚡</div>
+                    <!-- 우측 자동합성 패널 -->
+                    <div id="auto-merge-panel" class="side-gauge-panel interactive-ui">
+                        <div class="side-gauge-title">자동합성</div>
+                        <div class="side-gauge-frame">
+                            <div id="auto-merge-gauge" class="side-gauge-fill merge-fill"></div>
                         </div>
-                        <button id="auto-merge-btn" onclick="toggleAutoMerge()" class="btn-toggle" style="margin-top:8px; background:#9b59b6; color:white; font-size:11px; padding:4px 10px; width:100%; font-weight:bold;">자동 ON</button>
+                        <button id="auto-merge-toggle" class="mini-toggle-btn" onclick="toggleAutoMerge()">
+                            OFF
+                        </button>
                     </div>
                 </div>
-            </div>
 
-            <!-- =========================
-                 인벤토리
-            ========================== -->
-            <div id="inventory-section">
-                <div id="action-bar">
-                    <button onclick="sortInventory()" class="btn-red">🔄 자동 정렬</button>
-                    <button onclick="openShop()" class="btn-gold">💰 Upgrade Lab</button>
+                <div id="mine-progress-wrap">
+                    <div id="mine-progress-bg">
+                        <div id="mine-progress-fill"></div>
+                    </div>
+                    <div id="mine-progress-text">0%</div>
                 </div>
-
-                <div id="inventory-scroll-area">
-                    <div id="inventory-grid"></div>
-                </div>
-            </div>
+            </section>
 
             <!-- =========================
-                 제련 화면
+                 RESEARCH / UPGRADE VIEW
             ========================== -->
-            <div id="refine-view" style="display:none;">
-                <div class="refine-grid" id="refine-grid"></div>
-            </div>
-
-            <!-- =========================
-                 던전 화면
-            ========================== -->
-            <div id="war-view" style="display:none;">
-                <div id="mercenary-camp">
-                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #444; padding-bottom:10px; margin-bottom:10px;">
-                        <h4 style="color:var(--gold); margin:0;">🛡️ 현재 용병</h4>
-                        <div style="display:flex; gap:5px;">
-                            <button onclick="openMercenaryModal()" class="btn-sm" style="background:#3498db; font-weight:bold;">👥 모집/교체</button>
-                            <button onclick="openTrainingCamp()" class="btn-sm" style="background:#ff4757; font-weight:bold;">💪 훈련장 (♦️)</button>
+            <section id="refine-view" class="main-view">
+                <div class="view-header">
+                    <div>
+                        <div class="view-title">🧪 치아 연구소</div>
+                        <div class="view-desc">
+                            곡괭이, 자동화, 합성, 가방, 전투 제련, 용병 훈련을 한 곳에서 관리합니다.
                         </div>
                     </div>
-
-                    <div id="current-mercenary-display" style="min-height: 80px; display:flex; align-items:center; gap:15px; padding: 5px;"></div>
                 </div>
 
-                <div id="dungeon-list-container">
-                    <div class="war-tabs" id="war-tabs-container">
-                        <button class="war-tab-btn active" onclick="switchDungeonTab('normal')" id="d-tab-normal">일반 원정</button>
-                        <button class="war-tab-btn" onclick="switchDungeonTab('boss')" id="d-tab-boss">보스 토벌전</button>
-                        <button class="war-tab-btn hell" onclick="switchDungeonTab('hell')" id="d-tab-hell" style="display:none;">HELL 원정</button>
-                        <button class="war-tab-btn hell" onclick="switchDungeonTab('hellboss')" id="d-tab-hellboss" style="display:none;">HELL 토벌전</button>
-                    </div>
-
-                    <div id="boss-rush-info" style="display:none; background:rgba(231,76,60,0.1); border:1px solid #e74c3c; padding:10px; margin-bottom:10px; font-size:11px; color:#ffcccc; line-height:1.4;">
-                        <strong style="color:#e74c3c; font-size:12px;">⚔️ 토벌전 안내</strong><br>
-                        이곳은 강력한 보스들만 연속으로 출현하는 토벌전입니다. 살아남는다면 엄청난 보상과 함께 Lv.MAX 봉인 해제 재료인 '보스 징표'를 획득할 수 있습니다.
-                    </div>
-
-                    <div id="dungeon-list"></div>
+                <div id="research-menu">
+                    <button class="research-menu-btn active" data-research="pickaxe" onclick="switchResearchTab('pickaxe')">
+                        ⛏️ 곡괭이
+                    </button>
+                    <button class="research-menu-btn" data-research="automation" onclick="switchResearchTab('automation')">
+                        ⚙️ 자동화
+                    </button>
+                    <button class="research-menu-btn" data-research="merge" onclick="switchResearchTab('merge')">
+                        ✨ 합성
+                    </button>
+                    <button class="research-menu-btn" data-research="bag" onclick="switchResearchTab('bag')">
+                        🎒 가방
+                    </button>
+                    <button class="research-menu-btn" data-research="slot" onclick="switchResearchTab('slot')">
+                        🦷 Top8 제련
+                    </button>
+                    <button class="research-menu-btn" data-research="combat" onclick="switchResearchTab('combat')">
+                        ⚔️ 전투 연구
+                    </button>
+                    <button class="research-menu-btn" data-research="training" onclick="switchResearchTab('training')">
+                        🏋️ 용병 훈련
+                    </button>
                 </div>
+
+                <div id="research-content">
+                    <!-- upgrade.js에서 렌더링 -->
+                </div>
+
+                <!-- 기존 코드 호환용 -->
+                <div id="refine-grid" style="display:none;"></div>
+            </section>
+
+            <!-- =========================
+                 WAR / DUNGEON VIEW
+            ========================== -->
+            <section id="war-view" class="main-view">
+                <div class="view-header">
+                    <div>
+                        <div class="view-title">⚔️ 던전 원정</div>
+                        <div class="view-desc">
+                            현재 용병 상태를 확인하고 던전에 입장합니다.
+                        </div>
+                    </div>
+                    <button class="small-action-btn" onclick="openMercenaryModal()">용병 변경</button>
+                </div>
+
+                <div id="current-mercenary-display">
+                    <!-- ui_core.js에서 렌더링 -->
+                </div>
+
+                <div id="war-summary-panel">
+                    <!-- ui_core.js에서 렌더링 -->
+                </div>
+
+                <div id="dungeon-tab-bar">
+                    <button id="d-tab-normal" class="dungeon-tab active" onclick="switchDungeonTab('normal')">
+                        일반
+                    </button>
+                    <button id="d-tab-boss" class="dungeon-tab" onclick="switchDungeonTab('boss')">
+                        토벌전
+                    </button>
+                    <button id="d-tab-hell" class="dungeon-tab" onclick="switchDungeonTab('hell')">
+                        HELL
+                    </button>
+                    <button id="d-tab-hellboss" class="dungeon-tab" onclick="switchDungeonTab('hellboss')">
+                        HELL 토벌
+                    </button>
+                </div>
+
+                <div id="boss-rush-info"></div>
+                <div id="dungeon-list"></div>
+            </section>
+        </div>
+
+        <!-- =========================
+             INVENTORY SECTION
+        ========================== -->
+        <div id="inventory-section">
+            <div id="action-bar">
+                <button onclick="sortInventory()">정렬</button>
+                <button onclick="massMerge()">일괄합성</button>
+                <button onclick="openShop()">상점</button>
             </div>
-        </main>
+            <div id="inventory-scroll-area">
+                <div id="inventory-grid"></div>
+            </div>
+        </div>
 
-        <nav id="bottom-nav">
-            <button onclick="openSettings()" class="bottom-btn">⚙️ 설정</button>
-            <button onclick="openCodex()" class="bottom-btn">📖 치아도감</button>
-            <button onclick="openArtifacts()" class="bottom-btn" style="color:var(--gold);">🏺 유물도감</button>
-            <button onclick="openRanking()" class="bottom-btn">🏆 랭킹</button>
-        </nav>
+        <!-- =========================
+             BOTTOM NAV
+        ========================== -->
+        <div id="bottom-nav">
+            <button id="nav-mine" class="bottom-tab active" onclick="switchView('mine')">
+                <span>⛏️</span>
+                <b>채굴</b>
+            </button>
+            <button id="nav-refine" class="bottom-tab" onclick="switchView('refine')">
+                <span>🧪</span>
+                <b>치아 연구소</b>
+            </button>
+            <button id="nav-war" class="bottom-tab" onclick="switchView('war')">
+                <span>⚔️</span>
+                <b>던전 원정</b>
+            </button>
+        </div>
+
+        <!-- FLOATING MENU -->
+        <div id="floating-menu">
+            <button onclick="openSettings()">⚙️</button>
+            <button onclick="openCodex()">📖</button>
+            <button onclick="openArtifacts()">🏺</button>
+            <button onclick="openRanking()">🏆</button>
+        </div>
     </div>
 
     <!-- =========================
-         전투 화면
+         BATTLE SCREEN
     ========================== -->
     <div id="battle-screen">
         <div id="battle-camera">
             <div id="battle-world"></div>
         </div>
 
-        <div id="battle-ui-layer">
-            <div id="battle-header">
-                <span id="current-dungeon-name">던전 이름</span><br>
-                <span id="wave-info">WAVE 1/5</span>
+        <div id="battle-hud">
+            <div id="battle-top-info">
+                <div id="current-dungeon-name">던전</div>
+                <div id="wave-info">WAVE 1/5</div>
             </div>
+            <button id="retreat-btn" class="interactive-ui" onclick="requestRetreat()">후퇴</button>
+        </div>
 
-            <button onclick="requestRetreat()" class="btn-exit">후퇴</button>
+        <div id="war-weapon-slots" class="interactive-ui"></div>
 
-            <div id="war-weapon-slots"></div>
-
-            <div id="joystick-zone">
-                <div id="joystick-knob"></div>
-            </div>
+        <div id="joystick-zone" class="interactive-ui">
+            <div id="joystick-knob"></div>
         </div>
     </div>
 
     <!-- =========================
-         설정 모달
+         SETTINGS MODAL
     ========================== -->
     <div id="settings-modal" class="modal-layer">
-        <div id="settings-content" class="modal-box">
-            <div class="sticky-header">
-                <h2 style="color:var(--gold); margin:0;">⚙️ 시스템 설정</h2>
-                <button onclick="closeSettings()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
+        <div class="modal-box">
+            <div class="modal-title">⚙️ 설정</div>
+
+            <div class="setting-row">
+                <span>사운드</span>
+                <button id="sound-toggle-btn" onclick="toggleSound()">ON</button>
             </div>
 
-            <div class="modal-content-area">
-                <div class="settings-group">
-                    <h4>계정 설정</h4>
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:12px; color:#fff;">현재 닉네임: <strong id="current-nickname-display" style="color:var(--gold);"></strong></span>
-                        <button onclick="openNicknameChange()" class="btn-sm" style="background:#3498db; font-weight:bold;">✏️ 변경하기</button>
-                    </div>
-                </div>
-
-                <div class="settings-group">
-                    <h4>음향 설정</h4>
-                    <div style="display:flex; gap:10px; margin-bottom:10px;">
-                        <button id="sound-toggle-btn" onclick="toggleSound()" class="btn-sm" style="flex:1;">🔊 BGM/SFX ON</button>
-                    </div>
-
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span>볼륨</span>
-                        <input type="range" id="volume-slider" min="1" max="3" step="1" value="2" onchange="changeVolume()" style="width:70%;">
-                    </div>
-                </div>
-
-                <div class="settings-group">
-                    <h4>🎞️ 영상 다시보기</h4>
-                    <p style="font-size:11px; color:#ccc; line-height:1.45; margin-top:0;">
-                        한 번 본 주요 영상은 이곳에서 다시 볼 수 있습니다.
-                    </p>
-
-                    <div class="replay-video-list">
-                        <button onclick="replayVideo('intro')" class="btn-sm replay-video-btn">
-                            🎬 인트로 영상 다시보기
-                        </button>
-                        <button onclick="replayVideo('hell')" class="btn-sm replay-video-btn" id="replay-hell-btn">
-                            🔥 지옥문 개방 영상 다시보기
-                        </button>
-                        <button onclick="replayVideo('awaken')" class="btn-sm replay-video-btn" id="replay-awaken-btn">
-                            👑 초월 각성 영상 다시보기
-                        </button>
-                    </div>
-                </div>
-
-                <div class="settings-group">
-                    <h4>데이터 관리</h4>
-                    <div style="display:flex; gap:5px; margin-bottom:10px;">
-                        <button onclick="exportSaveCode()" class="btn-sm" style="background:#27ae60; flex:1;">💾 저장 코드 발급</button>
-                        <button onclick="importSave()" class="btn-sm" style="background:#f39c12; flex:1;">📂 로드</button>
-                    </div>
-                    <button onclick="checkReset()" class="btn-sm" style="background:#c0392b; width:100%;">⚠️ 데이터 완전 초기화</button>
-                </div>
-
-                <div class="settings-group">
-                    <h4>기타</h4>
-                    <div style="display:flex; gap:5px;">
-                        <button onclick="openGuide()" class="btn-sm" style="background:#3498db; flex:1;">📘 게임 가이드</button>
-                        <button onclick="promptCoupon()" class="btn-sm" style="background:#8e44ad; flex:1;">🎟️ 쿠폰 입력</button>
-                    </div>
-                </div>
+            <div class="setting-row">
+                <span>볼륨</span>
+                <input id="volume-slider" type="range" min="0" max="100" value="70" oninput="changeVolume(this.value)" />
             </div>
+
+            <div class="modal-btn-row">
+                <button onclick="replayVideo()">인트로 다시보기</button>
+                <button onclick="exportSaveCode()">저장코드 복사</button>
+            </div>
+
+            <div class="modal-btn-row">
+                <button onclick="importSave()">저장코드 불러오기</button>
+                <button onclick="promptCoupon()">쿠폰 입력</button>
+            </div>
+
+            <div class="modal-btn-row">
+                <button onclick="openGuide()">도움말</button>
+                <button class="danger-btn" onclick="checkReset()">초기화</button>
+            </div>
+
+            <button class="modal-close-btn" onclick="closeSettings()">닫기</button>
         </div>
     </div>
 
     <!-- =========================
-         용병 모달
+         MERCENARY MODAL
     ========================== -->
     <div id="mercenary-modal" class="modal-layer">
-        <div id="mercenary-content" class="modal-box">
-            <div class="sticky-header">
-                <h2 style="color:var(--gold); margin:0;">👥 용병 주점</h2>
-                <button onclick="closeMercenaryModal()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
-            </div>
-
-            <div class="modal-content-area">
-                <p style="font-size:11px; color:#ccc; text-align:center; margin-top:0;">더 강력한 용병을 고용하여 던전을 정복하세요!</p>
-                <div id="mercenary-list-modal" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;"></div>
-            </div>
+        <div class="modal-box large-modal">
+            <div class="modal-title">🧑‍🚀 용병 선택</div>
+            <div id="mercenary-list"></div>
+            <button class="modal-close-btn" onclick="closeMercenaryModal()">닫기</button>
         </div>
     </div>
 
     <!-- =========================
-         치아도감
+         CODEX MODAL
     ========================== -->
     <div id="codex-modal" class="modal-layer">
-        <div id="codex-content" class="modal-box" style="width:95%; max-width:500px;">
-            <div class="sticky-header">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <h2 style="color:var(--gold); margin:0;">📖 치아 도감</h2>
-                    <span id="codex-progress" style="font-size:12px; color:#aaa;">수집률: 0/25</span>
-                </div>
-                <button onclick="closeCodex()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
-            </div>
-
-            <div class="modal-content-area">
-                <div id="codex-grid"></div>
-            </div>
+        <div class="modal-box large-modal">
+            <div class="modal-title">📖 치아 도감</div>
+            <div id="codex-list"></div>
+            <button class="modal-close-btn" onclick="closeCodex()">닫기</button>
         </div>
     </div>
 
     <!-- =========================
-         유물도감
+         ARTIFACT MODAL
     ========================== -->
     <div id="artifact-modal" class="modal-layer">
-        <div id="artifact-content" class="modal-box" style="width:95%; max-width:500px;">
-            <div class="sticky-header">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <h2 style="color:var(--gold); margin:0;">🏺 유물 도감</h2>
-                    <span id="artifact-progress" style="font-size:12px; color:#aaa;">수집률: 0/0</span>
-                </div>
-                <button onclick="closeArtifacts()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
-            </div>
-
-            <div class="modal-content-area">
-                <p style="font-size:11px; color:#ccc; text-align:center; margin-top:0; line-height:1.4;">
-                    던전 보스가 드랍하는 유물을 <span style="color:#2ecc71;">1개</span> 획득 시 완성되며,<br>
-                    완성된 유물을 <span style="color:#3498db;">3종류</span> 모을 때마다 <strong style="color:var(--gold);">기본 채굴 레벨이 +1</strong> 상승합니다.
-                </p>
-                <div id="artifact-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px;"></div>
-            </div>
+        <div class="modal-box large-modal">
+            <div class="modal-title">🏺 유물 도감</div>
+            <div id="artifact-list"></div>
+            <button class="modal-close-btn" onclick="closeArtifacts()">닫기</button>
         </div>
     </div>
 
     <!-- =========================
-         Lv.24 봉인 해제 모달
+         LOCKED TOOTH MODAL
     ========================== -->
-    <div id="locked-tooth-modal" class="modal-layer" style="z-index: 26000;">
-        <div id="locked-tooth-content" class="modal-box" style="text-align:center; border: 3px solid #8e44ad;">
-            <div class="sticky-header">
-                <h2 style="color:#9b59b6; margin:0;">🔒 왕관 치아 봉인 해제</h2>
-                <button onclick="closeLockedToothModal()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
-            </div>
-
-            <div class="modal-content-area">
-                <div style="position:relative; font-size:60px; margin:10px 0; display:inline-block; filter: grayscale(1);">
-                    <div class="tooth-icon effect-tier-7 effect-size-2">👑</div>
-                    <span style="position:absolute; font-size:40px; top:50%; left:50%; transform:translate(-50%, -50%); text-shadow:0 0 10px black;">🔒</span>
-                </div>
-
-                <p style="font-size:12px; color:#ccc;">
-                    Lv.24 봉인된 왕관 치아를 해방하면<br>
-                    <strong style="color:var(--gold);">Lv.MAX 초월 왕관 치아</strong>가 됩니다.
-                </p>
-
-                <div id="unlock-requirements" style="background:#222; padding:15px; border-radius:0; border:1px solid #555; margin:15px 0; text-align:left;"></div>
-
-                <button id="btn-unlock-tooth" onclick="attemptUnlockTooth()" class="btn-gold" style="width:100%; font-size:16px;">봉인 해제 시도</button>
+    <div id="locked-tooth-modal" class="modal-layer">
+        <div class="modal-box">
+            <div class="modal-title">👑 봉인된 왕관 치아</div>
+            <div id="locked-tooth-info"></div>
+            <div id="locked-tooth-req"></div>
+            <div class="modal-btn-row">
+                <button onclick="attemptUnlockTooth()">봉인 해제</button>
+                <button onclick="closeLockedToothModal()">닫기</button>
             </div>
         </div>
     </div>
 
     <!-- =========================
-         훈련 모달
+         TRAINING CAMP MODAL
+         기존 함수 호환용. 실제 훈련은 치아 연구소로 통합됨.
     ========================== -->
     <div id="training-modal" class="modal-layer">
-        <div id="training-content" class="modal-box">
-            <div class="sticky-header">
-                <h2 style="color:var(--gold); margin:0;">💪 용병 훈련장</h2>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:12px; color:#fff;">보유 ♦️ <span id="training-dia-display" style="color:#ff4757; font-weight:bold;">0</span></span>
-                    <button onclick="closeTrainingCamp()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
-                </div>
-            </div>
-
-            <div class="modal-content-area">
-                <p style="font-size:11px; color:#ccc; text-align:center; margin-top:0;">다이아를 소모하여 용병의 능력을 영구적으로 강화합니다.</p>
-                <div id="training-list"></div>
-            </div>
+        <div class="modal-box large-modal">
+            <div class="modal-title">🏋️ 용병 훈련</div>
+            <div id="training-list"></div>
+            <button class="modal-close-btn" onclick="closeTrainingCamp()">닫기</button>
         </div>
     </div>
 
     <!-- =========================
-         랭킹 모달
+         RANKING MODAL
     ========================== -->
     <div id="ranking-modal" class="modal-layer">
-        <div id="ranking-content" class="modal-box">
-            <div class="sticky-header">
-                <h2 style="color:var(--gold); margin:0;">🏆 명예의 전당</h2>
-                <button onclick="closeRanking()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
-            </div>
+        <div class="modal-box large-modal">
+            <div class="modal-title">🏆 랭킹</div>
+            <div id="ranking-list"></div>
+            <button class="modal-close-btn" onclick="closeRanking()">닫기</button>
+        </div>
+    </div>
 
-            <div class="modal-content-area">
-                <div class="ranking-header" style="display:flex; justify-content:space-between; font-weight:bold; color:#888; border-bottom:1px solid #444; padding-bottom:5px; margin-bottom:5px; font-size:12px;">
-                    <span style="width:15%; text-align:center;">순위</span>
-                    <span style="flex:1; text-align:center;">닉네임</span>
-                    <span style="width:20%; text-align:center;">던전</span>
-                    <span style="width:25%; text-align:right;">전투력</span>
-                </div>
+    <!-- =========================
+         SHOP MODAL
+    ========================== -->
+    <div id="shop-modal" class="modal-layer">
+        <div class="modal-box large-modal">
+            <div class="modal-title">🛒 상점</div>
+            <div id="shop-list"></div>
+            <button class="modal-close-btn" onclick="closeShop()">닫기</button>
+        </div>
+    </div>
 
-                <div id="ranking-list"></div>
-                <div id="my-rank-display" style="border-top:1px solid #555; padding-top:10px; margin-top:10px; color:var(--gold); font-weight:bold; text-align:center;"></div>
+    <!-- =========================
+         TIER UNLOCK MODAL
+    ========================== -->
+    <div id="tier-unlock-modal" class="modal-layer">
+        <div class="modal-box">
+            <div id="tier-unlock-content"></div>
+            <button class="modal-close-btn" onclick="closeTierUnlock()">확인</button>
+        </div>
+    </div>
+
+    <!-- =========================
+         DUNGEON RESULT MODAL
+    ========================== -->
+    <div id="dungeon-result-modal" class="modal-layer">
+        <div class="modal-box">
+            <div class="modal-title">원정 결과</div>
+            <div id="dungeon-result-content"></div>
+            <div class="modal-btn-row">
+                <button onclick="retryDungeon()">다시 도전</button>
+                <button onclick="nextDungeon()">다음 던전</button>
+                <button onclick="closeResultModal()">나가기</button>
             </div>
         </div>
     </div>
 
     <!-- =========================
-         상점 / 결과 / 닉네임 / 가이드
+         RETREAT CONFIRM MODAL
     ========================== -->
-    <div id="shop-modal" class="modal-layer">
-        <div id="shop-content" class="modal-box"></div>
-    </div>
-
-    <div id="tier-unlock-modal" class="modal-layer" style="z-index: 25000;">
-        <div id="tier-unlock-content" class="modal-box" style="text-align:center; background: radial-gradient(circle, #2c3e50 0%, #000000 100%); border: 3px solid var(--gold);">
-            <h1 style="color:var(--gold); text-shadow: 0 0 10px yellow; animation: blink 1s infinite;">🎉 신규 티어 개방! 🎉</h1>
-            <div id="tier-unlock-icon" style="font-size:80px; margin:20px 0;"></div>
-            <h3 id="tier-unlock-name" style="color:white;">-</h3>
-            <div id="tier-unlock-desc" style="background:rgba(0,0,0,0.5); padding:15px; border-radius:0; color:#2ecc71; font-weight:bold; margin:15px 0;">-</div>
-            <button onclick="closeTierUnlock()" class="btn-gold" style="width:100%; font-size:16px;">멋지다! (보상 수령)</button>
-        </div>
-    </div>
-
-    <div id="dungeon-result-modal" class="modal-layer" style="z-index: 16000;">
-        <div id="result-content" class="modal-box" style="text-align:center; padding: 20px;">
-            <h2 id="result-title" style="color:var(--gold); margin-top:0;">CLEAR!</h2>
-
-            <div id="result-desc"></div>
-            <div id="result-artifact-area" style="min-height:30px; margin: 15px 0;"></div>
-
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button onclick="closeResultModal()" class="btn-sm" style="flex:1; background:#7f8c8d; padding:12px 0;">나가기</button>
-                <button onclick="retryDungeon()" class="btn-sm" style="flex:1; background:#e67e22; padding:12px 0;">다시하기</button>
-                <button onclick="nextDungeon()" id="btn-next-dungeon" class="btn-gold" style="flex:1; padding:12px 0;">다음단계</button>
+    <div id="retreat-confirm-modal" class="modal-layer battle-modal">
+        <div class="modal-box">
+            <div class="modal-title">후퇴하시겠습니까?</div>
+            <div class="modal-desc">
+                후퇴하면 현재 원정은 즉시 종료됩니다.<br />
+                후퇴 확인 중에는 전투가 일시정지됩니다.
+            </div>
+            <div class="modal-btn-row">
+                <button class="danger-btn" onclick="confirmRetreat()">후퇴</button>
+                <button onclick="cancelRetreat()">계속 싸우기</button>
             </div>
         </div>
     </div>
 
-    <div id="retreat-confirm-modal" class="modal-layer" style="z-index: 17000;">
-        <div class="modal-box" style="text-align:center; padding:20px; max-width:360px;">
-            <h2 style="color:var(--red); margin-top:0;">⚠️ 후퇴하시겠습니까?</h2>
-            <p style="font-size:12px; color:#ccc; line-height:1.5;">
-                현재 던전 진행 상황은 사라집니다.<br>
-                획득한 전투 보상은 유지됩니다.
-            </p>
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button onclick="cancelRetreat()" class="btn-sm" style="flex:1; background:#7f8c8d; padding:12px 0;">취소</button>
-                <button onclick="confirmRetreat()" class="btn-red" style="flex:1; padding:12px 0;">후퇴</button>
+    <!-- =========================
+         NICKNAME MODAL
+    ========================== -->
+    <div id="nickname-modal" class="modal-layer">
+        <div class="modal-box">
+            <div class="modal-title">닉네임 변경</div>
+            <input id="nickname-input" maxlength="12" placeholder="닉네임 입력" />
+            <div class="modal-btn-row">
+                <button onclick="confirmNickname()">확인</button>
+                <button onclick="closeNicknameModal()">취소</button>
             </div>
         </div>
     </div>
 
-    <div id="nickname-modal" class="modal-layer" style="z-index:30000;">
-        <div id="nickname-content" class="modal-box">
-            <h3 style="color:var(--gold); margin-top:0;">🆔 닉네임 설정</h3>
-            <p style="font-size:12px; color:#ccc;">랭킹에 표시될 이름을 정해주세요.</p>
-            <input type="text" id="nickname-input" style="width:100%; padding:10px; margin:10px 0; text-align:center; font-weight:bold; font-family:'NeoDunggeunmo', sans-serif; background:#222; color:white; border:2px solid #555; border-radius:0;">
-            <button onclick="confirmNickname()" class="btn-gold" style="width:100%;">확인</button>
-        </div>
-    </div>
-
+    <!-- =========================
+         GUIDE MODAL
+    ========================== -->
     <div id="guide-modal" class="modal-layer">
-        <div id="guide-content" class="modal-box">
-            <div class="sticky-header">
-                <h2 style="color:var(--gold); margin:0;">📘 게임 가이드</h2>
-                <button onclick="closeGuide()" style="background:none; border:none; color:#e74c3c; font-size:24px; font-weight:bold; cursor:pointer; padding:0;">✕</button>
+        <div class="modal-box large-modal">
+            <div class="modal-title">📘 도움말</div>
+            <div id="guide-content">
+                <p><b>채굴</b>: 중앙 채굴 영역을 터치해 치아를 얻습니다.</p>
+                <p><b>합성</b>: 같은 레벨 치아 2개를 합쳐 더 높은 치아를 만듭니다.</p>
+                <p><b>Top8</b>: 인벤토리 상단 8칸은 전투 공격 슬롯입니다.</p>
+                <p><b>치아 연구소</b>: 모든 업그레이드와 훈련을 관리합니다.</p>
+                <p><b>던전 원정</b>: 용병 상태를 확인하고 던전에 입장합니다.</p>
+                <p><b>Lv.MAX</b>: Lv.24 봉인 치아를 재료로 해방해야 얻을 수 있습니다.</p>
             </div>
-
-            <div class="modal-content-area" id="guide-scroll-content"></div>
+            <button class="modal-close-btn" onclick="closeGuide()">닫기</button>
         </div>
     </div>
 
+    <!-- DRAG PROXY -->
     <div id="drag-proxy"></div>
 
     <!-- =========================
-         스크립트 로딩 순서
+         SCRIPTS
     ========================== -->
-    <script src="data.js?v=8.0.0"></script>
-    <script src="engine.js?v=8.0.0"></script>
-    <script src="action.js?v=8.0.0"></script>
-    <script src="ui_core.js?v=8.0.0"></script>
-    <script src="ui_modal.js?v=8.0.0"></script>
-    <script src="upgrade.js?v=8.0.0"></script>
-    <script src="combat.js?v=8.0.0"></script>
-    <script src="battle.js?v=8.0.0"></script>
+    <script src="data.js?v=8.1.0"></script>
+    <script src="engine.js?v=8.1.0"></script>
+    <script src="action.js?v=8.1.0"></script>
+    <script src="ui_core.js?v=8.1.0"></script>
+    <script src="ui_modal.js?v=8.1.0"></script>
+    <script src="upgrade.js?v=8.1.0"></script>
+    <script src="combat.js?v=8.1.0"></script>
+    <script src="battle.js?v=8.1.0"></script>
 </body>
 </html>
