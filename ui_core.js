@@ -1,707 +1,732 @@
-// Version: 8.0.0 - UI Core / View / Mercenary / Dungeon / Result
-
-window.currentView = window.currentView || "mine";
-window.currentDungeonTab = window.currentDungeonTab || "normal";
+// Version: 8.1.0 - Core UI / View / Dungeon / Result / Mercenary
 
 // =========================
-// 안전 유틸
+// 내부 상태
 // =========================
-function uiNum(value) {
-    if (typeof fNum === "function") return fNum(value);
-    return Math.floor(Number(value) || 0);
-}
-
-function uiGetAtk(lv) {
-    if (typeof getAtk === "function") return getAtk(lv);
-    return 0;
-}
-
-function uiGetBaseAtk(lv) {
-    if (typeof getBaseAtk === "function") return getBaseAtk(lv);
-    return uiGetAtk(lv);
-}
-
-function uiGetIcon(lv) {
-    if (typeof getToothIcon === "function") return getToothIcon(lv);
-    return "🦷";
-}
-
-function uiGetName(lv) {
-    if (typeof getToothName === "function") return getToothName(lv);
-    return lv >= 25 ? "Lv.MAX 초월 왕관 치아" : `Lv.${lv}`;
-}
-
-function uiLvLabel(lv) {
-    if (lv >= 25) return "Lv.MAX";
-    return `Lv.${lv}`;
-}
-
-function getEl(id) {
-    return document.getElementById(id);
-}
+let __lastDungeonResult = null;
+let __pendingHellUnlock = false;
 
 // =========================
-// 1. 메인 뷰 전환
+// 유틸
 // =========================
-window.switchView = function(viewName) {
-    window.currentView = viewName;
+function coreFmt(num) {
+    if (typeof fNum === "function") return fNum(num);
+    return Math.floor(Number(num) || 0).toString();
+}
 
-    const mineView = getEl("mine-view");
-    const inventorySection = getEl("inventory-section");
-    const refineView = getEl("refine-view");
-    const warView = getEl("war-view");
+function showCoreAlert(msg) {
+    alert(msg);
+}
 
-    if (mineView) mineView.style.display = "none";
-    if (inventorySection) inventorySection.style.display = "none";
-    if (refineView) refineView.style.display = "none";
-    if (warView) warView.style.display = "none";
-
-    const tabMine = getEl("tab-mine");
-    const tabRefine = getEl("tab-refine");
-    const tabWar = getEl("tab-war");
-
-    if (tabMine) tabMine.classList.remove("active");
-    if (tabRefine) tabRefine.classList.remove("active");
-    if (tabWar) tabWar.classList.remove("active");
-
-    if (viewName === "mine") {
-        if (mineView) mineView.style.display = "flex";
-        if (inventorySection) inventorySection.style.display = "flex";
-        if (tabMine) tabMine.classList.add("active");
-
-        if (typeof window.renderInventory === "function") {
-            window.renderInventory();
-        }
+function getMercenarySafe(idx) {
+    if (typeof TOOTH_DATA === "undefined" || !TOOTH_DATA.mercenaries) {
+        return {
+            name: "초보 치아 수호자",
+            icon: "🧑‍🚀",
+            cost: 0,
+            baseHp: 100,
+            atkMul: 1,
+            spd: 1,
+            desc: "기본 용병"
+        };
     }
 
-    if (viewName === "refine") {
-        if (refineView) refineView.style.display = "flex";
-        if (tabRefine) tabRefine.classList.add("active");
+    return TOOTH_DATA.mercenaries[idx] || TOOTH_DATA.mercenaries[0];
+}
 
-        if (typeof window.renderRefineView === "function") {
-            window.renderRefineView();
-        }
+function getDungeonName(mode, stage) {
+    stage = Math.max(1, Number(stage) || 1);
+    const idx = stage - 1;
+
+    if (mode === "hell" || mode === "hellboss") {
+        return TOOTH_DATA.hellDungeons[idx] || `HELL 던전 ${stage}`;
     }
 
-    if (viewName === "war") {
-        if (warView) warView.style.display = "flex";
-        if (tabWar) tabWar.classList.add("active");
+    return TOOTH_DATA.dungeons[idx] || `던전 ${stage}`;
+}
 
-        const hellTab = getEl("d-tab-hell");
-        const hellBossTab = getEl("d-tab-hellboss");
+function getDungeonIcon(mode, stage) {
+    if (mode === "hell" || mode === "hellboss") return "🔥";
+    if (mode === "boss") return "👹";
+    return "⚔️";
+}
 
-        if (window.unlockedDungeon > 20) {
-            if (hellTab) hellTab.style.display = "inline-block";
-            if (hellBossTab) hellBossTab.style.display = "inline-block";
-        } else {
-            if (hellTab) hellTab.style.display = "none";
-            if (hellBossTab) hellBossTab.style.display = "none";
+function getRecommendedAtk(mode, stage) {
+    stage = Math.max(1, Number(stage) || 1);
 
-            if (window.currentDungeonTab === "hell" || window.currentDungeonTab === "hellboss") {
-                window.currentDungeonTab = "normal";
-            }
-        }
-
-        if (typeof window.renderMercenaryCamp === "function") {
-            window.renderMercenaryCamp();
-        }
-
-        if (typeof window.switchDungeonTab === "function") {
-            window.switchDungeonTab(window.currentDungeonTab || "normal");
-        }
+    if (mode === "hell" || mode === "hellboss") {
+        return Math.floor(50000 * Math.pow(2.15, stage - 1));
     }
 
-    try {
-        if (typeof playSfx === "function") playSfx("hit");
-    } catch (e) {}
-};
+    if (mode === "boss") {
+        return Math.floor(2500 * Math.pow(1.75, stage - 1));
+    }
 
-window.switchDungeonTab = function(tabName) {
-    window.currentDungeonTab = tabName;
+    return Math.floor(600 * Math.pow(1.55, stage - 1));
+}
 
-    document.querySelectorAll(".war-tab-btn").forEach((btn) => {
+function isHellUnlocked() {
+    return Number(window.unlockedHellDungeon) > 0;
+}
+
+function getUnlockedForMode(mode) {
+    if (mode === "hell" || mode === "hellboss") {
+        return Math.max(0, Number(window.unlockedHellDungeon) || 0);
+    }
+
+    return Math.max(1, Math.min(20, Number(window.unlockedDungeon) || 1));
+}
+
+function isBossMode(mode) {
+    return mode === "boss" || mode === "hellboss";
+}
+
+function getModeLabel(mode) {
+    if (mode === "hell") return "HELL";
+    if (mode === "boss") return "보스 토벌";
+    if (mode === "hellboss") return "HELL 보스";
+    return "일반";
+}
+
+// =========================
+// 화면 전환
+// =========================
+window.switchView = function(viewName, skipSave = false) {
+    const allowed = ["mine", "refine", "war"];
+    const nextView = allowed.includes(viewName) ? viewName : "mine";
+
+    window.currentView = nextView;
+
+    document.querySelectorAll(".main-view").forEach((view) => {
+        view.classList.remove("active-view");
+    });
+
+    const target = document.getElementById(`${nextView}-view`);
+    if (target) target.classList.add("active-view");
+
+    document.querySelectorAll(".bottom-tab").forEach((btn) => {
         btn.classList.remove("active");
     });
 
-    const activeTab = getEl("d-tab-" + tabName);
-    if (activeTab) activeTab.classList.add("active");
+    const nav = document.getElementById(`nav-${nextView}`);
+    if (nav) nav.classList.add("active");
 
-    const bossInfo = getEl("boss-rush-info");
+    if (nextView === "mine") {
+        if (typeof window.renderInventory === "function") window.renderInventory();
+    }
 
+    if (nextView === "refine") {
+        if (typeof window.renderResearchContent === "function") {
+            window.renderResearchContent();
+        }
+    }
+
+    if (nextView === "war") {
+        if (typeof window.renderCurrentMercenary === "function") window.renderCurrentMercenary();
+        if (typeof window.renderWarSummary === "function") window.renderWarSummary();
+        if (typeof window.renderDungeonList === "function") window.renderDungeonList();
+    }
+
+    if (typeof window.updateUI === "function") window.updateUI();
+
+    if (!skipSave && typeof window.saveGame === "function") {
+        window.saveGame();
+    }
+};
+
+// =========================
+// 던전 탭 전환
+// =========================
+window.switchDungeonTab = function(tabName) {
+    const allowed = ["normal", "boss", "hell", "hellboss"];
+    let next = allowed.includes(tabName) ? tabName : "normal";
+
+    if ((next === "hell" || next === "hellboss") && !isHellUnlocked()) {
+        next = "normal";
+        showCoreAlert("HELL 모드는 아직 열리지 않았습니다.\n일반 마지막 던전을 클리어하면 개방됩니다.");
+    }
+
+    window.currentDungeonTab = next;
+
+    document.querySelectorAll(".dungeon-tab").forEach((btn) => {
+        btn.classList.remove("active");
+    });
+
+    const btn = document.getElementById(`d-tab-${next}`);
+    if (btn) btn.classList.add("active");
+
+    const hellBtn = document.getElementById("d-tab-hell");
+    const hellBossBtn = document.getElementById("d-tab-hellboss");
+
+    if (hellBtn) {
+        hellBtn.style.opacity = isHellUnlocked() ? "1" : "0.45";
+    }
+
+    if (hellBossBtn) {
+        hellBossBtn.style.opacity = isHellUnlocked() ? "1" : "0.45";
+    }
+
+    const bossInfo = document.getElementById("boss-rush-info");
     if (bossInfo) {
-        bossInfo.style.display = (tabName === "boss" || tabName === "hellboss") ? "block" : "none";
-    }
-
-    if (typeof window.renderDungeonList === "function") {
-        window.renderDungeonList();
-    }
-};
-
-// =========================
-// 2. 자동 버튼 시각화
-// =========================
-window.updateToggleButtons = function() {
-    const mineBtn = getEl("auto-mine-btn");
-    const mineDial = getEl("mine-dial");
-
-    if (mineBtn) {
-        mineBtn.innerText = window.isAutoMineOn ? "자동 ON" : "자동 OFF";
-
-        if (window.isAutoMineOn) {
-            mineBtn.classList.remove("off");
-            if (mineDial) mineDial.classList.remove("dial-off");
+        if (next === "boss") {
+            bossInfo.innerHTML = "👹 보스 토벌에서는 보스 징표를 획득할 수 있습니다.";
+            bossInfo.style.display = "block";
+        } else if (next === "hellboss") {
+            bossInfo.innerHTML = "🔥 HELL 보스 토벌에서는 더 많은 보스 징표와 보상을 획득합니다.";
+            bossInfo.style.display = "block";
         } else {
-            mineBtn.classList.add("off");
-            if (mineDial) mineDial.classList.add("dial-off");
+            bossInfo.innerHTML = "";
+            bossInfo.style.display = "none";
         }
     }
 
-    const mergeBtn = getEl("auto-merge-btn");
-    const mergeDial = getEl("merge-dial");
+    renderDungeonList();
 
-    if (mergeBtn) {
-        mergeBtn.innerText = window.isAutoMergeOn ? "자동 ON" : "자동 OFF";
-
-        if (window.isAutoMergeOn) {
-            mergeBtn.classList.remove("off");
-            if (mergeDial) mergeDial.classList.remove("dial-off");
-        } else {
-            mergeBtn.classList.add("off");
-            if (mergeDial) mergeDial.classList.add("dial-off");
-        }
-    }
+    if (typeof window.saveGame === "function") window.saveGame();
 };
 
 // =========================
-// 3. 용병 캠프
+// 현재 용병 표시
 // =========================
-window.renderMercenaryCamp = function() {
-    const display = getEl("current-mercenary-display");
+window.renderCurrentMercenary = function() {
+    const box = document.getElementById("current-mercenary-display");
+    if (!box) return;
 
-    if (!display || typeof TOOTH_DATA === "undefined") return;
+    const merc = getMercenarySafe(window.mercenaryIdx || 0);
+    const t = window.trainingLevels || {};
 
-    const curId = Number(window.mercenaryIdx) || 0;
-    const merc = TOOTH_DATA.mercenaries[curId] || TOOTH_DATA.mercenaries[0];
+    const hpLevel = Number(t.hp) || 0;
+    const atkLevel = Number(t.atk) || 0;
+    const spdLevel = Number(t.spd) || 0;
+    const critLevel = Number(t.crit) || 0;
+    const splashDmgLevel = Number(t.splashDmg) || 0;
+    const splashRangeLevel = Number(t.splashRange) || 0;
 
-    if (!merc) return;
+    const hpBonus = hpLevel * 10;
+    const atkBonus = atkLevel * 10;
+    const spdBonus = spdLevel * 3;
+    const critChance = Math.min(45, critLevel * 1.5);
+    const splashDmg = 25 + splashDmgLevel * 2.5;
+    const splashRange = 55 + splashRangeLevel * 3;
 
-    let bonusText = "";
+    const finalHp = Math.floor((merc.baseHp || 100) * (1 + hpBonus / 100));
+    const finalAtkMul = (merc.atkMul || 1) * (1 + atkBonus / 100);
+    const finalSpd = (merc.spd || 1) * (1 + spdBonus / 100);
 
-    if (window.highestToothLevel >= 16) {
-        bonusText = `
-            <div style="color:#2ecc71; font-size:10px; font-weight:bold; margin-top:3px;">
-                ✨ 16치아 보너스: 공격력 x2 적용 중!
+    box.innerHTML = `
+        <div class="mercenary-display-card">
+            <div class="mercenary-big-icon">${merc.icon}</div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:17px;font-weight:900;">${merc.name}</div>
+                <div style="font-size:12px;color:rgba(255,255,255,.68);margin-top:2px;">
+                    ${merc.desc || ""}
+                </div>
             </div>
-        `;
-    }
-
-    const trainAtk = (window.trainingLevels && window.trainingLevels.atk ? window.trainingLevels.atk : 0) * 10;
-    const trainHp = (window.trainingLevels && window.trainingLevels.hp ? window.trainingLevels.hp : 0) * 5;
-    const trainSpd = (window.trainingLevels && window.trainingLevels.spd ? window.trainingLevels.spd : 0) * 10;
-
-    const atkStr = trainAtk > 0 ? `<span style="color:#2ecc71; font-weight:bold;">(+${trainAtk}%)</span>` : "";
-    const hpStr = trainHp > 0 ? `<span style="color:#2ecc71; font-weight:bold;">(+${trainHp}%)</span>` : "";
-    const spdStr = trainSpd > 0 ? `<span style="color:#2ecc71; font-weight:bold;">(+${trainSpd}%)</span>` : "";
-
-    const critLv = window.trainingLevels && window.trainingLevels.crit ? window.trainingLevels.crit : 0;
-    const splashDmgLv = window.trainingLevels && window.trainingLevels.splashDmg ? window.trainingLevels.splashDmg : 0;
-    const splashRangeLv = window.trainingLevels && window.trainingLevels.splashRange ? window.trainingLevels.splashRange : 0;
-
-    const critChance = 5 + (critLv * 2);
-    const critMul = 2.0 + (critLv * 0.2);
-    const splashRatio = 20 + (splashDmgLv * 5);
-    const splashRange = 50 + (splashRangeLv * 10);
-
-    let advStatsHtml = "";
-
-    if (window.highestToothLevel >= 7 || critLv > 0 || splashDmgLv > 0 || splashRangeLv > 0) {
-        advStatsHtml = `
-            <div style="font-size:10px; color:#f1c40f; margin-top:3px; font-weight:bold;">
-                ⚡치명타: ${critChance}% (x${critMul.toFixed(1)}) | 💥광역: ${splashRatio}% (${splashRange}px)
-            </div>
-        `;
-    }
-
-    display.innerHTML = `
-        <div style="font-size:40px; background:#1a1a2e; width:60px; height:60px; display:flex; align-items:center; justify-content:center; border:2px solid #555; box-shadow: 2px 2px 0 #000;">
-            ${merc.icon}
         </div>
-        <div style="flex:1;">
-            <div style="font-size:16px; font-weight:bold; color:white;">
-                ${merc.name}
-                <span style="font-size:12px; color:#aaa; font-weight:normal;">(Lv.${curId})</span>
+
+        <div class="mercenary-stat-grid">
+            <div class="mercenary-stat">
+                체력
+                <b>${coreFmt(finalHp)}</b>
             </div>
-            <div style="font-size:11px; color:#ccc; margin-top:2px;">
-                공격 x<span style="color:var(--gold);">${merc.atkMul}</span> ${atkStr} |
-                체력 <span style="color:#ff4757;">${uiNum(merc.baseHp)}</span> ${hpStr} |
-                이동속도 <span style="color:#3498db;">${merc.spd.toFixed(1)}</span> ${spdStr}
+            <div class="mercenary-stat">
+                공격 배율
+                <b>x${finalAtkMul.toFixed(2)}</b>
             </div>
-            ${advStatsHtml}
-            ${bonusText}
+            <div class="mercenary-stat">
+                이동속도
+                <b>x${finalSpd.toFixed(2)}</b>
+            </div>
+            <div class="mercenary-stat">
+                치명타 확률
+                <b>${critChance.toFixed(1)}%</b>
+            </div>
+            <div class="mercenary-stat">
+                광역 피해
+                <b>${splashDmg.toFixed(1)}%</b>
+            </div>
+            <div class="mercenary-stat">
+                광역 범위
+                <b>${Math.floor(splashRange)}px</b>
+            </div>
         </div>
     `;
 };
 
+// 호환용 별칭
+window.renderMercenaryCamp = window.renderCurrentMercenary;
+
+// =========================
+// 전투 요약
+// =========================
+window.renderWarSummary = function() {
+    const box = document.getElementById("war-summary-panel");
+    if (!box) return;
+
+    const totalAtk = typeof window.getTop8TotalAtk === "function" ? window.getTop8TotalAtk() : 0;
+    const combatPower = typeof window.getPlayerCombatPower === "function" ? window.getPlayerCombatPower() : totalAtk;
+    const artifactCount = typeof window.getOwnedArtifactCount === "function" ? window.getOwnedArtifactCount() : 0;
+    const highest = Number(window.highestToothLevel) || 0;
+
+    box.innerHTML = `
+        <div class="war-summary-card">
+            <div class="mercenary-big-icon">🦷</div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:16px;font-weight:900;">Top8 전투 요약</div>
+                <div style="font-size:12px;color:rgba(255,255,255,.68);">
+                    상단 8칸의 치아가 순서대로 릴레이 발사됩니다.
+                </div>
+            </div>
+        </div>
+
+        <div class="war-stat-grid">
+            <div class="war-stat">
+                Top8 치아 공격력
+                <b>${coreFmt(totalAtk)}</b>
+            </div>
+            <div class="war-stat">
+                최종 전투력
+                <b>${coreFmt(combatPower)}</b>
+            </div>
+            <div class="war-stat">
+                최고 치아
+                <b>${highest >= 25 ? "Lv.MAX" : "Lv." + highest}</b>
+            </div>
+            <div class="war-stat">
+                보스 징표
+                <b>${coreFmt(window.bossMarks || 0)}</b>
+            </div>
+            <div class="war-stat">
+                유물 수집
+                <b>${artifactCount} / 40</b>
+            </div>
+            <div class="war-stat">
+                HELL 상태
+                <b>${isHellUnlocked() ? "개방" : "잠김"}</b>
+            </div>
+        </div>
+    `;
+};
+
+// =========================
+// 용병 모달
+// =========================
 window.openMercenaryModal = function() {
-    const modal = getEl("mercenary-modal");
+    const modal = document.getElementById("mercenary-modal");
+    const list = document.getElementById("mercenary-list");
+    if (!modal || !list || typeof TOOTH_DATA === "undefined") return;
 
-    if (modal) {
-        modal.style.display = "flex";
-
-        if (typeof window.renderMercenaryModalList === "function") {
-            window.renderMercenaryModalList();
-        }
+    if (!Array.isArray(window.unlockedMercenaries)) {
+        window.unlockedMercenaries = [true];
     }
+
+    while (window.unlockedMercenaries.length < TOOTH_DATA.mercenaries.length) {
+        window.unlockedMercenaries.push(false);
+    }
+
+    list.innerHTML = "";
+
+    TOOTH_DATA.mercenaries.forEach((merc, idx) => {
+        const owned = !!window.unlockedMercenaries[idx];
+        const selected = Number(window.mercenaryIdx) === idx;
+
+        const card = document.createElement("div");
+        card.className = `mercenary-card ${selected ? "selected" : ""}`;
+
+        let buttonHtml = "";
+
+        if (selected) {
+            buttonHtml = `<button class="upgrade-btn disabled" disabled>장착중</button>`;
+        } else if (owned) {
+            buttonHtml = `<button class="upgrade-btn" onclick="equipMercenary(${idx})">장착</button>`;
+        } else {
+            buttonHtml = `<button class="upgrade-btn" onclick="buyMercenary(${idx})">${coreFmt(merc.cost)}G</button>`;
+        }
+
+        card.innerHTML = `
+            <div class="upgrade-icon">${merc.icon}</div>
+            <div class="upgrade-info">
+                <div class="upgrade-title">${merc.name}</div>
+                <div class="upgrade-desc">${merc.desc || ""}</div>
+                <div class="upgrade-cost">
+                    HP ${coreFmt(merc.baseHp)} · 공격 x${Number(merc.atkMul || 1).toFixed(2)} · 속도 x${Number(merc.spd || 1).toFixed(2)}
+                </div>
+            </div>
+            ${buttonHtml}
+        `;
+
+        list.appendChild(card);
+    });
+
+    modal.style.display = "flex";
 };
 
 window.closeMercenaryModal = function() {
-    const modal = getEl("mercenary-modal");
+    const modal = document.getElementById("mercenary-modal");
     if (modal) modal.style.display = "none";
 };
 
-window.renderMercenaryModalList = function() {
-    const list = getEl("mercenary-list-modal");
+window.buyMercenary = function(idx) {
+    idx = Number(idx) || 0;
 
-    if (!list || typeof TOOTH_DATA === "undefined") return;
+    if (typeof TOOTH_DATA === "undefined" || !TOOTH_DATA.mercenaries[idx]) return;
 
-    list.innerHTML = "";
+    const merc = TOOTH_DATA.mercenaries[idx];
 
-    if (!Array.isArray(window.ownedMercenaries)) {
-        window.ownedMercenaries = [0];
+    if (!Array.isArray(window.unlockedMercenaries)) {
+        window.unlockedMercenaries = [true];
     }
 
-    if (!window.ownedMercenaries.includes(0)) {
-        window.ownedMercenaries.unshift(0);
+    while (window.unlockedMercenaries.length < TOOTH_DATA.mercenaries.length) {
+        window.unlockedMercenaries.push(false);
     }
 
-    const maxOwned = Math.max(...window.ownedMercenaries);
-    const tier6Text = window.highestToothLevel >= 16 ? `<span style="color:yellow;">(x2)</span>` : "";
-
-    const trainAtk = (window.trainingLevels && window.trainingLevels.atk ? window.trainingLevels.atk : 0) * 10;
-    const atkStr = trainAtk > 0 ? `<span style="color:#2ecc71;">(+${trainAtk}%)</span>` : "";
-
-    TOOTH_DATA.mercenaries.forEach((merc) => {
-        if (merc.id > maxOwned + 1) return;
-
-        const div = document.createElement("div");
-        div.className = "merc-card";
-
-        const isOwned = window.ownedMercenaries.includes(merc.id);
-        const isEquipped = Number(window.mercenaryIdx) === Number(merc.id);
-
-        div.innerHTML = `
-            <div style="font-size:25px;">${merc.icon}</div>
-            <div style="font-size:12px; font-weight:bold; margin:5px 0;">${merc.name}</div>
-            <div style="font-size:10px; color:#aaa;">공격 x${merc.atkMul} ${tier6Text} ${atkStr}</div>
-            <div style="font-size:10px; color:#f55;">
-                HP ${uiNum(merc.baseHp)}
-                <span style="color:#3498db;">| 속도 ${merc.spd.toFixed(1)}</span>
-            </div>
-        `;
-
-        if (isEquipped) {
-            div.style.border = "2px solid #2ecc71";
-            div.innerHTML += `
-                <button class="btn-sm" style="background:#2ecc71; color:white; width:100%; margin-top:5px; cursor:default; box-shadow:none;">
-                    장착중
-                </button>
-            `;
-        } else if (isOwned) {
-            div.innerHTML += `
-                <button onclick="window.equipMerc(${merc.id})" class="btn-sm" style="background:#777; width:100%; margin-top:5px;">
-                    장착하기
-                </button>
-            `;
-        } else {
-            div.innerHTML += `
-                <button onclick="window.buyMerc(${merc.id}, ${merc.cost})" class="btn-gold" style="padding:4px 5px; font-size:11px; width:100%; margin-top:5px;">
-                    ${uiNum(merc.cost)}G
-                </button>
-            `;
-        }
-
-        list.appendChild(div);
-    });
-};
-
-window.buyMerc = function(id, cost) {
-    id = Number(id);
-    cost = Number(cost) || 0;
-
-    if (window.gold >= cost) {
-        window.gold -= cost;
-
-        if (!Array.isArray(window.ownedMercenaries)) {
-            window.ownedMercenaries = [0];
-        }
-
-        if (!window.ownedMercenaries.includes(id)) {
-            window.ownedMercenaries.push(id);
-        }
-
-        try {
-            if (typeof playSfx === "function") playSfx("upgrade");
-        } catch (e) {}
-
-        if (typeof window.renderMercenaryModalList === "function") window.renderMercenaryModalList();
-        if (typeof window.renderMercenaryCamp === "function") window.renderMercenaryCamp();
-        if (typeof window.updateUI === "function") window.updateUI();
-        if (typeof window.saveGame === "function") window.saveGame();
-    } else {
-        alert("골드가 부족합니다!");
-    }
-};
-
-window.equipMerc = function(id) {
-    id = Number(id);
-
-    if (!Array.isArray(window.ownedMercenaries) || !window.ownedMercenaries.includes(id)) {
-        alert("아직 고용하지 않은 용병입니다.");
+    if (window.unlockedMercenaries[idx]) {
+        equipMercenary(idx);
         return;
     }
 
-    window.mercenaryIdx = id;
+    if ((Number(window.gold) || 0) < Number(merc.cost || 0)) {
+        showCoreAlert("골드가 부족합니다.");
+        try {
+            if (typeof playSfx === "function") playSfx("error");
+        } catch (e) {}
+        return;
+    }
 
-    if (typeof window.renderMercenaryModalList === "function") window.renderMercenaryModalList();
-    if (typeof window.renderMercenaryCamp === "function") window.renderMercenaryCamp();
-    if (typeof window.saveGame === "function") window.saveGame();
-};
-
-// =========================
-// 4. 신규 티어 달성 알림
-// =========================
-window.showTierUnlock = function(level) {
-    const modal = getEl("tier-unlock-modal");
-    const iconDiv = getEl("tier-unlock-icon");
-    const nameDiv = getEl("tier-unlock-name");
-    const descDiv = getEl("tier-unlock-desc");
-
-    if (!modal || !iconDiv || !nameDiv || !descDiv) return;
-
-    iconDiv.innerHTML = uiGetIcon(level);
-    nameDiv.innerText = uiGetName(level);
-
-    let desc = "";
-
-    if (level === 4) desc = "채굴력 1.2배 상승! 더 빠르게 채굴합니다.";
-    else if (level === 7) desc = "💥 광역 공격 훈련이 개방되었습니다!";
-    else if (level === 10) desc = "⚡ 치명타 훈련이 개방되었습니다!";
-    else if (level === 13) desc = "♦️ 던전 다이아 획득량이 2배로 증가합니다!";
-    else if (level === 16) desc = "⚔️ 용병 공격력이 2배로 증폭됩니다!";
-    else if (level === 19) desc = "🔥 치아 기본 공격력이 10배로 폭증합니다!";
-    else if (level === 22) desc = "👑 모든 던전 보상이 5배로 폭증합니다!";
-
-    descDiv.innerText = desc;
-    modal.style.display = "flex";
+    window.gold -= Number(merc.cost) || 0;
+    window.unlockedMercenaries[idx] = true;
+    window.mercenaryIdx = idx;
 
     try {
-        if (typeof playSfx === "function") playSfx("unlock");
+        if (typeof playSfx === "function") playSfx("buy");
     } catch (e) {}
+
+    if (typeof window.updateUI === "function") window.updateUI();
+    if (typeof window.renderCurrentMercenary === "function") window.renderCurrentMercenary();
+    if (typeof window.renderWarSummary === "function") window.renderWarSummary();
+    if (typeof window.renderResearchContent === "function") window.renderResearchContent();
+    if (typeof window.saveGame === "function") window.saveGame();
+
+    openMercenaryModal();
 };
 
-window.closeTierUnlock = function() {
-    const modal = getEl("tier-unlock-modal");
-    if (modal) modal.style.display = "none";
+window.equipMercenary = function(idx) {
+    idx = Number(idx) || 0;
+
+    if (!Array.isArray(window.unlockedMercenaries) || !window.unlockedMercenaries[idx]) {
+        return;
+    }
+
+    window.mercenaryIdx = idx;
+
+    if (typeof window.renderCurrentMercenary === "function") window.renderCurrentMercenary();
+    if (typeof window.renderWarSummary === "function") window.renderWarSummary();
+    if (typeof window.renderResearchContent === "function") window.renderResearchContent();
+    if (typeof window.saveGame === "function") window.saveGame();
+
+    openMercenaryModal();
 };
 
 // =========================
-// 5. 던전 리스트
+// 던전 목록
 // =========================
 window.renderDungeonList = function() {
-    const list = getEl("dungeon-list");
-
+    const list = document.getElementById("dungeon-list");
     if (!list || typeof TOOTH_DATA === "undefined") return;
+
+    const mode = window.currentDungeonTab || "normal";
+    const hell = mode === "hell" || mode === "hellboss";
+    const boss = isBossMode(mode);
 
     list.innerHTML = "";
 
-    const tab = window.currentDungeonTab || "normal";
-    const isHell = tab === "hell" || tab === "hellboss";
-    const isBoss = tab === "boss" || tab === "hellboss";
-
-    const dungeonData = isHell ? TOOTH_DATA.hellDungeons : TOOTH_DATA.dungeons;
-    const currentUnlocked = isHell ? window.unlockedHellDungeon : window.unlockedDungeon;
-
-    if (isHell && window.unlockedDungeon <= 20) {
+    if (hell && !isHellUnlocked()) {
         list.innerHTML = `
             <div class="dungeon-card locked">
-                <h4 style="margin:0;">🔒 HELL 잠김</h4>
-                <p style="margin:5px 0 0 0; font-size:12px; color:#888;">
-                    일반 20단계 클리어 후 지옥문이 열립니다.
-                </p>
+                <div class="dungeon-icon">🔒</div>
+                <div class="dungeon-info">
+                    <div class="dungeon-title">HELL 잠김</div>
+                    <div class="dungeon-desc">일반 마지막 던전을 클리어하면 HELL 모드가 개방됩니다.</div>
+                </div>
             </div>
         `;
         return;
     }
 
-    if (isBoss) {
-        const groupCount = Math.ceil(dungeonData.length / 5);
+    const unlocked = getUnlockedForMode(mode);
+    const total = 20;
 
-        for (let i = 0; i < groupCount; i++) {
-            const start = i * 5;
-            const end = Math.min(start + 5, dungeonData.length);
-            const reqLevel = start + 6;
-            const isUnlocked = currentUnlocked >= reqLevel;
+    for (let stage = 1; stage <= total; stage++) {
+        const open = stage <= unlocked;
+        const name = getDungeonName(mode, stage);
+        const icon = getDungeonIcon(mode, stage);
+        const recAtk = getRecommendedAtk(mode, stage);
+        const card = document.createElement("div");
 
-            const div = document.createElement("div");
-            div.className = `dungeon-card ${isUnlocked ? "unlocked" : "locked"}`;
+        card.className = `dungeon-card dungeon-item ${open ? "" : "locked"}`;
 
-            const name = isHell
-                ? `HELL ${start + 1}~${end}구간`
-                : `일반 ${start + 1}~${end}구간`;
+        let rewardText = "";
 
-            let goldFee = Math.floor(5000 * Math.pow(2.0, start));
-            let diaFee = 5 + (start * 5);
-
-            if (isHell) {
-                goldFee *= 10;
-                diaFee *= 5;
-            }
-
-            if (isUnlocked) {
-                div.innerHTML = `
-                    <h4 style="margin:0;">🔥 ${name} 보스 토벌전</h4>
-                    <p style="margin:5px 0 0 0; font-size:12px; color:#ff8888;">
-                        입장료:
-                        <span style="color:var(--gold);">${uiNum(goldFee)}G</span>,
-                        ♦️${diaFee}
-                    </p>
-                    <p style="color:#f1c40f; font-size:11px; margin:5px 0 0 0;">
-                        보스 5연속 처치 시 엄청난 보상 & 보스 징표 획득!
-                    </p>
-                `;
-
-                div.onclick = () => {
-                    if (typeof startDungeon === "function") {
-                        startDungeon(start);
-                    }
-                };
-            } else {
-                div.innerHTML = `
-                    <h4 style="margin:0;">🔒 잠김</h4>
-                    <p style="margin:5px 0 0 0; font-size:12px; color:#888;">
-                        ${isHell ? "HELL " : "일반 "}던전 ${reqLevel - 1}단계 클리어 시 열림
-                    </p>
-                `;
-            }
-
-            list.appendChild(div);
+        if (mode === "normal") {
+            rewardText = `골드 ${coreFmt(300 * stage * stage)} · 유물 확률`;
+        } else if (mode === "boss") {
+            rewardText = `보스 징표 +1 · 골드 ${coreFmt(1200 * stage * stage)}`;
+        } else if (mode === "hell") {
+            rewardText = `다이아 · HELL 유물 확률`;
+        } else {
+            rewardText = `보스 징표 +2 · HELL 보상`;
         }
 
-        return;
-    }
-
-    dungeonData.forEach((name, idx) => {
-        const div = document.createElement("div");
-        const isUnlocked = idx < currentUnlocked;
-
-        div.className = `dungeon-card ${isUnlocked ? "unlocked" : "locked"}`;
-
-        let baseHp = Math.floor(100 * Math.pow(isHell ? 2.5 : 2.2, idx));
-        if (isHell) baseHp *= 50;
-
-        const recAtk = (baseHp * 30) / 40;
-        const artifactIdx = isHell ? idx + 20 : idx;
-
-        let artifactHtml = "";
-
-        if (!Array.isArray(window.artifactCounts)) {
-            window.artifactCounts = new Array(30).fill(0);
-        }
-
-        if (TOOTH_DATA.artifacts[artifactIdx]) {
-            const art = TOOTH_DATA.artifacts[artifactIdx];
-            const myCount = window.artifactCounts[artifactIdx] || 0;
-
-            artifactHtml = `
-                <div style="margin-top:8px; padding-top:8px; border-top:1px dashed #555; font-size:11px; color:#ccc; display:flex; justify-content:space-between; align-items:center;">
-                    <span>드랍 유물: ${art.icon} ${art.name}</span>
-                    <span style="color:${myCount >= 1 ? "#2ecc71" : "#f39c12"};">
-                        보유: ${myCount}/1
-                    </span>
+        card.innerHTML = open
+            ? `
+                <div class="dungeon-icon">${icon}</div>
+                <div class="dungeon-info">
+                    <div class="dungeon-title">${stage}. ${boss ? "보스 " : ""}${name}</div>
+                    <div class="dungeon-desc">
+                        권장 전투력 ${coreFmt(recAtk)} · ${rewardText}
+                    </div>
+                </div>
+                <button class="dungeon-enter-btn">입장</button>
+            `
+            : `
+                <div class="dungeon-icon">🔒</div>
+                <div class="dungeon-info">
+                    <div class="dungeon-title">잠김</div>
+                    <div class="dungeon-desc">이전 던전을 클리어하면 열립니다.</div>
                 </div>
             `;
-        }
 
-        if (isUnlocked) {
-            div.innerHTML = `
-                <h4 style="margin:0;">⚔️ Lv.${idx + 1} ${name}</h4>
-                <p style="margin:5px 0 0 0; font-size:12px; color:#aaa;">
-                    권장 공격력: ${uiNum(recAtk)}+
-                </p>
-                ${artifactHtml}
-            `;
-
-            div.onclick = () => {
-                if (typeof startDungeon === "function") {
-                    startDungeon(idx);
+        if (open) {
+            card.addEventListener("click", () => {
+                if (typeof window.startDungeon === "function") {
+                    window.startDungeon(stage, mode);
+                } else {
+                    showCoreAlert("전투 모듈이 아직 로드되지 않았습니다.");
                 }
-            };
-        } else {
-            div.innerHTML = `
-                <h4 style="margin:0;">🔒 잠김</h4>
-                <p style="margin:5px 0 0 0; font-size:12px; color:#888;">
-                    이전 던전 클리어 시 열림
-                </p>
-            `;
+            });
         }
 
-        list.appendChild(div);
-    });
+        list.appendChild(card);
+    }
 };
 
 // =========================
-// 6. 던전 결과창
+// 던전 결과 모달
 // =========================
-window.showResultModal = function() {
-    const modal = getEl("dungeon-result-modal");
+window.showResultModal = function(result = {}) {
+    const modal = document.getElementById("dungeon-result-modal");
+    const content = document.getElementById("dungeon-result-content");
 
-    if (!modal || typeof TOOTH_DATA === "undefined") return;
+    if (!modal || !content) return;
+
+    const success = result.success !== false;
+    const mode = result.mode || result.type || (window.currentDungeonRun && window.currentDungeonRun.mode) || "normal";
+    const stage = Number(result.stage || (window.currentDungeonRun && window.currentDungeonRun.stage) || 1);
+    const isHell = mode === "hell" || mode === "hellboss";
+    const isBoss = isBossMode(mode);
+
+    __lastDungeonResult = {
+        success,
+        mode,
+        stage
+    };
+
+    __pendingHellUnlock = false;
+
+    let title = success ? "✅ 원정 성공" : "❌ 원정 실패";
+    let lines = [];
+
+    if (success) {
+        const goldReward = Number(result.gold || 0);
+        const diaReward = Number(result.dia || 0);
+        const bossMarkReward = Number(result.bossMarks || 0);
+
+        if (goldReward > 0) lines.push(`💰 골드 +${coreFmt(goldReward)}`);
+        if (diaReward > 0) lines.push(`♦️ 다이아 +${coreFmt(diaReward)}`);
+        if (bossMarkReward > 0) lines.push(`🎖️ 보스 징표 +${coreFmt(bossMarkReward)}`);
+
+        if (result.artifact) {
+            if (result.artifact.isDuplicate) {
+                const rewardDia = Number(result.artifact.rewardDia) || 0;
+                const rewardBossMarks = Number(result.artifact.rewardBossMarks) || 0;
+
+                lines.push(`🔁 중복 유물: ${result.artifact.name}`);
+                if (rewardDia > 0) lines.push(`♦️ 중복 보상 다이아 +${coreFmt(rewardDia)}`);
+                if (rewardBossMarks > 0) lines.push(`🎖️ 중복 보상 보스 징표 +${coreFmt(rewardBossMarks)}`);
+            } else {
+                lines.push(`🏺 신규 유물 발견: ${result.artifact.name}`);
+                lines.push(`유물도감에 등록되었습니다.`);
+            }
+        }
+
+        // 일반 마지막 던전 클리어 시 HELL 오픈 예약
+        if (mode === "normal" && stage >= 20 && !isHellUnlocked()) {
+            __pendingHellUnlock = true;
+            lines.push(`🔥 HELL 모드의 문이 열리려 합니다.`);
+        }
+
+        // 다음 던전 오픈
+        if (mode === "normal") {
+            if (stage >= Number(window.unlockedDungeon || 1) && stage < 20) {
+                window.unlockedDungeon = stage + 1;
+            }
+        } else if (mode === "hell") {
+            if (stage >= Number(window.unlockedHellDungeon || 0) && stage < 20) {
+                window.unlockedHellDungeon = stage + 1;
+            }
+        }
+    } else {
+        lines.push("용병이 쓰러졌습니다.");
+        lines.push("치아 연구소에서 전투력을 올린 뒤 다시 도전하세요.");
+    }
+
+    if (lines.length === 0) {
+        lines.push(success ? "보상을 획득했습니다." : "다시 도전하세요.");
+    }
+
+    content.innerHTML = `
+        <div style="text-align:center;font-size:18px;font-weight:900;margin-bottom:10px;">
+            ${title}
+        </div>
+        <div style="text-align:center;color:rgba(255,255,255,.72);font-size:13px;margin-bottom:12px;">
+            ${getModeLabel(mode)} ${stage}단계
+        </div>
+        ${lines.map((line) => `<div class="result-reward-line">${line}</div>`).join("")}
+    `;
 
     modal.style.display = "flex";
 
-    const isHell = !!window.isHellMode;
-    const isBossRush = !!window.isBossRush;
-    const idx = Number(window.currentDungeonIdx) || 0;
-
-    const dungeonList = isHell ? TOOTH_DATA.hellDungeons : TOOTH_DATA.dungeons;
-    const dName = dungeonList[idx] || (isHell ? `HELL Lv.${idx + 1}` : `던전 Lv.${idx + 1}`);
-
-    const title = getEl("result-title");
-    if (title) {
-        title.innerText = `${isBossRush ? "[토벌전] " : ""}${dName} CLEAR!`;
-    }
-
-    let nextStr = "";
-
-    if (!isBossRush) {
-        if (isHell) {
-            const maxHell = TOOTH_DATA.hellDungeons.length;
-
-            if (window.unlockedHellDungeon <= idx + 1 && idx < maxHell - 1) {
-                window.unlockedHellDungeon = idx + 2;
-                nextStr = "신규 HELL 던전 오픈!";
-            }
-        } else {
-            const maxNormal = TOOTH_DATA.dungeons.length;
-
-            if (idx === maxNormal - 1 && window.unlockedDungeon === maxNormal) {
-                window.unlockedDungeon = maxNormal + 1;
-                nextStr = "🔥 경고: 지옥문이 열렸습니다... 🔥";
-
-                if (typeof window.playHellVideo === "function") {
-                    setTimeout(() => {
-                        window.playHellVideo(false);
-                    }, 1200);
-                }
-            } else if (window.unlockedDungeon <= idx + 1 && idx < maxNormal - 1) {
-                window.unlockedDungeon = idx + 2;
-                nextStr = "신규 던전 오픈!";
-            }
-        }
-    }
-
-    let markHtml = "";
-
-    if (isBossRush) {
-        const earnedMarks = isHell ? 2 : 1;
-
-        if (window.bossMarks === undefined) window.bossMarks = 0;
-
-        window.bossMarks += earnedMarks;
-
-        markHtml = `
-            <div style="color:#e74c3c; font-weight:bold; margin-top:5px;">
-                획득한 보스 징표: +${earnedMarks}개
-                <span style="color:#aaa;">(총 ${window.bossMarks}개)</span>
-            </div>
-        `;
-    }
-
-    const desc = getEl("result-desc");
-
-    if (desc) {
-        desc.innerHTML = `
-            <div style="margin: 15px 0; font-size:16px;">
-                골드:
-                <span style="color:var(--gold); font-weight:bold;">+${uiNum(window.dungeonGoldEarned || 0)}G</span><br>
-                다이아:
-                <span style="color:#ff4757; font-weight:bold;">+${uiNum(window.dungeonDiaEarned || 0)}♦️</span>
-                ${markHtml}
-            </div>
-            <div style="color:#2ecc71; font-weight:bold; font-size:12px;">
-                ${nextStr}
-            </div>
-        `;
-    }
-
-    const artArea = getEl("result-artifact-area");
-
-    if (artArea) {
-        if (window.dungeonArtifactDropped && window.dungeonArtifactDropped.count > 0) {
-            artArea.innerHTML = `
-                <div style="background:#222; border:2px dashed var(--gold); padding:10px; border-radius:4px; display:inline-block; animation: pulse 1s infinite alternate;">
-                    <div style="font-size:10px; color:#aaa; margin-bottom:5px;">
-                        🎊 유물 발견! 🎊
-                    </div>
-                    <div style="font-size:20px;">
-                        ${window.dungeonArtifactDropped.icon}
-                        <span style="font-size:14px; color:white;">
-                            ${window.dungeonArtifactDropped.name}
-                        </span>
-                    </div>
-                </div>
-            `;
-        } else {
-            artArea.innerHTML = `<div style="font-size:11px; color:#555;">(발견된 유물 없음)</div>`;
-        }
-    }
-
-    const btnNext = getEl("btn-next-dungeon");
-
-    if (btnNext) {
-        const maxIdx = isHell ? TOOTH_DATA.hellDungeons.length - 1 : TOOTH_DATA.dungeons.length - 1;
-
-        if (isBossRush || idx >= maxIdx) {
-            btnNext.style.display = "none";
-        } else {
-            btnNext.style.display = "block";
-        }
-    }
-
+    if (typeof window.renderDungeonList === "function") window.renderDungeonList();
+    if (typeof window.renderWarSummary === "function") window.renderWarSummary();
     if (typeof window.updateUI === "function") window.updateUI();
     if (typeof window.saveGame === "function") window.saveGame();
 };
 
-window.retryDungeon = function() {
-    const modal = getEl("dungeon-result-modal");
+window.closeResultModal = function() {
+    const modal = document.getElementById("dungeon-result-modal");
     if (modal) modal.style.display = "none";
 
-    const idx = window.currentDungeonIdx;
+    if (__pendingHellUnlock) {
+        __pendingHellUnlock = false;
 
-    if (typeof exitDungeon === "function") {
-        window.exitDungeon();
-    }
-
-    setTimeout(() => {
-        if (typeof startDungeon === "function") {
-            window.startDungeon(idx);
+        if (typeof window.unlockHellMode === "function") {
+            window.unlockHellMode();
         }
-    }, 100);
+    }
+};
+
+window.retryDungeon = function() {
+    const last = __lastDungeonResult;
+
+    closeResultModal();
+
+    if (!last) return;
+
+    if (typeof window.startDungeon === "function") {
+        window.startDungeon(last.stage, last.mode);
+    }
 };
 
 window.nextDungeon = function() {
-    const modal = getEl("dungeon-result-modal");
-    if (modal) modal.style.display = "none";
+    const last = __lastDungeonResult;
 
-    const idx = Number(window.currentDungeonIdx) || 0;
+    closeResultModal();
 
-    if (typeof exitDungeon === "function") {
-        window.exitDungeon();
+    if (!last) return;
+
+    if (!last.success) {
+        if (typeof window.startDungeon === "function") {
+            window.startDungeon(last.stage, last.mode);
+        }
+        return;
     }
 
-    setTimeout(() => {
-        if (typeof startDungeon === "function") {
-            window.startDungeon(idx + 1);
-        }
-    }, 100);
+    let nextStage = last.stage + 1;
+    let nextMode = last.mode;
+
+    if (last.mode === "normal" && last.stage >= 20) {
+        nextMode = "hell";
+        nextStage = 1;
+    }
+
+    if (last.mode === "hell" && last.stage >= 20) {
+        nextStage = 20;
+    }
+
+    if (nextMode === "hell" && !isHellUnlocked()) {
+        return;
+    }
+
+    if (typeof window.startDungeon === "function") {
+        window.startDungeon(nextStage, nextMode);
+    }
 };
+
+// =========================
+// 전투 화면 닫기 호환
+// =========================
+window.closeBattleScreen = function() {
+    const battle = document.getElementById("battle-screen");
+    if (battle) battle.style.display = "none";
+
+    const game = document.getElementById("game-container");
+    if (game) game.style.display = "flex";
+
+    window.dungeonActive = false;
+    window.dungeonPaused = false;
+
+    if (typeof window.renderInventory === "function") window.renderInventory();
+    if (typeof window.renderCurrentMercenary === "function") window.renderCurrentMercenary();
+    if (typeof window.renderWarSummary === "function") window.renderWarSummary();
+    if (typeof window.renderDungeonList === "function") window.renderDungeonList();
+    if (typeof window.updateUI === "function") window.updateUI();
+};
+
+// =========================
+// 간단 토스트
+// =========================
+window.showToast = function(message, type = "info", duration = 1600) {
+    let root = document.getElementById("toast-root");
+
+    if (!root) {
+        root = document.createElement("div");
+        root.id = "toast-root";
+        root.style.position = "fixed";
+        root.style.left = "50%";
+        root.style.bottom = "90px";
+        root.style.transform = "translateX(-50%)";
+        root.style.zIndex = "99999";
+        root.style.pointerEvents = "none";
+        document.body.appendChild(root);
+    }
+
+    const toast = document.createElement("div");
+    toast.innerText = message;
+    toast.style.marginTop = "6px";
+    toast.style.padding = "10px 14px";
+    toast.style.borderRadius = "999px";
+    toast.style.fontWeight = "900";
+    toast.style.fontSize = "13px";
+    toast.style.boxShadow = "0 8px 24px rgba(0,0,0,.45)";
+    toast.style.background = type === "danger" ? "#ef4444" : type === "success" ? "#22c55e" : "#334155";
+    toast.style.color = "#fff";
+    toast.style.textAlign = "center";
+
+    root.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, duration);
+};
+
+// =========================
+// 초기 렌더 호환
+// =========================
+window.addEventListener("load", () => {
+    setTimeout(() => {
+        if (typeof window.renderCurrentMercenary === "function") window.renderCurrentMercenary();
+        if (typeof window.renderWarSummary === "function") window.renderWarSummary();
+        if (typeof window.renderDungeonList === "function") window.renderDungeonList();
+    }, 100);
+});
