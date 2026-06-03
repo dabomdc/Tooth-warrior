@@ -1,22 +1,32 @@
-// Version: 8.0.0 - Action / Mining / Merge / Inventory
-// 기존 밸런스 보존 + 직접 채굴 Lv.12 제한 + 일반 합성 Lv.24 제한 + Lv.MAX 표시
+// Version: 8.1.0 - Mining / Inventory / Merge / Drag / Auto Fix
 
+// =========================
+// 내부 상태
+// =========================
+let selectedInventoryIndex = null;
+let lastTapSlotIndex = null;
 let lastTapTime = 0;
-let lastTapIdx = -1;
+
+let dragState = {
+    active: false,
+    dragging: false,
+    pointerId: null,
+    fromIndex: null,
+    startX: 0,
+    startY: 0,
+    currentX: 0,
+    currentY: 0
+};
 
 // =========================
 // 안전 유틸
 // =========================
-function getDragProxy() {
-    return document.getElementById("drag-proxy");
-}
-
-function getCurrentViewSafe() {
-    return window.currentView || "mine";
-}
-
 function getMaxSlotsSafe() {
-    return Math.max(24, Math.min(window.INVENTORY_SIZE || 56, window.maxSlots || 24));
+    if (typeof window.getMaxInventorySlots === "function") {
+        return window.getMaxInventorySlots();
+    }
+
+    return Math.max(24, Math.min(window.inventorySlots || 24, window.INVENTORY_SIZE || 56));
 }
 
 function getInventoryValue(idx) {
@@ -25,55 +35,150 @@ function getInventoryValue(idx) {
 }
 
 function setInventoryValue(idx, value) {
-    if (!Array.isArray(window.inventory)) return;
-
-    const maxLv = window.TOOTH_MAX_LEVEL || 25;
-    let lv = Number(value) || 0;
-
-    if (lv < 0) lv = 0;
-    if (lv > maxLv) lv = maxLv;
-
-    window.inventory[idx] = lv;
-}
-
-function getLvLabel(lv) {
-    if (typeof window.getToothDisplayLevel === "function") {
-        const label = window.getToothDisplayLevel(lv);
-        return label === "MAX" ? "Lv.MAX" : `Lv.${label}`;
+    if (!Array.isArray(window.inventory)) {
+        window.inventory = new Array(window.INVENTORY_SIZE || 56).fill(0);
     }
 
-    return lv >= 25 ? "Lv.MAX" : `Lv.${lv}`;
+    window.inventory[idx] = Math.max(0, Math.min(window.TOOTH_MAX_LEVEL || 25, Number(value) || 0));
 }
 
-function isMaxTooth(lv) {
-    return Number(lv) >= (window.TOOTH_MAX_LEVEL || 25);
+function isTopAttackSlot(idx) {
+    return idx >= 0 && idx < (window.TOP_ATTACK_SLOT_COUNT || 8);
 }
 
-function isLockedCrown(lv) {
-    return Number(lv) === (window.MERGE_MAX_LEVEL || 24);
+function getCurrentViewSafe() {
+    return window.currentView || "mine";
+}
+
+function getSlotElementFromPoint(x, y) {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+
+    return el.closest(".inventory-slot");
 }
 
 // =========================
-// 채굴 진행
+// 채굴 터치 설정
 // =========================
-function processMining(amt, shouldSave = false) {
+window.setupMiningTouch = function() {
+    const area = document.getElementById("mine-rock-area");
+
+    if (!area || area.__toothMiningBound) return;
+
+    area.__toothMiningBound = true;
+
+    area.addEventListener("pointerdown", (e) => {
+        if (window.currentView !== "mine") return;
+        if (window.dungeonActive) return;
+
+        e.preventDefault();
+
+        try {
+            area.setPointerCapture(e.pointerId);
+        } catch (err) {}
+
+        manualMineOnce(e.clientX, e.clientY);
+    });
+
+    area.addEventListener("pointermove", (e) => {
+        if (window.currentView !== "mine") return;
+        e.preventDefault();
+    });
+
+    area.addEventListener("pointerup", (e) => {
+        try {
+            area.releasePointerCapture(e.pointerId);
+        } catch (err) {}
+    });
+
+    area.addEventListener("pointercancel", (e) => {
+        try {
+            area.releasePointerCapture(e.pointerId);
+        } catch (err) {}
+    });
+};
+
+function manualMineOnce(x, y) {
+    const pickaxe = typeof TOOTH_DATA !== "undefined"
+        ? TOOTH_DATA.pickaxes[window.pickaxeIdx] || TOOTH_DATA.pickaxes[0]
+        : null;
+
+    const power = pickaxe ? pickaxe.power : 10;
+
+    animateMiningHit();
+
+    if (navigator.vibrate) {
+        try {
+            navigator.vibrate(18);
+        } catch (e) {}
+    }
+
+    processMining(power, true);
+
+    if (typeof window.updateUI === "function") {
+        window.updateUI();
+    }
+}
+
+function animateMiningHit() {
+    const tooth = document.getElementById("giant-tooth");
+    const miner = document.getElementById("miner-char");
+
+    if (tooth) {
+        tooth.classList.remove("hit");
+        void tooth.offsetWidth;
+        tooth.classList.add("hit");
+
+        setTimeout(() => tooth.classList.remove("hit"), 100);
+    }
+
+    if (miner) {
+        miner.classList.remove("swing");
+        void miner.offsetWidth;
+        miner.classList.add("swing");
+
+        setTimeout(() => miner.classList.remove("swing"), 180);
+    }
+}
+
+// =========================
+// 채굴 처리
+// =========================
+window.processMining = function(amt, shouldSave = false) {
     window.mineProgress += Number(amt) || 0;
 
-    if (window.mineProgress >= 100) {
-        window.mineProgress = 100;
+    let mined = false;
 
-        if (addMinedItem(shouldSave)) {
-            window.mineProgress = 0;
+    while (window.mineProgress >= 100) {
+        window.mineProgress -= 100;
+
+        const ok = addMinedItem(true, shouldSave);
+
+        if (!ok) {
+            window.mineProgress = 100;
+            break;
         }
+
+        mined = true;
     }
-}
 
-window.processMining = processMining;
+    if (window.mineProgress < 0) window.mineProgress = 0;
+    if (window.mineProgress > 100) window.mineProgress = 100;
 
-function addMinedItem(shouldRender = true) {
+    if (mined && getCurrentViewSafe() === "mine") {
+        renderInventory();
+    }
+
+    if (typeof window.updateUI === "function") {
+        window.updateUI();
+    }
+};
+
+window.addMinedItem = function(shouldRender = true, shouldSave = true) {
     cleanupInventory(false);
 
     const maxSlots = getMaxSlotsSafe();
+
     let emptyIdx = -1;
 
     for (let i = 0; i < maxSlots; i++) {
@@ -87,10 +192,14 @@ function addMinedItem(shouldRender = true) {
         return false;
     }
 
-    let resultLv = typeof window.getBaseMiningLevel === "function" ? window.getBaseMiningLevel() : 1;
+    let resultLv = typeof window.getBaseMiningLevel === "function"
+        ? window.getBaseMiningLevel()
+        : 1;
 
     if (typeof TOOTH_DATA !== "undefined" && TOOTH_DATA.pickaxes[window.pickaxeIdx]) {
-        if (Math.random() < TOOTH_DATA.pickaxes[window.pickaxeIdx].luck) {
+        const pickaxe = TOOTH_DATA.pickaxes[window.pickaxeIdx];
+
+        if (Math.random() < pickaxe.luck) {
             resultLv += 1;
         }
     }
@@ -100,592 +209,587 @@ function addMinedItem(shouldRender = true) {
     setInventoryValue(emptyIdx, resultLv);
     checkHighestTier(resultLv);
 
-    if (shouldRender && getCurrentViewSafe() === "mine" && typeof window.renderInventory === "function") {
-        window.renderInventory();
+    if (resultLv >= 4) {
+        showMineFloatText(`+ Lv.${resultLv}`);
     }
 
     try {
         if (typeof playSfx === "function") playSfx("mine");
     } catch (e) {}
 
-    if (shouldRender && typeof window.saveGame === "function") {
+    if (shouldRender && getCurrentViewSafe() === "mine") {
+        renderInventory();
+    }
+
+    if (shouldSave && typeof window.saveGame === "function") {
         window.saveGame();
     }
 
     return true;
+};
+
+// =========================
+// 채굴 획득 텍스트
+// =========================
+function showMineFloatText(text) {
+    const area = document.getElementById("mine-rock-area");
+    if (!area) return;
+
+    const el = document.createElement("div");
+    el.className = "mine-float-text";
+    el.innerText = text;
+
+    const x = 50 + (Math.random() * 20 - 10);
+    const y = 42 + (Math.random() * 18 - 9);
+
+    el.style.left = x + "%";
+    el.style.top = y + "%";
+
+    area.appendChild(el);
+
+    setTimeout(() => el.remove(), 900);
 }
 
-window.addMinedItem = addMinedItem;
-
 // =========================
-// 수동 채굴 터치
+// 인벤토리 정리
 // =========================
-function setupMiningTouch() {
-    const mineArea = document.getElementById("mine-rock-area");
-
-    if (!mineArea || mineArea.__toothBound) return;
-    mineArea.__toothBound = true;
-
-    mineArea.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
-
-        const miner = document.getElementById("miner-char");
-
-        if (miner) {
-            miner.style.animation = "none";
-            miner.offsetHeight;
-            miner.style.animation = "hammer 0.08s ease-in-out";
-        }
-
-        try {
-            if (typeof playSfx === "function") playSfx("mine");
-        } catch (err) {}
-
-        let miningPower = 15;
-
-        if (typeof TOOTH_DATA !== "undefined" && TOOTH_DATA.pickaxes[window.pickaxeIdx]) {
-            miningPower = TOOTH_DATA.pickaxes[window.pickaxeIdx].power || 15;
-        }
-
-        // 기존 Lv.4 보너스 유지
-        if (window.highestToothLevel >= 4) {
-            if (Math.random() < 0.2) {
-                const tapGold = (typeof window.getBaseMiningLevel === "function" ? window.getBaseMiningLevel() : 1) * 50;
-                window.gold += tapGold;
-
-                const txt = document.createElement("div");
-                txt.className = "gold-text";
-                txt.innerText = `💰+${typeof fNum === "function" ? fNum(tapGold) : tapGold}`;
-                txt.style.left = e.clientX + "px";
-                txt.style.top = (e.clientY - 30) + "px";
-                txt.style.pointerEvents = "none";
-
-                document.body.appendChild(txt);
-                setTimeout(() => txt.remove(), 800);
-            }
-
-            miningPower *= 1.2;
-        }
-
-        processMining(miningPower, false);
-
-        const effect = document.createElement("div");
-        effect.className = "hit-effect";
-        effect.innerText = "💥";
-        effect.style.left = e.clientX + "px";
-        effect.style.top = e.clientY + "px";
-        effect.style.pointerEvents = "none";
-
-        document.body.appendChild(effect);
-        setTimeout(() => effect.remove(), 400);
-
-        if (!window.isAutoMineOn) {
-            const mDial = document.getElementById("mine-dial");
-
-            if (mDial) {
-                mDial.style.filter = "brightness(2) drop-shadow(0 0 10px #00fbff)";
-                setTimeout(() => {
-                    mDial.style.filter = "grayscale(1) brightness(0.6)";
-                }, 100);
-            }
-        }
-
-        if (typeof window.updateUI === "function") window.updateUI();
-        if (typeof window.renderInventory === "function") window.renderInventory();
-        if (typeof window.saveGame === "function") window.saveGame();
-    });
-}
-
-window.setupMiningTouch = setupMiningTouch;
-
-// =========================
-// 인벤토리 렌더링
-// =========================
-function renderInventory() {
-    const grid = document.getElementById("inventory-grid");
-
-    if (!grid) return;
-
+window.cleanupInventory = function(shouldRender = true) {
     if (!Array.isArray(window.inventory)) {
         window.inventory = new Array(window.INVENTORY_SIZE || 56).fill(0);
     }
 
-    const totalSlots = window.INVENTORY_SIZE || 56;
-    const maxSlots = getMaxSlotsSafe();
-
-    if (grid.children.length === 0) {
-        for (let i = 0; i < totalSlots; i++) {
-            const slot = document.createElement("div");
-
-            slot.dataset.index = i;
-            slot.id = `slot-${i}`;
-
-            slot.onpointerdown = (e) => handleSlotPointerDown(e, i, slot);
-            slot.onpointermove = (e) => handleSlotPointerMove(e);
-            slot.onpointerup = (e) => handleSlotPointerUp(e, i, slot);
-            slot.onpointercancel = (e) => handleSlotPointerCancel(e, slot);
-
-            grid.appendChild(slot);
-        }
+    while (window.inventory.length < (window.INVENTORY_SIZE || 56)) {
+        window.inventory.push(0);
     }
 
-    for (let i = 0; i < totalSlots; i++) {
-        const slot = document.getElementById(`slot-${i}`);
-        if (!slot) continue;
+    if (window.inventory.length > (window.INVENTORY_SIZE || 56)) {
+        window.inventory.length = window.INVENTORY_SIZE || 56;
+    }
 
+    for (let i = 0; i < window.inventory.length; i++) {
+        const v = Number(window.inventory[i]) || 0;
+        window.inventory[i] = Math.max(0, Math.min(window.TOOTH_MAX_LEVEL || 25, Math.floor(v)));
+    }
+
+    if (typeof window.refreshHighestToothLevel === "function") {
+        window.refreshHighestToothLevel();
+    }
+
+    if (shouldRender) {
+        renderInventory();
+    }
+};
+
+// =========================
+// 인벤토리 렌더링
+// =========================
+window.renderInventory = function() {
+    const grid = document.getElementById("inventory-grid");
+    if (!grid) return;
+
+    cleanupInventory(false);
+
+    const maxSlots = getMaxSlotsSafe();
+
+    grid.innerHTML = "";
+
+    for (let i = 0; i < maxSlots; i++) {
         const lv = getInventoryValue(i);
-        const isAttackSlot = i < (window.TOP_ATTACK_SLOT_COUNT || 8);
-        const isLockedSlot = i >= maxSlots;
 
-        slot.className = `slot ${isAttackSlot ? "attack-slot" : ""} ${isLockedSlot ? "locked-slot" : ""}`;
+        const slot = document.createElement("div");
+        slot.className = "inventory-slot inv-slot";
 
-        if (isLockedSlot) {
-            slot.innerHTML = "🔒";
-            continue;
+        if (isTopAttackSlot(i)) {
+            slot.classList.add("top-slot", "attack-slot");
         }
 
+        if (lv <= 0) {
+            slot.classList.add("empty");
+        }
+
+        if (selectedInventoryIndex === i) {
+            slot.classList.add("selected");
+        }
+
+        slot.dataset.index = String(i);
+
         if (lv > 0) {
-            const dmg = typeof getAtk === "function" ? getAtk(lv) : 10;
-            const dmgText = typeof fNum === "function" ? fNum(dmg) : dmg;
-            const iconHtml = typeof getToothIcon === "function" ? getToothIcon(lv) : "🦷";
-            const lvLabel = getLvLabel(lv);
-            const lvClass = lv >= 25 ? "lv-text max" : "lv-text";
+            const icon = typeof getToothIcon === "function" ? getToothIcon(lv) : "🦷";
+            const label = typeof getToothDisplayLevel === "function" ? getToothDisplayLevel(lv) : lv;
 
             slot.innerHTML = `
-                <span class="dmg-label">⚔️${dmgText}</span>
-                ${iconHtml}
-                <span class="${lvClass}">${lvLabel}</span>
+                ${icon}
+                <div class="slot-level">${label}</div>
             `;
+            slot.title = typeof getToothName === "function" ? getToothName(lv) : `Lv.${lv}`;
         } else {
             slot.innerHTML = "";
         }
+
+        bindInventorySlotEvents(slot);
+
+        grid.appendChild(slot);
     }
+};
+
+function bindInventorySlotEvents(slot) {
+    slot.addEventListener("pointerdown", onInventoryPointerDown);
+    slot.addEventListener("pointermove", onInventoryPointerMove);
+    slot.addEventListener("pointerup", onInventoryPointerUp);
+    slot.addEventListener("pointercancel", onInventoryPointerCancel);
 }
 
-window.renderInventory = renderInventory;
+function onInventoryPointerDown(e) {
+    const slot = e.currentTarget;
+    const idx = Number(slot.dataset.index);
 
-function handleSlotPointerDown(e, i, slot) {
-    const lv = getInventoryValue(i);
-
-    if (lv <= 0) return;
-
-    const currentTime = Date.now();
-    const tapLength = currentTime - lastTapTime;
-
-    if (tapLength < 300 && tapLength > 0 && lastTapIdx === i) {
-        e.preventDefault();
-
-        // Lv.24 더블탭 → 봉인 해제
-        if (isLockedCrown(lv)) {
-            if (typeof window.openLockedToothModal === "function") {
-                window.openLockedToothModal(i);
-            }
-        } else if (lv < (window.MERGE_MAX_LEVEL || 24)) {
-            massMerge(lv, false);
-        } else {
-            alert("최대 레벨입니다!");
-        }
-
-        lastTapTime = 0;
-        lastTapIdx = -1;
-
-        return;
-    }
-
-    lastTapTime = currentTime;
-    lastTapIdx = i;
+    if (!Number.isFinite(idx)) return;
 
     e.preventDefault();
 
-    window.dragStartIdx = i;
-
-    slot.classList.add("picked");
-
-    const proxy = getDragProxy();
-    if (proxy) {
-        proxy.innerHTML = typeof getToothIcon === "function" ? getToothIcon(lv) : "🦷";
-        proxy.style.display = "block";
-        moveProxy(e);
-    }
+    dragState.active = true;
+    dragState.dragging = false;
+    dragState.pointerId = e.pointerId;
+    dragState.fromIndex = idx;
+    dragState.startX = e.clientX;
+    dragState.startY = e.clientY;
+    dragState.currentX = e.clientX;
+    dragState.currentY = e.clientY;
 
     try {
         slot.setPointerCapture(e.pointerId);
     } catch (err) {}
 }
 
-function handleSlotPointerMove(e) {
-    if (window.dragStartIdx !== null) {
-        moveProxy(e);
+function onInventoryPointerMove(e) {
+    if (!dragState.active || dragState.pointerId !== e.pointerId) return;
+
+    e.preventDefault();
+
+    dragState.currentX = e.clientX;
+    dragState.currentY = e.clientY;
+
+    const dx = e.clientX - dragState.startX;
+    const dy = e.clientY - dragState.startY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (!dragState.dragging && dist > 10 && getInventoryValue(dragState.fromIndex) > 0) {
+        dragState.dragging = true;
+        showDragProxy(dragState.fromIndex, e.clientX, e.clientY);
+    }
+
+    if (dragState.dragging) {
+        moveDragProxy(e.clientX, e.clientY);
     }
 }
 
-function handleSlotPointerUp(e, i, slot) {
-    if (window.dragStartIdx === null) return;
+function onInventoryPointerUp(e) {
+    if (!dragState.active || dragState.pointerId !== e.pointerId) return;
+
+    e.preventDefault();
+
+    const fromIdx = dragState.fromIndex;
+    const wasDragging = dragState.dragging;
 
     try {
-        slot.releasePointerCapture(e.pointerId);
+        e.currentTarget.releasePointerCapture(e.pointerId);
     } catch (err) {}
 
-    slot.classList.remove("picked");
+    hideDragProxy();
 
-    const proxy = getDragProxy();
-    if (proxy) {
-        proxy.style.display = "none";
-    }
+    dragState.active = false;
+    dragState.dragging = false;
+    dragState.pointerId = null;
 
-    const elements = document.elementsFromPoint(e.clientX, e.clientY);
-    const targetSlot = elements.find((el) => el.classList && el.classList.contains("slot") && el !== slot);
+    if (wasDragging) {
+        const targetSlot = getSlotElementFromPoint(e.clientX, e.clientY);
 
-    if (targetSlot) {
-        const toIdx = parseInt(targetSlot.dataset.index, 10);
+        if (targetSlot) {
+            const toIdx = Number(targetSlot.dataset.index);
 
-        if (!Number.isNaN(toIdx) && toIdx < getMaxSlotsSafe()) {
-            handleMoveOrMerge(window.dragStartIdx, toIdx);
+            if (Number.isFinite(toIdx) && toIdx !== fromIdx) {
+                handleMoveOrMerge(fromIdx, toIdx);
+            }
         }
+
+        selectedInventoryIndex = null;
+        renderInventory();
+        return;
     }
 
-    document.querySelectorAll(".slot").forEach((s) => s.classList.remove("drag-target"));
-    window.dragStartIdx = null;
+    handleInventoryTap(fromIdx);
 }
 
-function handleSlotPointerCancel(e, slot) {
-    slot.classList.remove("picked");
+function onInventoryPointerCancel(e) {
+    if (dragState.pointerId !== e.pointerId) return;
 
-    const proxy = getDragProxy();
-    if (proxy) proxy.style.display = "none";
+    hideDragProxy();
 
-    document.querySelectorAll(".slot").forEach((s) => s.classList.remove("drag-target"));
-    window.dragStartIdx = null;
+    dragState.active = false;
+    dragState.dragging = false;
+    dragState.pointerId = null;
 }
 
-function moveProxy(e) {
-    const proxy = getDragProxy();
+// =========================
+// 탭 선택 / 더블탭
+// =========================
+function handleInventoryTap(idx) {
+    const lv = getInventoryValue(idx);
+    const now = Date.now();
+
+    if (lv >= 24 && lastTapSlotIndex === idx && now - lastTapTime < 420) {
+        selectedInventoryIndex = null;
+        lastTapSlotIndex = null;
+        lastTapTime = 0;
+
+        if (typeof window.openLockedToothModal === "function") {
+            window.openLockedToothModal(idx);
+        }
+
+        renderInventory();
+        return;
+    }
+
+    lastTapSlotIndex = idx;
+    lastTapTime = now;
+
+    if (selectedInventoryIndex === null) {
+        if (lv > 0) {
+            selectedInventoryIndex = idx;
+            renderInventory();
+        }
+
+        return;
+    }
+
+    if (selectedInventoryIndex === idx) {
+        selectedInventoryIndex = null;
+        renderInventory();
+        return;
+    }
+
+    handleMoveOrMerge(selectedInventoryIndex, idx);
+
+    selectedInventoryIndex = null;
+    renderInventory();
+}
+
+// =========================
+// 드래그 프록시
+// =========================
+function showDragProxy(idx, x, y) {
+    const proxy = document.getElementById("drag-proxy");
     if (!proxy) return;
 
-    proxy.style.left = e.clientX + "px";
-    proxy.style.top = e.clientY + "px";
+    const lv = getInventoryValue(idx);
+    if (lv <= 0) return;
 
-    document.querySelectorAll(".slot").forEach((s) => s.classList.remove("drag-target"));
+    proxy.innerHTML = `
+        <div class="inventory-slot inv-slot selected" style="width:52px;height:52px;font-size:26px;">
+            ${typeof getToothIcon === "function" ? getToothIcon(lv) : "🦷"}
+            <div class="slot-level">${typeof getToothDisplayLevel === "function" ? getToothDisplayLevel(lv) : lv}</div>
+        </div>
+    `;
 
-    const elements = document.elementsFromPoint(e.clientX, e.clientY);
-    const targetSlot = elements.find((el) => el.classList && el.classList.contains("slot"));
-
-    if (targetSlot && parseInt(targetSlot.dataset.index, 10) < getMaxSlotsSafe()) {
-        targetSlot.classList.add("drag-target");
-    }
+    proxy.style.display = "block";
+    moveDragProxy(x, y);
 }
 
-window.moveProxy = moveProxy;
+function moveDragProxy(x, y) {
+    const proxy = document.getElementById("drag-proxy");
+    if (!proxy) return;
+
+    proxy.style.left = x + "px";
+    proxy.style.top = y + "px";
+}
+
+function hideDragProxy() {
+    const proxy = document.getElementById("drag-proxy");
+    if (!proxy) return;
+
+    proxy.style.display = "none";
+    proxy.innerHTML = "";
+}
 
 // =========================
 // 이동 / 합성
 // =========================
-function handleMoveOrMerge(from, to) {
-    if (from === to) return;
+window.handleMoveOrMerge = function(fromIdx, toIdx) {
+    fromIdx = Number(fromIdx);
+    toIdx = Number(toIdx);
 
-    const fromLv = getInventoryValue(from);
-    const toLv = getInventoryValue(to);
+    const maxSlots = getMaxSlotsSafe();
 
-    if (fromLv <= 0) return;
+    if (
+        !Number.isFinite(fromIdx) ||
+        !Number.isFinite(toIdx) ||
+        fromIdx < 0 ||
+        toIdx < 0 ||
+        fromIdx >= maxSlots ||
+        toIdx >= maxSlots ||
+        fromIdx === toIdx
+    ) {
+        return false;
+    }
 
-    if (fromLv === toLv && toLv > 0) {
+    const fromLv = getInventoryValue(fromIdx);
+    const toLv = getInventoryValue(toIdx);
+
+    if (fromLv <= 0) return false;
+
+    // 빈 칸으로 이동
+    if (toLv <= 0) {
+        setInventoryValue(toIdx, fromLv);
+        setInventoryValue(fromIdx, 0);
+
+        afterInventoryChanged(true);
+        return true;
+    }
+
+    // 같은 레벨 합성
+    if (fromLv === toLv) {
+        // Lv.24 이상은 일반 합성으로 Lv.MAX가 되지 않음
         if (fromLv >= (window.MERGE_MAX_LEVEL || 24)) {
             if (fromLv === 24 && typeof window.openLockedToothModal === "function") {
-                window.openLockedToothModal(to);
-            } else {
-                alert("최대 레벨입니다!");
+                window.openLockedToothModal(toIdx);
             }
-            return;
+
+            return false;
         }
 
-        let nextLv = fromLv + 1;
-        let isGreat = false;
+        let resultLv = fromLv + 1;
 
-        // 대성공은 Lv.22 이하에서만 +2 가능
-        // Lv.23 + Lv.23은 반드시 Lv.24까지만
-        if (fromLv < 23 && Math.random() < ((window.greatChanceLevel || 0) * 0.02)) {
-            nextLv = Math.min(window.MERGE_MAX_LEVEL || 24, fromLv + 2);
-            isGreat = true;
-        }
+        // 대성공
+        const greatChance = typeof window.getGreatChance === "function" ? window.getGreatChance() : 0;
 
-        setInventoryValue(to, nextLv);
-        setInventoryValue(from, 0);
+        if (Math.random() < greatChance) {
+            resultLv += 1;
 
-        checkHighestTier(nextLv);
-
-        renderInventory();
-
-        if (isGreat) {
             try {
                 if (typeof playSfx === "function") playSfx("great");
             } catch (e) {}
-            window.showGreatSuccessEffect(to);
         } else {
             try {
                 if (typeof playSfx === "function") playSfx("merge");
             } catch (e) {}
         }
 
-        if (!window.isAutoMergeOn) {
-            const mDial = document.getElementById("merge-dial");
+        resultLv = Math.min(window.MERGE_MAX_LEVEL || 24, resultLv);
 
-            if (mDial) {
-                mDial.style.filter = "brightness(2) drop-shadow(0 0 10px #9b59b6)";
-                setTimeout(() => {
-                    mDial.style.filter = "grayscale(1) brightness(0.6)";
-                }, 150);
-            }
-        }
-    } else {
-        setInventoryValue(from, toLv);
-        setInventoryValue(to, fromLv);
+        setInventoryValue(toIdx, resultLv);
+        setInventoryValue(fromIdx, 0);
 
-        renderInventory();
-    }
+        checkHighestTier(resultLv);
 
-    if (typeof window.saveGame === "function") window.saveGame();
-}
-
-window.handleMoveOrMerge = handleMoveOrMerge;
-
-// =========================
-// 자동 합성
-// - Top8 공격 슬롯 제외
-// - Lv.24까지만 합성
-// =========================
-function autoMergeLowest(shouldRender = true) {
-    const levelCounts = {};
-    const maxSlots = getMaxSlotsSafe();
-
-    for (let i = window.TOP_ATTACK_SLOT_COUNT || 8; i < maxSlots; i++) {
-        const lv = getInventoryValue(i);
-
-        if (lv > 0 && lv < (window.MERGE_MAX_LEVEL || 24)) {
-            levelCounts[lv] = (levelCounts[lv] || 0) + 1;
-        }
-    }
-
-    let targetLv = -1;
-    const levels = Object.keys(levelCounts).map(Number).sort((a, b) => a - b);
-
-    for (const lv of levels) {
-        if (levelCounts[lv] >= 2) {
-            targetLv = lv;
-            break;
-        }
-    }
-
-    if (targetLv !== -1) {
-        massMerge(targetLv, true, shouldRender);
+        afterInventoryChanged(true);
         return true;
     }
 
-    return false;
-}
+    // 서로 다른 레벨이면 위치 교환
+    setInventoryValue(fromIdx, toLv);
+    setInventoryValue(toIdx, fromLv);
 
-window.autoMergeLowest = autoMergeLowest;
+    afterInventoryChanged(true);
+    return true;
+};
 
-function massMerge(lv, once = false, shouldRender = true) {
-    lv = Number(lv) || 0;
+function afterInventoryChanged(shouldSave) {
+    cleanupInventory(false);
+    renderInventory();
 
-    if (lv <= 0 || lv >= (window.MERGE_MAX_LEVEL || 24)) {
-        return;
+    if (typeof window.renderWarSummary === "function") {
+        window.renderWarSummary();
     }
 
-    const indices = [];
+    if (typeof window.updateUI === "function") {
+        window.updateUI();
+    }
+
+    if (shouldSave && typeof window.saveGame === "function") {
+        window.saveGame();
+    }
+}
+
+// =========================
+// 자동 합성
+// =========================
+window.autoMergeLowest = function(shouldRender = true, shouldSave = true) {
+    cleanupInventory(false);
+
     const maxSlots = getMaxSlotsSafe();
 
-    window.inventory.forEach((val, idx) => {
-        if (idx >= (window.TOP_ATTACK_SLOT_COUNT || 8) && idx < maxSlots && Number(val) === lv) {
-            indices.push(idx);
-        }
-    });
+    // Top8 공격 슬롯은 자동합성 대상에서 제외
+    for (let lv = 1; lv < (window.MERGE_MAX_LEVEL || 24); lv++) {
+        let first = -1;
+        let second = -1;
 
-    if (indices.length < 2) return;
-
-    const loopCount = once ? 1 : Math.floor(indices.length / 2);
-    let greatCount = 0;
-    let lastGreatIdx = -1;
-
-    for (let i = 0; i < loopCount; i++) {
-        const idx1 = indices[2 * i];
-        const idx2 = indices[2 * i + 1];
-
-        if (idx1 === undefined || idx2 === undefined) continue;
-
-        let nextLv = lv + 1;
-
-        if (lv < 23 && Math.random() < ((window.greatChanceLevel || 0) * 0.02)) {
-            nextLv = Math.min(window.MERGE_MAX_LEVEL || 24, lv + 2);
-            greatCount++;
-            lastGreatIdx = idx2;
+        for (let i = window.TOP_ATTACK_SLOT_COUNT || 8; i < maxSlots; i++) {
+            if (getInventoryValue(i) === lv) {
+                if (first === -1) {
+                    first = i;
+                } else {
+                    second = i;
+                    break;
+                }
+            }
         }
 
-        setInventoryValue(idx2, nextLv);
-        setInventoryValue(idx1, 0);
+        if (first !== -1 && second !== -1) {
+            let resultLv = lv + 1;
 
-        checkHighestTier(nextLv);
-    }
+            const greatChance = typeof window.getGreatChance === "function" ? window.getGreatChance() : 0;
 
-    if (shouldRender && getCurrentViewSafe() === "mine") {
-        renderInventory();
-    }
+            if (Math.random() < greatChance) {
+                resultLv += 1;
+            }
 
-    if (greatCount > 0) {
-        try {
-            if (typeof playSfx === "function") playSfx("great");
-        } catch (e) {}
+            resultLv = Math.min(window.MERGE_MAX_LEVEL || 24, resultLv);
 
-        if (shouldRender && lastGreatIdx !== -1) {
-            window.showGreatSuccessEffect(lastGreatIdx);
+            setInventoryValue(first, 0);
+            setInventoryValue(second, resultLv);
+
+            checkHighestTier(resultLv);
+
+            try {
+                if (typeof playSfx === "function") playSfx("merge");
+            } catch (e) {}
+
+            cleanupInventory(false);
+
+            if (shouldRender) renderInventory();
+
+            if (typeof window.renderWarSummary === "function") {
+                window.renderWarSummary();
+            }
+
+            if (typeof window.updateUI === "function") {
+                window.updateUI();
+            }
+
+            if (shouldSave && typeof window.saveGame === "function") {
+                window.saveGame();
+            }
+
+            return true;
         }
-    } else {
-        try {
-            if (typeof playSfx === "function") playSfx("merge");
-        } catch (e) {}
     }
 
-    if (typeof window.saveGame === "function") window.saveGame();
-}
+    return false;
+};
 
-window.massMerge = massMerge;
+window.massMerge = function() {
+    let count = 0;
+    let safety = 1000;
+
+    while (safety-- > 0) {
+        const merged = window.autoMergeLowest(false, false);
+
+        if (!merged) break;
+
+        count++;
+    }
+
+    renderInventory();
+
+    if (typeof window.renderWarSummary === "function") {
+        window.renderWarSummary();
+    }
+
+    if (typeof window.updateUI === "function") {
+        window.updateUI();
+    }
+
+    if (typeof window.saveGame === "function") {
+        window.saveGame();
+    }
+
+    if (count <= 0) {
+        alert("합성 가능한 치아가 없습니다.\nTop8 공격 슬롯은 일괄합성에서 제외됩니다.");
+    }
+};
 
 // =========================
-// 대성공 이펙트
+// 인벤토리 정렬
 // =========================
-window.showGreatSuccessEffect = function(slotIdx) {
-    setTimeout(() => {
-        const slot = document.getElementById(`slot-${slotIdx}`);
+window.sortInventory = function() {
+    cleanupInventory(false);
 
-        if (!slot) return;
+    const maxSlots = getMaxSlotsSafe();
+    const topCount = window.TOP_ATTACK_SLOT_COUNT || 8;
 
-        const txt = document.createElement("div");
-        txt.className = "great-success-text";
-        txt.innerText = "✨ +2";
+    // Top8 공격 슬롯은 유지
+    const topItems = window.inventory.slice(0, topCount);
 
-        slot.appendChild(txt);
+    const rest = [];
 
-        setTimeout(() => txt.remove(), 800);
-    }, 10);
+    for (let i = topCount; i < maxSlots; i++) {
+        const lv = getInventoryValue(i);
+        if (lv > 0) rest.push(lv);
+    }
+
+    rest.sort((a, b) => b - a);
+
+    for (let i = 0; i < topCount; i++) {
+        setInventoryValue(i, topItems[i] || 0);
+    }
+
+    for (let i = topCount; i < maxSlots; i++) {
+        const next = rest.shift() || 0;
+        setInventoryValue(i, next);
+    }
+
+    afterInventoryChanged(true);
 };
 
 // =========================
 // 최고 티어 체크
 // =========================
-function checkHighestTier(level) {
-    level = Number(level) || 0;
+window.checkHighestTier = function(lv) {
+    lv = Number(lv) || 0;
 
-    if (level <= 0) return;
+    if (lv <= 0) return;
 
-    if (level > window.highestToothLevel && level <= (window.TOOTH_MAX_LEVEL || 25)) {
-        window.highestToothLevel = level;
+    const before = Number(window.highestToothLevel) || 0;
 
-        if (typeof window.saveGame === "function") window.saveGame();
+    if (lv > before) {
+        window.highestToothLevel = lv;
 
-        if (level < 25 && (level - 1) % 3 === 0 && level > 1) {
-            if (typeof window.showTierUnlock === "function") {
-                window.showTierUnlock(level);
-            }
-        }
-
-        if (level >= 25) {
-            window.isToothAwakened = true;
-
-            if (typeof window.saveGame === "function") window.saveGame();
-        }
-    }
-}
-
-window.checkHighestTier = checkHighestTier;
-
-// =========================
-// 인벤토리 정리
-// =========================
-function cleanupInventory(shouldRender = true) {
-    const minMiningLv = typeof window.getBaseMiningLevel === "function" ? window.getBaseMiningLevel() : 1;
-    const maxSlots = getMaxSlotsSafe();
-    let cleared = false;
-
-    for (let i = 0; i < maxSlots; i++) {
-        const lv = getInventoryValue(i);
-
-        if (lv > 0 && lv < minMiningLv) {
-            setInventoryValue(i, 0);
-            cleared = true;
+        if (typeof window.showTierUnlock === "function") {
+            window.showTierUnlock(lv);
         }
     }
 
-    if (cleared && shouldRender && getCurrentViewSafe() === "mine") {
-        renderInventory();
+    if (lv >= 25) {
+        window.isToothAwakened = true;
     }
-
-    return cleared;
-}
-
-window.cleanupInventory = cleanupInventory;
+};
 
 // =========================
-// 자동 정렬
+// 자동화 토글
 // =========================
-window.sortInventory = function() {
-    if (!Array.isArray(window.inventory)) return;
+window.toggleAutoMine = function() {
+    window.autoMineOn = !window.autoMineOn;
 
-    const totalSlots = window.INVENTORY_SIZE || 56;
-    const items = window.inventory.filter((v) => Number(v) > 0);
+    if (typeof window.updateUI === "function") window.updateUI();
+    if (typeof window.saveGame === "function") window.saveGame();
+};
 
-    items.sort((a, b) => Number(b) - Number(a));
+window.toggleAutoMerge = function() {
+    window.autoMergeOn = !window.autoMergeOn;
 
-    window.inventory = new Array(totalSlots).fill(0);
-
-    items.forEach((v, i) => {
-        if (i < totalSlots) {
-            setInventoryValue(i, v);
-        }
-    });
-
-    refreshHighestToothLevelFromInventory();
-
-    renderInventory();
-
+    if (typeof window.updateUI === "function") window.updateUI();
     if (typeof window.saveGame === "function") window.saveGame();
 };
 
 // =========================
-// 곡괭이 표시
+// 곡괭이 표시 갱신
 // =========================
-function updatePickaxeVisual() {
-    const miner = document.getElementById("miner-char");
+window.updatePickaxeVisual = function() {
+    const pickaxeName = document.getElementById("pickaxe-name");
 
-    if (miner && typeof TOOTH_DATA !== "undefined" && TOOTH_DATA.pickaxes[window.pickaxeIdx]) {
-        miner.innerText = TOOTH_DATA.pickaxes[window.pickaxeIdx].icon || "⛏️";
-    }
-}
+    if (!pickaxeName || typeof TOOTH_DATA === "undefined") return;
 
-window.updatePickaxeVisual = updatePickaxeVisual;
+    const p = TOOTH_DATA.pickaxes[window.pickaxeIdx] || TOOTH_DATA.pickaxes[0];
 
-// =========================
-// 자동 채굴 / 합성 토글
-// =========================
-window.toggleAutoMine = function() {
-    window.isAutoMineOn = !window.isAutoMineOn;
-
-    if (typeof window.updateToggleButtons === "function") {
-        window.updateToggleButtons();
-    }
-
-    if (typeof window.saveGame === "function") {
-        window.saveGame();
-    }
-};
-
-window.toggleAutoMerge = function() {
-    window.isAutoMergeOn = !window.isAutoMergeOn;
-
-    if (typeof window.updateToggleButtons === "function") {
-        window.updateToggleButtons();
-    }
-
-    if (typeof window.saveGame === "function") {
-        window.saveGame();
-    }
+    pickaxeName.innerText = `${p.icon} ${p.name}`;
 };
