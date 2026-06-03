@@ -1,488 +1,667 @@
-// Version: 8.0.0 - Master Data Preserved + Lv.MAX System
+// Version: 8.1.0 - Core Data / Balance / Icons / Sound
 
 // =========================
-// 전역 상수
+// 기본 상수
 // =========================
-window.GAME_VERSION = "8.0.0";
+window.SAVE_KEY = "toothSaveV700";
 
-window.MINING_MAX_LEVEL = 12;       // 직접 채굴 최대 레벨
-window.MERGE_MAX_LEVEL = 24;        // 일반 합성 최대 레벨
-window.TOOTH_MAX_LEVEL = 25;        // 최종 초월 레벨
-window.TOP_ATTACK_SLOT_COUNT = 8;   // Top8 공격 슬롯
-window.INVENTORY_SIZE = 56;
+window.MINING_MAX_LEVEL = 12;          // 직접 채굴 최대 레벨
+window.MERGE_MAX_LEVEL = 24;           // 일반 합성 최대 레벨
+window.TOOTH_MAX_LEVEL = 25;           // Lv.MAX
+window.TOP_ATTACK_SLOT_COUNT = 8;      // 전투 슬롯
+window.INVENTORY_SIZE = 56;            // 최대 인벤토리 칸
 
 // =========================
-// 마스터 데이터
+// 게임 데이터
 // =========================
-const TOOTH_DATA = {
-    icons: ["🦷", "🦴", "🛡️", "⚜️", "💎", "🌋", "🌌", "👑", "✨👑✨"],
-
-    baseNames: [
-        "유치",
-        "푸른 치아",
-        "초록 치아",
-        "붉은 치아",
-        "보라 치아",
-        "황금 치아",
-        "다이아 치아",
-        "왕관 치아"
-    ],
-
-    prefix: ["일반", "단단한", "거대한"],
-
+window.TOOTH_DATA = {
+    // 곡괭이
     pickaxes: [
-        { name: "허름한 나무 곡괭이", cost: 0, luck: 0, power: 15, icon: "🪵" },
-        { name: "무딘 구리 곡괭이", cost: 300, luck: 0.10, power: 25, icon: "🪨" },
-        { name: "튼튼한 철 곡괭이", cost: 2000, luck: 0.20, power: 45, icon: "⛏️" },
-        { name: "연마된 강철 곡괭이", cost: 15000, luck: 0.30, power: 80, icon: "⚔️" },
-        { name: "빛나는 황금 곡괭이", cost: 100000, luck: 0.40, power: 150, icon: "⚜️" },
-        { name: "고강도 티타늄 곡괭이", cost: 800000, luck: 0.50, power: 300, icon: "💠" },
-        { name: "영롱한 다이아 곡괭이", cost: 5000000, luck: 0.60, power: 600, icon: "💎" },
-        { name: "카본 초합금 곡괭이", cost: 50000000, luck: 0.70, power: 1200, icon: "🔮" },
-        { name: "신화의 오리할콘 곡괭이", cost: 1000000000, luck: 0.80, power: 3000, icon: "👑" }
+        {
+            name: "낡은 곡괭이",
+            cost: 0,
+            power: 10,
+            luck: 0.00,
+            icon: "⛏️"
+        },
+        {
+            name: "청동 곡괭이",
+            cost: 500,
+            power: 15,
+            luck: 0.03,
+            icon: "⛏️"
+        },
+        {
+            name: "철 곡괭이",
+            cost: 3000,
+            power: 23,
+            luck: 0.05,
+            icon: "⚒️"
+        },
+        {
+            name: "강철 곡괭이",
+            cost: 15000,
+            power: 34,
+            luck: 0.08,
+            icon: "⚒️"
+        },
+        {
+            name: "황금 곡괭이",
+            cost: 80000,
+            power: 50,
+            luck: 0.12,
+            icon: "🔨"
+        },
+        {
+            name: "다이아 곡괭이",
+            cost: 300000,
+            power: 75,
+            luck: 0.16,
+            icon: "💎"
+        },
+        {
+            name: "신화의 곡괭이",
+            cost: 1200000,
+            power: 110,
+            luck: 0.22,
+            icon: "🌟"
+        },
+        {
+            name: "초월의 곡괭이",
+            cost: 5000000,
+            power: 160,
+            luck: 0.30,
+            icon: "🌈"
+        }
     ],
 
+    // 용병
     mercenaries: [
-        { id: 0, name: "농부 듀드", cost: 0, atkMul: 1.0, baseHp: 100, spd: 1.0, icon: "👨‍🌾" },
-        { id: 1, name: "마을 경비병", cost: 500, atkMul: 1.2, baseHp: 150, spd: 1.1, icon: "👮‍♂️" },
-        { id: 2, name: "견습 검사", cost: 3000, atkMul: 1.5, baseHp: 200, spd: 1.2, icon: "🤺" },
-        { id: 3, name: "숙련된 사냥꾼", cost: 12000, atkMul: 1.8, baseHp: 180, spd: 1.3, icon: "🏹" },
-        { id: 4, name: "왕국 기사", cost: 50000, atkMul: 2.2, baseHp: 300, spd: 1.1, icon: "💂‍♂️" },
-        { id: 5, name: "전투 사제", cost: 200000, atkMul: 2.6, baseHp: 250, spd: 1.2, icon: "🧙‍♂️" },
-        { id: 6, name: "그림자 암살자", cost: 800000, atkMul: 3.2, baseHp: 200, spd: 1.5, icon: "🥷" },
-        { id: 7, name: "엘프 명사수", cost: 3000000, atkMul: 4.0, baseHp: 280, spd: 1.4, icon: "🧝‍♀️" },
-        { id: 8, name: "오크 전사", cost: 10000000, atkMul: 5.0, baseHp: 500, spd: 1.0, icon: "👹" },
-        { id: 9, name: "드워프 공학자", cost: 40000000, atkMul: 6.5, baseHp: 400, spd: 1.2, icon: "👷" },
-        { id: 10, name: "화염 마법사", cost: 150000000, atkMul: 8.5, baseHp: 350, spd: 1.3, icon: "🔥" },
-        { id: 11, name: "냉기 마녀", cost: 600000000, atkMul: 11.0, baseHp: 400, spd: 1.3, icon: "❄️" },
-        { id: 12, name: "강철의 골렘", cost: 2500000000, atkMul: 15.0, baseHp: 1000, spd: 0.8, icon: "🤖" },
-        { id: 13, name: "뱀파이어 로드", cost: 10000000000, atkMul: 20.0, baseHp: 600, spd: 1.4, icon: "🧛" },
-        { id: 14, name: "드래곤 슬레이어", cost: 50000000000, atkMul: 30.0, baseHp: 800, spd: 1.3, icon: "🐲" },
-        { id: 15, name: "성기사 단장", cost: 200000000000, atkMul: 45.0, baseHp: 1200, spd: 1.2, icon: "⚜️" },
-        { id: 16, name: "차원 방랑자", cost: 1000000000000, atkMul: 70.0, baseHp: 900, spd: 1.6, icon: "🌌" },
-        { id: 17, name: "데몬 헌터", cost: 5000000000000, atkMul: 100.0, baseHp: 1500, spd: 1.5, icon: "😈" },
-        { id: 18, name: "천상의 수호자", cost: 25000000000000, atkMul: 150.0, baseHp: 2000, spd: 1.4, icon: "👼" },
-        { id: 19, name: "치아의 신", cost: 100000000000000, atkMul: 300.0, baseHp: 5000, spd: 2.0, icon: "🦷" }
+        {
+            name: "초보 치아 수호자",
+            icon: "🧑‍🚀",
+            cost: 0,
+            baseHp: 100,
+            atkMul: 1.0,
+            spd: 1.0,
+            desc: "가장 기본적인 용병입니다."
+        },
+        {
+            name: "숙련된 광부",
+            icon: "👷",
+            cost: 20000,
+            baseHp: 140,
+            atkMul: 1.15,
+            spd: 1.05,
+            desc: "체력과 공격력이 조금 높습니다."
+        },
+        {
+            name: "치아 기사",
+            icon: "🛡️",
+            cost: 120000,
+            baseHp: 230,
+            atkMul: 1.35,
+            spd: 0.95,
+            desc: "단단한 체력으로 버티는 전투형 용병입니다."
+        },
+        {
+            name: "치아 닌자",
+            icon: "🥷",
+            cost: 550000,
+            baseHp: 170,
+            atkMul: 1.55,
+            spd: 1.35,
+            desc: "이동속도가 빠르고 공격 배율이 높습니다."
+        },
+        {
+            name: "치아 마법사",
+            icon: "🧙",
+            cost: 2500000,
+            baseHp: 200,
+            atkMul: 1.95,
+            spd: 1.05,
+            desc: "강력한 공격 배율을 가진 후반 용병입니다."
+        },
+        {
+            name: "왕관 수호자",
+            icon: "👑",
+            cost: 12000000,
+            baseHp: 360,
+            atkMul: 2.6,
+            spd: 1.15,
+            desc: "왕관 치아의 힘을 다루는 전설 용병입니다."
+        },
+        {
+            name: "지옥 정복자",
+            icon: "🔥",
+            cost: 80000000,
+            baseHp: 520,
+            atkMul: 3.4,
+            spd: 1.25,
+            desc: "HELL 던전을 위해 태어난 초월 용병입니다."
+        }
     ],
 
+    // 일반 던전 20개
     dungeons: [
-        "시작의 이끼 동굴",
-        "낡은 해골 병영",
-        "침묵의 지하 수로",
-        "버려진 광산 심부",
-        "혹한의 얼음 감옥",
-        "작열하는 용암 터널",
-        "맹독의 늪지대",
-        "고대 거인의 무덤",
-        "환영의 안개 숲",
-        "천공의 무너진 성채",
-        "심연의 수직 낙하",
-        "차원의 균열 지대",
-        "초월자의 시험장",
-        "파멸의 잿더미",
-        "영겁의 감시자 탑",
-        "신의 영역: 입구",
-        "황혼의 그림자 성소",
-        "우주 너머의 공허",
-        "혼돈의 끝자락",
-        "카오스 울트라 최종장"
+        "충치 동굴 입구",
+        "흔들리는 어금니 길",
+        "검은 플라그 숲",
+        "치석 바위산",
+        "균열난 법랑질",
+        "우식균 소굴",
+        "잇몸 협곡",
+        "상아질 미로",
+        "치수의 문",
+        "붉은 근관",
+        "고대 치아 유적",
+        "망가진 보철 성채",
+        "균사체 늪지",
+        "감염된 치근",
+        "교합의 전장",
+        "심연의 치주낭",
+        "부러진 왕관의 길",
+        "검은 치아 제단",
+        "봉인의 회랑",
+        "최종 우식왕의 성"
     ],
 
+    // HELL 던전 20개
     hellDungeons: [
-        "지옥: 피의 강물",
-        "지옥: 절망의 절벽",
-        "지옥: 악몽의 요람",
-        "지옥: 뼈의 산",
-        "지옥: 영혼 파쇄기",
-        "지옥: 타락한 여명",
-        "지옥: 심연의 심장",
-        "지옥: 멸망의 전조",
-        "지옥: 신살자의 투기장",
-        "지옥: 절대 카오스"
+        "HELL 충치 동굴",
+        "HELL 어금니 길",
+        "HELL 플라그 숲",
+        "HELL 치석 바위산",
+        "HELL 법랑질 균열",
+        "HELL 우식균 둥지",
+        "HELL 잇몸 협곡",
+        "HELL 상아질 미로",
+        "HELL 치수의 문",
+        "HELL 붉은 근관",
+        "HELL 고대 유적",
+        "HELL 보철 성채",
+        "HELL 균사체 늪지",
+        "HELL 감염 치근",
+        "HELL 교합 전장",
+        "HELL 치주낭 심연",
+        "HELL 왕관의 길",
+        "HELL 검은 제단",
+        "HELL 봉인의 회랑",
+        "HELL 우식마왕 성"
     ],
 
-    artifacts: [
-        { name: "이끼 낀 톱니", icon: "⚙️" },
-        { name: "부서진 해골바가지", icon: "💀" },
-        { name: "하수구 쥐의 꼬리", icon: "🐁" },
-        { name: "녹슨 곡괭이 날", icon: "🪓" },
-        { name: "얼어붙은 눈물", icon: "💧" },
-        { name: "식지 않는 용암석", icon: "🌋" },
-        { name: "맹독 버섯 포자", icon: "🍄" },
-        { name: "거인의 부러진 뼈", icon: "🦴" },
-        { name: "안개꽃 잎사귀", icon: "🌿" },
-        { name: "부유석 조각", icon: "☁️" },
-        { name: "심연의 비늘", icon: "🐟" },
-        { name: "차원의 파편", icon: "🌌" },
-        { name: "초월자의 징표", icon: "🏅" },
-        { name: "꺼지지 않는 불씨", icon: "🔥" },
-        { name: "감시자의 눈알", icon: "👁️" },
-        { name: "신성한 깃털", icon: "🪽" },
-        { name: "그림자 단검", icon: "🗡️" },
-        { name: "공허의 결정", icon: "🔮" },
-        { name: "혼돈의 주사위", icon: "🎲" },
-        { name: "카오스의 왕관", icon: "👑" },
-
-        { name: "피로 물든 성배", icon: "🍷" },
-        { name: "절망의 밧줄", icon: "🪢" },
-        { name: "악몽의 드림캐처", icon: "🕸️" },
-        { name: "마수석 뼈대", icon: "☠️" },
-        { name: "영혼을 담은 호리병", icon: "🏺" },
-        { name: "타락한 천사의 고리", icon: "🪹" },
-        { name: "마왕의 심장", icon: "🫀" },
-        { name: "멸망의 나침반", icon: "🧭" },
-        { name: "신살자의 투구", icon: "🪖" },
-        { name: "절대자의 증명", icon: "📜" }
-    ],
-
+    // 일반 던전 몬스터 테마
     dungeonMobs: [
-        { theme: "bg-grass", mobs: ["🍄", "🐌", "🐛"], boss: "🥦" },
-        { theme: "bg-stone", mobs: ["💀", "🦴", "🦇"], boss: "☠️" },
-        { theme: "bg-water", mobs: ["🐀", "💧", "🐊"], boss: "🐙" },
-        { theme: "bg-brick", mobs: ["🐜", "🕷️", "⛏️"], boss: "🗿" },
-        { theme: "bg-ice", mobs: ["🐧", "❄️", "☃️"], boss: "🐻‍❄️" },
-        { theme: "bg-lava", mobs: ["🔥", "🦎", "💣"], boss: "👹" },
-        { theme: "bg-poison", mobs: ["🐸", "🐍", "🦠"], boss: "🐉" },
-        { theme: "bg-dark", mobs: ["👻", "🧟", "🕯️"], boss: "🧛" },
-        { theme: "bg-fog", mobs: ["🐺", "🦉", "🌫️"], boss: "🦌" },
-        { theme: "bg-brick", mobs: ["🛡️", "⚔️", "🦅"], boss: "🤴" },
-        { theme: "bg-water", mobs: ["🐡", "🌪️", "👁️"], boss: "🐋" },
-        { theme: "bg-space", mobs: ["👽", "🛸", "👾"], boss: "🪐" },
-        { theme: "bg-sky", mobs: ["👼", "🕊️", "☀️"], boss: "🗽" },
-        { theme: "bg-stone", mobs: ["🦂", "🐪", "🌵"], boss: "🦁" },
-        { theme: "bg-brick", mobs: ["🤖", "🦾", "📡"], boss: "🏗️" },
-        { theme: "bg-sky", mobs: ["🌩️", "🦅", "🧚"], boss: "⚡" },
-        { theme: "bg-dark", mobs: ["🥷", "👺", "🗡️"], boss: "👹" },
-        { theme: "bg-space", mobs: ["🌟", "☄️", "🚀"], boss: "☀️" },
-        { theme: "bg-chaos", mobs: ["🤡", "🃏", "🎭"], boss: "😈" },
-        { theme: "bg-tooth", mobs: ["🍬", "🍫", "🦠"], boss: "👑" }
+        { theme: "bg-cave", mobs: ["🦠", "🪱", "🦷"], boss: "🦠👑" },
+        { theme: "bg-cave", mobs: ["🪨", "🦠", "🦴"], boss: "🪨👑" },
+        { theme: "bg-stone", mobs: ["🌫️", "🦠", "🧫"], boss: "🧫👑" },
+        { theme: "bg-stone", mobs: ["🪨", "🧱", "🦠"], boss: "🧱👑" },
+        { theme: "bg-ice", mobs: ["❄️", "🧊", "🦠"], boss: "🧊👑" },
+
+        { theme: "bg-cave", mobs: ["🦠", "🧫", "🪱"], boss: "🦠🔥" },
+        { theme: "bg-stone", mobs: ["🌿", "🦠", "🦷"], boss: "🌿👑" },
+        { theme: "bg-cave", mobs: ["🌀", "🦠", "🦴"], boss: "🌀👑" },
+        { theme: "bg-fire", mobs: ["❤️‍🔥", "🦠", "🔥"], boss: "❤️‍🔥👑" },
+        { theme: "bg-fire", mobs: ["🔥", "🦠", "🩸"], boss: "🔥👑" },
+
+        { theme: "bg-cosmic", mobs: ["🏺", "🦠", "✨"], boss: "🏺👑" },
+        { theme: "bg-stone", mobs: ["🛡️", "🦠", "🧱"], boss: "🛡️👑" },
+        { theme: "bg-cave", mobs: ["🕸️", "🦠", "🪱"], boss: "🕸️👑" },
+        { theme: "bg-fire", mobs: ["🦷", "🩸", "🦠"], boss: "🦷🔥" },
+        { theme: "bg-cosmic", mobs: ["⚔️", "🦠", "💥"], boss: "⚔️👑" },
+
+        { theme: "bg-cave", mobs: ["🕳️", "🦠", "🩸"], boss: "🕳️👑" },
+        { theme: "bg-cosmic", mobs: ["👑", "🦷", "🦠"], boss: "👑🦷" },
+        { theme: "bg-fire", mobs: ["🖤", "🦠", "🔥"], boss: "🖤👑" },
+        { theme: "bg-cosmic", mobs: ["🔒", "🦷", "🦠"], boss: "🔒👑" },
+        { theme: "bg-fire", mobs: ["👹", "🦠", "🔥"], boss: "👹🦷" }
     ],
 
+    // HELL 몬스터 테마
     hellMobs: [
-        { theme: "bg-hell", mobs: ["🩸", "🔪", "🩸"], boss: "🧛‍♂️" },
-        { theme: "bg-hell", mobs: ["👁️", "🧠", "🫀"], boss: "🕷️" },
-        { theme: "bg-hell", mobs: ["🦇", "🦂", "🐍"], boss: "🧟‍♂️" },
-        { theme: "bg-hell", mobs: ["💀", "☠️", "👻"], boss: "🧌" },
-        { theme: "bg-hell", mobs: ["🔥", "🌋", "☄️"], boss: "🐉" },
-        { theme: "bg-hell", mobs: ["🌑", "🌒", "🌓"], boss: "🌚" },
-        { theme: "bg-hell", mobs: ["⚡", "🌩️", "🌪️"], boss: "🧞‍♂️" },
-        { theme: "bg-hell", mobs: ["⚔️", "🗡️", "🛡️"], boss: "🥷" },
-        { theme: "bg-hell", mobs: ["👹", "👺", "👿"], boss: "😈" },
-        { theme: "bg-hell", mobs: ["👑", "🔱", "⚜️"], boss: "👁️‍🗨️" }
+        { theme: "bg-hell", mobs: ["🔥", "👹", "🦠"], boss: "👹🔥" },
+        { theme: "bg-hell", mobs: ["💀", "🔥", "🦷"], boss: "💀👑" },
+        { theme: "bg-hell", mobs: ["🩸", "👹", "🦠"], boss: "🩸👑" },
+        { theme: "bg-hell", mobs: ["🌋", "🔥", "🦠"], boss: "🌋👑" },
+        { theme: "bg-hell", mobs: ["🧊", "🔥", "👹"], boss: "🔥🧊" },
+
+        { theme: "bg-hell", mobs: ["🦠", "👹", "💥"], boss: "🦠👹" },
+        { theme: "bg-hell", mobs: ["🌿", "🔥", "👹"], boss: "🌿🔥" },
+        { theme: "bg-hell", mobs: ["🌀", "🔥", "👹"], boss: "🌀🔥" },
+        { theme: "bg-hell", mobs: ["❤️‍🔥", "👹", "🩸"], boss: "❤️‍🔥👹" },
+        { theme: "bg-hell", mobs: ["🔥", "💀", "🩸"], boss: "🔥💀" },
+
+        { theme: "bg-cosmic", mobs: ["🏺", "🔥", "👹"], boss: "🏺🔥" },
+        { theme: "bg-hell", mobs: ["🛡️", "🔥", "👹"], boss: "🛡️🔥" },
+        { theme: "bg-hell", mobs: ["🕸️", "🔥", "👹"], boss: "🕸️🔥" },
+        { theme: "bg-hell", mobs: ["🦷", "🔥", "🩸"], boss: "🦷👹" },
+        { theme: "bg-cosmic", mobs: ["⚔️", "🔥", "👹"], boss: "⚔️🔥" },
+
+        { theme: "bg-hell", mobs: ["🕳️", "🔥", "💀"], boss: "🕳️🔥" },
+        { theme: "bg-cosmic", mobs: ["👑", "🔥", "🦷"], boss: "👑🔥" },
+        { theme: "bg-hell", mobs: ["🖤", "🔥", "💀"], boss: "🖤🔥" },
+        { theme: "bg-cosmic", mobs: ["🔒", "🔥", "👹"], boss: "🔒🔥" },
+        { theme: "bg-hell", mobs: ["👹", "🔥", "👑"], boss: "👹👑" }
     ],
 
-    invExpansion: [2000, 20000, 200000, 2000000],
+    // 유물: 일반 20개 + HELL 20개
+    artifacts: [
+        { name: "오래된 칫솔", icon: "🪥", desc: "채굴 속도에 미세한 축복을 줍니다." },
+        { name: "부러진 어금니 조각", icon: "🦷", desc: "전투 치아의 힘을 조금 끌어올립니다." },
+        { name: "플라그 결정", icon: "🧫", desc: "던전 보상 감각을 일깨웁니다." },
+        { name: "치석 석판", icon: "🪨", desc: "단단한 방어 의지를 남깁니다." },
+        { name: "법랑질 파편", icon: "💠", desc: "치아 성장의 기억이 담겨 있습니다." },
 
-    // 기존 세팅값 보존
+        { name: "우식균의 핵", icon: "🦠", desc: "강한 적을 쓰러뜨린 증표입니다." },
+        { name: "잇몸의 씨앗", icon: "🌱", desc: "용병의 생존력을 북돋습니다." },
+        { name: "상아질 나침반", icon: "🧭", desc: "던전 속 길을 찾는 데 도움을 줍니다." },
+        { name: "치수의 붉은 보석", icon: "❤️", desc: "위험한 힘이 응축되어 있습니다." },
+        { name: "근관의 불씨", icon: "🔥", desc: "공격 본능을 자극합니다." },
+
+        { name: "고대 치아 항아리", icon: "🏺", desc: "잊힌 치아 문명의 유산입니다." },
+        { name: "보철 방패", icon: "🛡️", desc: "전투 중 버티는 힘을 상징합니다." },
+        { name: "균사체 표본", icon: "🕸️", desc: "광역 공격 연구의 단서입니다." },
+        { name: "감염된 치근", icon: "🩸", desc: "HELL의 기운을 조금 품고 있습니다." },
+        { name: "교합 검", icon: "⚔️", desc: "정확한 공격의 상징입니다." },
+
+        { name: "심연의 돌", icon: "🕳️", desc: "깊은 던전의 어둠이 깃들었습니다." },
+        { name: "부러진 왕관", icon: "👑", desc: "왕관 치아의 전설과 이어집니다." },
+        { name: "검은 제단의 잔재", icon: "🖤", desc: "봉인을 해제하는 의식의 흔적입니다." },
+        { name: "봉인의 자물쇠", icon: "🔒", desc: "Lv.MAX 해방의 비밀을 품고 있습니다." },
+        { name: "우식왕의 심장", icon: "👹", desc: "일반 던전 최종 보스의 증표입니다." },
+
+        { name: "HELL 낡은 칫솔", icon: "🔥🪥", desc: "지옥에서 불타오른 칫솔입니다." },
+        { name: "HELL 어금니 조각", icon: "🔥🦷", desc: "지옥의 압력을 견딘 치아 조각입니다." },
+        { name: "HELL 플라그 결정", icon: "🔥🧫", desc: "붉게 타오르는 플라그 결정입니다." },
+        { name: "HELL 치석 석판", icon: "🔥🪨", desc: "지옥열에 단련된 석판입니다." },
+        { name: "HELL 법랑질 파편", icon: "🔥💠", desc: "초월 각성의 잔광이 남아 있습니다." },
+
+        { name: "HELL 우식균의 핵", icon: "🔥🦠", desc: "HELL 우식균의 심장부입니다." },
+        { name: "HELL 잇몸의 씨앗", icon: "🔥🌱", desc: "지옥에서도 생존하는 씨앗입니다." },
+        { name: "HELL 상아질 나침반", icon: "🔥🧭", desc: "지옥의 길을 가리킵니다." },
+        { name: "HELL 치수 보석", icon: "🔥❤️", desc: "위험한 생명력이 깃든 보석입니다." },
+        { name: "HELL 근관의 불씨", icon: "🔥🔥", desc: "끝없이 타오르는 전투의 불씨입니다." },
+
+        { name: "HELL 고대 항아리", icon: "🔥🏺", desc: "지옥 문명의 잔해입니다." },
+        { name: "HELL 보철 방패", icon: "🔥🛡️", desc: "고열을 버틴 지옥 방패입니다." },
+        { name: "HELL 균사체 표본", icon: "🔥🕸️", desc: "광역 공격 연구의 심화 재료입니다." },
+        { name: "HELL 감염 치근", icon: "🔥🩸", desc: "어둠에 물든 치근입니다." },
+        { name: "HELL 교합 검", icon: "🔥⚔️", desc: "지옥의 전장에서 벼려진 검입니다." },
+
+        { name: "HELL 심연의 돌", icon: "🔥🕳️", desc: "지옥 심연의 결정체입니다." },
+        { name: "HELL 부러진 왕관", icon: "🔥👑", desc: "초월 왕관의 어두운 그림자입니다." },
+        { name: "HELL 검은 제단", icon: "🔥🖤", desc: "지옥 의식의 중심입니다." },
+        { name: "HELL 봉인의 자물쇠", icon: "🔥🔒", desc: "최후 봉인의 파편입니다." },
+        { name: "HELL 우식마왕의 심장", icon: "🔥👹", desc: "HELL 최종 보스의 증표입니다." }
+    ],
+
+    // 인벤토리 확장 비용
+    invExpansion: [
+        { slots: 32, cost: 20000 },
+        { slots: 40, cost: 120000 },
+        { slots: 48, cost: 700000 },
+        { slots: 56, cost: 3500000 }
+    ],
+
+    // Lv.MAX 해방 재료
     AWAKEN_REQ: {
-        gold: 1000000000000000,
-        dia: 100000,
-        bossMarks: 50
+        gold: 100000000,
+        dia: 5000,
+        bossMarks: 20,
+        artifacts: 20
     },
 
+    // 랭킹용 이름
     REAL_NICKNAMES: [
-        "빛나는금니",
-        "DarkKnight",
-        "임플란트마스터",
-        "치아파괴자",
-        "스케일링장인",
-        "치석브레이커",
         "충치사냥꾼",
-        "ProGamer",
-        "양치질만렙",
-        "건치미남",
-        "사랑니발치러",
-        "지옥의치과의사",
-        "황금임플란트",
-        "무과금전사",
-        "서버1위"
+        "치아장인",
+        "법랑질수호자",
+        "왕관치아",
+        "근관탐험가",
+        "치석파괴자",
+        "교합마스터",
+        "HELL정복자",
+        "초월치아",
+        "우식왕킬러"
     ]
 };
-
-window.TOOTH_DATA = TOOTH_DATA;
-
-// =========================
-// 사운드 시스템
-// =========================
-let audioCtx = null;
-
-function getAudioCtx() {
-    if (audioCtx) return audioCtx;
-
-    const AudioClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioClass) return null;
-
-    try {
-        audioCtx = new AudioClass();
-        return audioCtx;
-    } catch (e) {
-        return null;
-    }
-}
-
-function playNoise(duration, vol) {
-    const ctx = getAudioCtx();
-    if (!ctx || window.isMuted || document.hidden) return;
-
-    if (ctx.state === "suspended") {
-        ctx.resume().catch(() => {});
-    }
-
-    const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration));
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-
-    for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1;
-    }
-
-    const source = ctx.createBufferSource();
-    const gain = ctx.createGain();
-    const finalVol = vol * (window.masterVolume || 2) * 0.5;
-
-    gain.gain.setValueAtTime(finalVol, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
-
-    source.buffer = buffer;
-    source.connect(gain);
-    gain.connect(ctx.destination);
-    source.start();
-    source.stop(ctx.currentTime + duration);
-}
-
-function playTone(freq, type, duration, vol = 0.1) {
-    if (window.isMuted || document.hidden) return;
-
-    if (type === "noise") {
-        playNoise(duration, vol);
-        return;
-    }
-
-    const ctx = getAudioCtx();
-    if (!ctx) return;
-
-    if (ctx.state === "suspended") {
-        ctx.resume().catch(() => {});
-    }
-
-    try {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-
-        const finalVol = vol * (window.masterVolume || 2) * 0.5;
-        gain.gain.setValueAtTime(finalVol, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start();
-        osc.stop(ctx.currentTime + duration);
-    } catch (e) {}
-}
-
-function playSfx(name) {
-    if (window.isMuted || document.hidden) return;
-
-    switch (name) {
-        case "mine":
-            playTone(150, "square", 0.1, 0.1);
-            break;
-
-        case "merge":
-            playTone(400, "sine", 0.1, 0.1);
-            setTimeout(() => playTone(600, "sine", 0.1, 0.1), 100);
-            break;
-
-        case "great":
-            playTone(500, "triangle", 0.1, 0.1);
-            setTimeout(() => playTone(1000, "triangle", 0.3, 0.1), 150);
-            break;
-
-        case "attack":
-            playTone(800, "sawtooth", 0.05, 0.05);
-            break;
-
-        case "hit":
-            playTone(100, "noise", 0.05, 0.1);
-            break;
-
-        case "upgrade":
-            playTone(600, "square", 0.1, 0.1);
-            setTimeout(() => playTone(900, "square", 0.1, 0.1), 100);
-            break;
-
-        case "damage":
-            playTone(80, "sawtooth", 0.2, 0.2);
-            break;
-
-        case "unlock":
-            playTone(440, "sine", 0.2, 0.2);
-            setTimeout(() => playTone(554, "sine", 0.2, 0.2), 200);
-            setTimeout(() => playTone(659, "sine", 0.4, 0.2), 400);
-            break;
-
-        case "awaken":
-            playTone(300, "sine", 0.5, 0.2);
-            setTimeout(() => playTone(600, "sine", 1.0, 0.3), 500);
-            break;
-    }
-}
-
-window.playTone = playTone;
-window.playSfx = playSfx;
 
 // =========================
 // 숫자 포맷
 // =========================
-function fNum(num) {
+window.fNum = function(num) {
     num = Number(num) || 0;
 
     if (Math.abs(num) < 1000) return Math.floor(num).toString();
 
     const units = [
         "",
-        "a",
-        "b",
-        "c",
-        "d",
-        "e",
-        "f",
-        "g",
-        "h",
-        "i",
-        "j",
-        "k",
-        "l",
-        "m",
-        "n",
-        "o",
-        "p",
-        "q",
-        "r",
-        "s",
-        "t",
-        "u",
-        "v",
-        "w",
-        "x",
-        "y",
-        "z"
+        "K",
+        "M",
+        "B",
+        "T",
+        "Qa",
+        "Qi",
+        "Sx",
+        "Sp",
+        "Oc",
+        "No",
+        "Dc"
     ];
 
-    const unitIdx = Math.min(units.length - 1, Math.floor(Math.log10(Math.abs(num)) / 3));
-    const shortNum = num / Math.pow(10, unitIdx * 3);
+    let unit = 0;
 
-    return shortNum.toFixed(2).replace(/\.00$/, "") + units[unitIdx];
-}
+    while (Math.abs(num) >= 1000 && unit < units.length - 1) {
+        num /= 1000;
+        unit++;
+    }
 
-function safeFNum(val) {
-    return fNum(val);
-}
+    const fixed = num >= 100 ? 0 : num >= 10 ? 1 : 2;
 
-window.fNum = fNum;
-window.safeFNum = safeFNum;
+    return num.toFixed(fixed).replace(/\.0+$|(\.\d*[1-9])0+$/, "$1") + units[unit];
+};
 
 // =========================
-// 치아 레벨 / 공격력 계산
+// 치아 이름 / 표시
 // =========================
-function getToothDisplayLevel(lv) {
+window.getToothDisplayLevel = function(lv) {
     lv = Number(lv) || 0;
-    if (lv >= window.TOOTH_MAX_LEVEL) return "MAX";
-    return String(lv);
-}
 
-function getToothName(lv) {
+    if (lv >= 25) return "MAX";
+    return lv.toString();
+};
+
+window.getToothName = function(lv) {
+    lv = Number(lv) || 0;
+
+    if (lv <= 0) return "빈 칸";
+
+    const names = {
+        1: "작은 유치",
+        2: "튼튼한 유치",
+        3: "흔들리는 영구치",
+        4: "하얀 영구치",
+        5: "강한 송곳니",
+        6: "단단한 소구치",
+        7: "전투 어금니",
+        8: "빛나는 어금니",
+        9: "푸른 법랑질 치아",
+        10: "황금 치아",
+        11: "고대 치아",
+        12: "신비한 치아",
+        13: "보석 치아",
+        14: "용기의 치아",
+        15: "심연의 치아",
+        16: "화산 치아",
+        17: "번개의 치아",
+        18: "성스러운 치아",
+        19: "전설의 치아",
+        20: "신화의 치아",
+        21: "초월의 치아",
+        22: "우주의 치아",
+        23: "왕의 치아",
+        24: "봉인된 왕관 치아",
+        25: "Lv.MAX 초월 왕관 치아"
+    };
+
+    return names[lv] || `Lv.${lv} 치아`;
+};
+
+// =========================
+// 치아 아이콘
+// =========================
+window.getToothIcon = function(lv) {
     lv = Number(lv) || 0;
 
     if (lv <= 0) return "";
 
-    if (lv >= 25) {
-        return "Lv.MAX 초월 왕관 치아";
-    }
+    const icon = getToothEmoji(lv);
+    const cls = lv >= 25 ? "effect-tier-max" : `effect-tier-${lv}`;
 
-    if (lv === 24) {
-        return "봉인된 왕관 치아";
-    }
+    return `<span class="tooth-icon ${cls}">${icon}</span>`;
+};
 
-    const safeLv = Math.min(23, lv);
-    const tier = Math.floor((safeLv - 1) / 3);
-    const step = (safeLv - 1) % 3;
+window.getToothEmoji = function(lv) {
+    lv = Number(lv) || 0;
 
-    const baseName = TOOTH_DATA.baseNames[tier] || "신비한 치아";
-    const prefix = TOOTH_DATA.prefix[step] || "일반";
+    if (lv <= 0) return "";
 
-    return prefix + " " + baseName;
-}
+    if (lv <= 3) return "🦷";
+    if (lv <= 6) return "🦴";
+    if (lv <= 9) return "💠";
+    if (lv <= 12) return "🟡";
+    if (lv <= 15) return "💎";
+    if (lv <= 18) return "🔥";
+    if (lv <= 21) return "🌌";
+    if (lv <= 23) return "🌠";
+    if (lv === 24) return "👑";
+    return "🌈👑";
+};
 
-function getBaseAtk(lv) {
+// 전투 발사체용 단순 아이콘
+// getToothIcon()은 HTML 효과가 들어가므로 미사일에는 사용하지 않음
+window.getProjectileIcon = function(lv) {
+    lv = Number(lv) || 0;
+
+    if (lv <= 0) return "";
+
+    if (lv <= 3) return "🦷";
+    if (lv <= 6) return "🦴";
+    if (lv <= 9) return "💠";
+    if (lv <= 12) return "🟡";
+    if (lv <= 15) return "💎";
+    if (lv <= 18) return "🔥";
+    if (lv <= 21) return "🌌";
+    if (lv <= 23) return "🌠";
+    if (lv === 24) return "👑";
+    return "✨";
+};
+
+// =========================
+// 공격력 계산
+// =========================
+// 기본 성장: Lv.1~24는 자연 성장
+window.getBaseAtk = function(lv) {
     lv = Number(lv) || 0;
 
     if (lv <= 0) return 0;
 
     if (lv >= 25) {
-        const base24 = Math.floor(20 * Math.pow(1.8, 23));
-        return base24 * 1000;
-    }
-
-    if (lv === 24) {
-        const base23 = Math.floor(20 * Math.pow(1.8, 22));
-        return Math.floor(base23 * 1.2);
+        // Lv.MAX는 Lv.24 기준 폭발 성장
+        return window.getBaseAtk(24) * 1000;
     }
 
     return Math.floor(20 * Math.pow(1.8, lv - 1));
-}
+};
 
-function getAtk(lv) {
+window.getAtk = function(lv) {
     lv = Number(lv) || 0;
 
-    let atk = getBaseAtk(lv);
+    if (lv <= 0) return 0;
 
-    if (lv < 25 && window.highestToothLevel >= 19) {
-        atk *= 10;
-    }
+    let atk;
 
     if (lv >= 25) {
+        // Lv.MAX는 최종적으로 Lv.24 공격력의 1000배
+        atk = window.getAtk(24) * 1000;
+        return Math.floor(atk);
+    }
+
+    atk = window.getBaseAtk(lv);
+
+    // 기존 후반 보너스 유지
+    // Lv.19 이상 전체에 동일하게 적용되므로 Lv.23 -> Lv.24 증가율은 자연스럽게 유지됨
+    if (lv >= 19) {
         atk *= 10;
     }
 
     return Math.floor(atk);
+};
+
+// =========================
+// 게임 효과음
+// =========================
+window.soundEnabled = true;
+window.masterVolume = 0.7;
+
+let __toothAudioCtx = null;
+
+function getAudioCtx() {
+    if (__toothAudioCtx) return __toothAudioCtx;
+
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return null;
+
+        __toothAudioCtx = new AudioContext();
+        return __toothAudioCtx;
+    } catch (e) {
+        return null;
+    }
 }
 
-function getToothIcon(lv) {
-    lv = Number(lv) || 0;
+window.playSfx = function(type) {
+    if (!window.soundEnabled) return;
 
-    if (lv <= 0) return "";
+    const ctx = getAudioCtx();
+    if (!ctx) return;
 
-    if (lv >= 25) {
-        return `<div class="tooth-icon effect-tier-8 effect-size-2">✨👑✨</div>`;
+    try {
+        if (ctx.state === "suspended") {
+            ctx.resume();
+        }
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        let freq = 440;
+        let duration = 0.08;
+        let wave = "square";
+
+        switch (type) {
+            case "mine":
+                freq = 280;
+                duration = 0.045;
+                wave = "square";
+                break;
+            case "merge":
+                freq = 660;
+                duration = 0.09;
+                wave = "triangle";
+                break;
+            case "great":
+                freq = 880;
+                duration = 0.18;
+                wave = "sine";
+                break;
+            case "attack":
+                freq = 520;
+                duration = 0.035;
+                wave = "square";
+                break;
+            case "hit":
+                freq = 190;
+                duration = 0.04;
+                wave = "sawtooth";
+                break;
+            case "damage":
+                freq = 120;
+                duration = 0.08;
+                wave = "sawtooth";
+                break;
+            case "unlock":
+                freq = 720;
+                duration = 0.16;
+                wave = "triangle";
+                break;
+            case "buy":
+                freq = 760;
+                duration = 0.08;
+                wave = "sine";
+                break;
+            case "error":
+                freq = 90;
+                duration = 0.12;
+                wave = "sawtooth";
+                break;
+            default:
+                freq = 440;
+                duration = 0.06;
+                wave = "square";
+        }
+
+        osc.type = wave;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.08 * window.masterVolume, ctx.currentTime + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + duration + 0.02);
+    } catch (e) {}
+};
+
+// =========================
+// 유물 보너스 계산
+// =========================
+window.getOwnedArtifactCount = function() {
+    if (!Array.isArray(window.artifactCounts)) return 0;
+
+    return window.artifactCounts.reduce((sum, v) => {
+        return sum + (Number(v) > 0 ? 1 : 0);
+    }, 0);
+};
+
+window.normalizeArtifactCounts = function() {
+    if (!Array.isArray(window.artifactCounts)) return;
+
+    for (let i = 0; i < window.artifactCounts.length; i++) {
+        window.artifactCounts[i] = Number(window.artifactCounts[i]) > 0 ? 1 : 0;
+    }
+};
+
+// =========================
+// 쿠폰 정의
+// 실제 처리는 engine.js에서 함
+// =========================
+window.COUPON_DATA = {
+    START: {
+        gold: 10000,
+        dia: 100,
+        message: "시작 지원 쿠폰을 사용했습니다."
+    },
+    DABOM: {
+        gold: 50000,
+        dia: 300,
+        message: "다봄 쿠폰을 사용했습니다."
+    },
+    HELLTEST: {
+        hellTest: true,
+        message: "HELL 오픈 직전 테스트 상태가 적용되었습니다."
+    },
+    AWAKENTEST: {
+        awakenTest: true,
+        message: "Lv.MAX 해방 테스트 재료가 지급되었습니다."
+    }
+};
+
+// =========================
+// 안전 초기화 보조
+// =========================
+window.ensureArrayLength = function(arr, len, fillValue) {
+    if (!Array.isArray(arr)) arr = [];
+
+    while (arr.length < len) {
+        arr.push(fillValue);
     }
 
-    if (lv === 24) {
-        return `
-            <div style="position:relative; display:inline-block; width:100%; height:100%;">
-                <div class="tooth-icon effect-tier-7 effect-size-2" style="filter:grayscale(1) drop-shadow(0 0 8px #777);">👑</div>
-                <span style="position:absolute; font-size:15px; top:50%; left:50%; transform:translate(-50%, -50%); text-shadow:1px 1px 0 #000;">🔒</span>
-            </div>
-        `;
+    if (arr.length > len) {
+        arr.length = len;
     }
 
-    const safeLv = Math.min(23, lv);
-    const tier = Math.floor((safeLv - 1) / 3);
-    const step = (safeLv - 1) % 3;
-    const icon = TOOTH_DATA.icons[tier] || "🦷";
-
-    return `<div class="tooth-icon effect-tier-${tier} effect-size-${step}">${icon}</div>`;
-}
-
-window.getToothDisplayLevel = getToothDisplayLevel;
-window.getToothName = getToothName;
-window.getBaseAtk = getBaseAtk;
-window.getAtk = getAtk;
-window.getToothIcon = getToothIcon;
-
-// 구버전 호환용 alias
-window.getToothDisplayName = getToothName;
+    return arr;
+};
